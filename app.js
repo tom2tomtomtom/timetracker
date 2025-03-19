@@ -141,6 +141,17 @@ function setupEventListeners() {
     document.getElementById('refresh-dashboard').addEventListener('click', updateDashboard);
     document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
     
+    // Tab navigation listeners
+    const tabButtons = document.getElementsByClassName('tab-button');
+    for (let i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].addEventListener('click', function(e) {
+            const tabName = this.getAttribute('data-tab');
+            if (tabName) {
+                openTab(e, tabName);
+            }
+        });
+    }
+    
     // Set up auto-save on form fields
     setupAutoSave();
 }
