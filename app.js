@@ -103,6 +103,8 @@ function setupEventListeners() {
     document.getElementById('generate-invoice').addEventListener('click', generateInvoice);
     document.getElementById('print-invoice').addEventListener('click', () => window.print());
     document.getElementById('export-data').addEventListener('click', exportData);
+    document.getElementById('import-data').addEventListener('click', () => document.getElementById('file-input').click());
+    document.getElementById('file-input').addEventListener('change', importData);
     document.getElementById('refresh-dashboard').addEventListener('click', updateDashboard);
     document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
 }
@@ -653,6 +655,187 @@ function exportData() {
     // Clean up
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+}
+
+async function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = async function(event) {
+        try {
+            const importedData = JSON.parse(event.target.result);
+            
+            // Validate the data
+            if (!importedData.timeEntries || !Array.isArray(importedData.timeEntries)) {
+                throw new Error('Invalid data format');
+            }
+            
+            // Ask for confirmation to replace existing data or merge
+            const action = confirm('Do you want to replace your existing data or merge with it?\n\nOK = Replace\nCancel = Merge');
+            
+            if (action) {
+                // Replace existing data
+                await replaceData(importedData);
+            } else {
+                // Merge with existing data
+                await mergeData(importedData);
+            }
+            
+            // Update the UI
+            updateTable();
+            updateSummary();
+            populateClientProjectDropdowns();
+            
+            showNotification('Data imported successfully!', 'success');
+        } catch (error) {
+            console.error('Error importing data:', error);
+            showNotification('Error importing data: ' + error.message, 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+    // Reset the file input
+    e.target.value = '';
+}
+
+async function replaceData(importedData) {
+    if (!currentUser) {
+        showNotification('You must be logged in to import data', 'error');
+        return;
+    }
+    
+    try {
+        // Delete existing time entries
+        for (const entry of timeEntries) {
+            await SupabaseAPI.deleteTimeEntry(entry.id);
+        }
+        
+        // Delete existing expenses
+        for (const expense of expenses) {
+            await SupabaseAPI.deleteExpense(expense.id);
+        }
+        
+        // Add imported time entries
+        for (const entry of importedData.timeEntries) {
+            // Add user_id to each entry
+            const newEntry = {
+                ...entry,
+                user_id: currentUser.id,
+                id: undefined // Remove any existing ID to create a new entry
+            };
+            
+            const addedEntry = await SupabaseAPI.addTimeEntry(newEntry);
+            if (addedEntry) {
+                timeEntries.push(addedEntry);
+            }
+        }
+        
+        // Add imported expenses if they exist
+        if (importedData.expenses && Array.isArray(importedData.expenses)) {
+            for (const expense of importedData.expenses) {
+                // Add user_id to each expense
+                const newExpense = {
+                    ...expense,
+                    user_id: currentUser.id,
+                    id: undefined // Remove any existing ID to create a new expense
+                };
+                
+                const addedExpense = await SupabaseAPI.addExpense(newExpense);
+                if (addedExpense) {
+                    expenses.push(addedExpense);
+                }
+            }
+        }
+        
+        // Update settings if they exist
+        if (importedData.settings) {
+            settings = {
+                ...importedData.settings,
+                user_id: currentUser.id
+            };
+            
+            await SupabaseAPI.saveSettings(settings);
+        }
+    } catch (error) {
+        console.error('Error replacing data:', error);
+        throw new Error('Failed to replace data. ' + error.message);
+    }
+}
+
+async function mergeData(importedData) {
+    if (!currentUser) {
+        showNotification('You must be logged in to import data', 'error');
+        return;
+    }
+    
+    try {
+        // Add imported time entries
+        for (const entry of importedData.timeEntries) {
+            // Check if entry already exists (by date, description, hours)
+            const existsInCurrentData = timeEntries.some(e => 
+                e.date === entry.date && 
+                e.description === entry.description && 
+                e.hours === entry.hours
+            );
+            
+            if (!existsInCurrentData) {
+                // Add user_id to each entry
+                const newEntry = {
+                    ...entry,
+                    user_id: currentUser.id,
+                    id: undefined // Remove any existing ID to create a new entry
+                };
+                
+                const addedEntry = await SupabaseAPI.addTimeEntry(newEntry);
+                if (addedEntry) {
+                    timeEntries.push(addedEntry);
+                }
+            }
+        }
+        
+        // Add imported expenses if they exist
+        if (importedData.expenses && Array.isArray(importedData.expenses)) {
+            for (const expense of importedData.expenses) {
+                // Check if expense already exists
+                const existsInCurrentData = expenses.some(e => 
+                    e.date === expense.date && 
+                    e.description === expense.description && 
+                    e.amount === expense.amount
+                );
+                
+                if (!existsInCurrentData) {
+                    // Add user_id to each expense
+                    const newExpense = {
+                        ...expense,
+                        user_id: currentUser.id,
+                        id: undefined // Remove any existing ID to create a new expense
+                    };
+                    
+                    const addedExpense = await SupabaseAPI.addExpense(newExpense);
+                    if (addedExpense) {
+                        expenses.push(addedExpense);
+                    }
+                }
+            }
+        }
+        
+        // Merge settings if they exist
+        if (importedData.settings) {
+            const mergedSettings = {
+                ...settings,
+                ...importedData.settings,
+                user_id: currentUser.id
+            };
+            
+            settings = mergedSettings;
+            await SupabaseAPI.saveSettings(settings);
+        }
+    } catch (error) {
+        console.error('Error merging data:', error);
+        throw new Error('Failed to merge data. ' + error.message);
+    }
 }
 
 // Tab functionality
