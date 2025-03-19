@@ -665,7 +665,11 @@ async function importData(e) {
     
     reader.onload = async function(event) {
         try {
+            console.log("File loaded, parsing JSON...");
             const importedData = JSON.parse(event.target.result);
+            
+            // Log imported data for debugging
+            console.log("Imported data:", importedData);
             
             // Validate the data
             if (!importedData.timeEntries || !Array.isArray(importedData.timeEntries)) {
@@ -675,6 +679,8 @@ async function importData(e) {
             // Ask for confirmation to replace existing data or merge
             const action = confirm('Do you want to replace your existing data or merge with it?\n\nOK = Replace\nCancel = Merge');
             
+            console.log("User selected:", action ? "Replace" : "Merge");
+            
             if (action) {
                 // Replace existing data
                 await replaceData(importedData);
@@ -682,6 +688,13 @@ async function importData(e) {
                 // Merge with existing data
                 await mergeData(importedData);
             }
+            
+            // Reload data from the database to ensure UI is up to date
+            console.log("Refreshing data from database...");
+            timeEntries = await SupabaseAPI.getTimeEntries();
+            expenses = await SupabaseAPI.getExpenses();
+            
+            console.log("Updated time entries:", timeEntries);
             
             // Update the UI
             updateTable();
@@ -707,57 +720,82 @@ async function replaceData(importedData) {
     }
     
     try {
+        console.log("Starting replace operation...");
+        
         // Delete existing time entries
+        console.log("Deleting existing time entries:", timeEntries.length);
         for (const entry of timeEntries) {
             await SupabaseAPI.deleteTimeEntry(entry.id);
         }
         
         // Delete existing expenses
+        console.log("Deleting existing expenses:", expenses.length);
         for (const expense of expenses) {
             await SupabaseAPI.deleteExpense(expense.id);
         }
         
         // Add imported time entries
+        console.log("Adding imported time entries:", importedData.timeEntries.length);
         for (const entry of importedData.timeEntries) {
-            // Add user_id to each entry
-            const newEntry = {
-                ...entry,
-                user_id: currentUser.id,
-                id: undefined // Remove any existing ID to create a new entry
+            // Clean up the entry to ensure it works with Supabase
+            const cleanEntry = {
+                date: entry.date,
+                description: entry.description,
+                client: entry.client || "",
+                project: entry.project || "",
+                hours: Number(entry.hours),
+                rate: Number(entry.rate),
+                amount: Number(entry.hours) * Number(entry.rate),
+                user_id: currentUser.id
             };
             
-            const addedEntry = await SupabaseAPI.addTimeEntry(newEntry);
+            console.log("Adding entry:", cleanEntry);
+            const addedEntry = await SupabaseAPI.addTimeEntry(cleanEntry);
+            
             if (addedEntry) {
-                timeEntries.push(addedEntry);
+                console.log("Successfully added entry:", addedEntry);
+            } else {
+                console.error("Failed to add entry:", cleanEntry);
             }
         }
         
         // Add imported expenses if they exist
         if (importedData.expenses && Array.isArray(importedData.expenses)) {
+            console.log("Adding imported expenses:", importedData.expenses.length);
             for (const expense of importedData.expenses) {
-                // Add user_id to each expense
-                const newExpense = {
-                    ...expense,
-                    user_id: currentUser.id,
-                    id: undefined // Remove any existing ID to create a new expense
+                // Clean up the expense to ensure it works with Supabase
+                const cleanExpense = {
+                    date: expense.date,
+                    description: expense.description,
+                    amount: Number(expense.amount),
+                    client: expense.client || "",
+                    project: expense.project || "",
+                    user_id: currentUser.id
                 };
                 
-                const addedExpense = await SupabaseAPI.addExpense(newExpense);
+                console.log("Adding expense:", cleanExpense);
+                const addedExpense = await SupabaseAPI.addExpense(cleanExpense);
+                
                 if (addedExpense) {
-                    expenses.push(addedExpense);
+                    console.log("Successfully added expense:", addedExpense);
+                } else {
+                    console.error("Failed to add expense:", cleanExpense);
                 }
             }
         }
         
         // Update settings if they exist
         if (importedData.settings) {
-            settings = {
+            console.log("Updating settings with imported data");
+            const mergedSettings = {
                 ...importedData.settings,
                 user_id: currentUser.id
             };
             
-            await SupabaseAPI.saveSettings(settings);
+            await SupabaseAPI.saveSettings(mergedSettings);
         }
+        
+        console.log("Replace operation completed successfully");
     } catch (error) {
         console.error('Error replacing data:', error);
         throw new Error('Failed to replace data. ' + error.message);
@@ -771,58 +809,87 @@ async function mergeData(importedData) {
     }
     
     try {
+        console.log("Starting merge operation...");
+        
         // Add imported time entries
+        console.log("Processing imported time entries:", importedData.timeEntries.length);
         for (const entry of importedData.timeEntries) {
             // Check if entry already exists (by date, description, hours)
             const existsInCurrentData = timeEntries.some(e => 
                 e.date === entry.date && 
                 e.description === entry.description && 
-                e.hours === entry.hours
+                Number(e.hours) === Number(entry.hours)
             );
             
             if (!existsInCurrentData) {
-                // Add user_id to each entry
-                const newEntry = {
-                    ...entry,
-                    user_id: currentUser.id,
-                    id: undefined // Remove any existing ID to create a new entry
+                console.log("Entry doesn't exist, adding:", entry);
+                
+                // Clean up the entry to ensure it works with Supabase
+                const cleanEntry = {
+                    date: entry.date,
+                    description: entry.description,
+                    client: entry.client || "",
+                    project: entry.project || "",
+                    hours: Number(entry.hours),
+                    rate: Number(entry.rate),
+                    amount: Number(entry.hours) * Number(entry.rate),
+                    user_id: currentUser.id
                 };
                 
-                const addedEntry = await SupabaseAPI.addTimeEntry(newEntry);
+                console.log("Adding entry:", cleanEntry);
+                const addedEntry = await SupabaseAPI.addTimeEntry(cleanEntry);
+                
                 if (addedEntry) {
-                    timeEntries.push(addedEntry);
+                    console.log("Successfully added entry:", addedEntry);
+                } else {
+                    console.error("Failed to add entry:", cleanEntry);
                 }
+            } else {
+                console.log("Entry already exists, skipping:", entry);
             }
         }
         
         // Add imported expenses if they exist
         if (importedData.expenses && Array.isArray(importedData.expenses)) {
+            console.log("Processing imported expenses:", importedData.expenses.length);
             for (const expense of importedData.expenses) {
                 // Check if expense already exists
                 const existsInCurrentData = expenses.some(e => 
                     e.date === expense.date && 
                     e.description === expense.description && 
-                    e.amount === expense.amount
+                    Number(e.amount) === Number(expense.amount)
                 );
                 
                 if (!existsInCurrentData) {
-                    // Add user_id to each expense
-                    const newExpense = {
-                        ...expense,
-                        user_id: currentUser.id,
-                        id: undefined // Remove any existing ID to create a new expense
+                    console.log("Expense doesn't exist, adding:", expense);
+                    
+                    // Clean up the expense to ensure it works with Supabase
+                    const cleanExpense = {
+                        date: expense.date,
+                        description: expense.description,
+                        amount: Number(expense.amount),
+                        client: expense.client || "",
+                        project: expense.project || "",
+                        user_id: currentUser.id
                     };
                     
-                    const addedExpense = await SupabaseAPI.addExpense(newExpense);
+                    console.log("Adding expense:", cleanExpense);
+                    const addedExpense = await SupabaseAPI.addExpense(cleanExpense);
+                    
                     if (addedExpense) {
-                        expenses.push(addedExpense);
+                        console.log("Successfully added expense:", addedExpense);
+                    } else {
+                        console.error("Failed to add expense:", cleanExpense);
                     }
+                } else {
+                    console.log("Expense already exists, skipping:", expense);
                 }
             }
         }
         
         // Merge settings if they exist
         if (importedData.settings) {
+            console.log("Merging settings with imported data");
             const mergedSettings = {
                 ...settings,
                 ...importedData.settings,
@@ -832,6 +899,8 @@ async function mergeData(importedData) {
             settings = mergedSettings;
             await SupabaseAPI.saveSettings(settings);
         }
+        
+        console.log("Merge operation completed successfully");
     } catch (error) {
         console.error('Error merging data:', error);
         throw new Error('Failed to merge data. ' + error.message);

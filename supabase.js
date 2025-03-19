@@ -9,6 +9,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // Time entries functions
 export async function getTimeEntries() {
+  console.log("Fetching time entries from Supabase...");
+  
   const { data, error } = await supabase
     .from('time_entries')
     .select('*')
@@ -19,7 +21,17 @@ export async function getTimeEntries() {
     return []
   }
   
-  return data
+  console.log("Received time entries:", data.length);
+  
+  // Make sure all numeric fields are parsed as numbers
+  const parsedData = data.map(entry => ({
+    ...entry,
+    hours: Number(entry.hours),
+    rate: Number(entry.rate),
+    amount: Number(entry.amount)
+  }));
+  
+  return parsedData
 }
 
 export async function addTimeEntry(entry) {
