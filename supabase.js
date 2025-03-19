@@ -7,6 +7,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+// Export the Supabase client for direct access
+export { supabase }
+
 // Time entries functions
 export async function getTimeEntries() {
   console.log("Fetching time entries from Supabase...");
@@ -35,17 +38,47 @@ export async function getTimeEntries() {
 }
 
 export async function addTimeEntry(entry) {
-  const { data, error } = await supabase
-    .from('time_entries')
-    .insert([entry])
-    .select()
+  console.log('Adding time entry to Supabase:', entry);
   
-  if (error) {
-    console.error('Error adding time entry:', error)
-    return null
+  try {
+    // Ensure the entry has all required fields
+    if (!entry.date || !entry.description || !entry.hours || !entry.rate) {
+      console.error('Invalid entry data:', entry);
+      throw new Error('Entry is missing required fields');
+    }
+    
+    // Make sure numeric values are numbers, not strings
+    const formattedEntry = {
+      ...entry,
+      hours: Number(entry.hours),
+      rate: Number(entry.rate),
+      amount: Number(entry.hours) * Number(entry.rate),
+    };
+    
+    console.log('Formatted entry for Supabase:', formattedEntry);
+    
+    const { data, error } = await supabase
+      .from('time_entries')
+      .insert([formattedEntry])
+      .select();
+    
+    if (error) {
+      console.error('Supabase error adding time entry:', error);
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) {
+      console.error('No data returned after insert');
+      throw new Error('No data returned after insert');
+    }
+    
+    console.log('Successfully added entry, returned data:', data[0]);
+    return data[0];
+  } catch (err) {
+    console.error('Error in addTimeEntry:', err);
+    alert(`Error adding time entry: ${err.message}`);
+    return null;
   }
-  
-  return data[0]
 }
 
 export async function updateTimeEntry(entry) {
@@ -163,6 +196,40 @@ export async function saveSettings(settings) {
   }
   
   return data[0]
+}
+
+// Form data persistence functions
+export async function saveFormDataToDatabase(userId, formData) {
+  // Using the settings table to store form_data as a JSON field
+  const { data, error } = await supabase
+    .from('settings')
+    .upsert({
+      user_id: userId,
+      form_data: formData
+    }, { onConflict: 'user_id' })
+    .select()
+  
+  if (error) {
+    console.error('Error saving form data to database:', error)
+    return false
+  }
+  
+  return true
+}
+
+export async function getFormDataFromDatabase(userId) {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('form_data')
+    .eq('user_id', userId)
+    .maybeSingle()
+  
+  if (error) {
+    console.error('Error fetching form data from database:', error)
+    return null
+  }
+  
+  return data?.form_data
 }
 
 // Auth functions

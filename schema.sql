@@ -76,6 +76,7 @@ CREATE TABLE settings (
   theme TEXT DEFAULT 'light',
   date_format TEXT DEFAULT 'MM/DD/YYYY',
   currency TEXT DEFAULT 'USD',
+  form_data JSONB DEFAULT NULL, -- For storing auto-save form data
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(user_id)

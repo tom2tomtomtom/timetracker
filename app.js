@@ -1,5 +1,6 @@
 // App.js - Main application logic
 import * as SupabaseAPI from './supabase.js';
+import { runSetupChecks } from './setup-check.js';
 
 document.addEventListener('DOMContentLoaded', initApp);
 
@@ -25,14 +26,41 @@ let settings = {
 let currentUser = null;
 
 async function initApp() {
+    console.log("Initializing app...");
+    
+    // First, check if Supabase tables exist
+    try {
+        console.log("Checking Supabase configuration...");
+        
+        // Check if we can connect to Supabase
+        const { data: tableData, error: tableError } = await SupabaseAPI.supabase
+            .from('time_entries')
+            .select('*', { count: 'exact', head: true });
+        
+        if (tableError) {
+            console.error("Error connecting to Supabase or accessing time_entries table:", tableError);
+            alert("Error connecting to database. Please check console for details.");
+            return;
+        }
+        
+        console.log("Supabase connection successful, time_entries table exists");
+    } catch (err) {
+        console.error("Critical error checking Supabase configuration:", err);
+        alert(`Critical database error: ${err.message}. Please check console for details.`);
+        return;
+    }
+    
     // Check for existing session
+    console.log("Checking for existing user session...");
     currentUser = await SupabaseAPI.getCurrentUser();
     
     if (currentUser) {
+        console.log("User is logged in:", currentUser);
         // User is logged in, load their data
         await loadUserData();
         showApp();
     } else {
+        console.log("No user session found, showing login form");
         // User needs to log in
         showLoginForm();
     }
@@ -88,6 +116,10 @@ function showLoginForm() {
     document.getElementById('app-container').style.display = 'none';
 }
 
+// Auto-save timer and data
+let autoSaveTimer = null;
+const AUTO_SAVE_DELAY = 2000; // 2 seconds delay for auto-save
+
 function setupEventListeners() {
     // Auth related listeners
     document.getElementById('login-form').addEventListener('submit', handleLogin);
@@ -95,6 +127,7 @@ function setupEventListeners() {
     document.getElementById('logout-button').addEventListener('click', handleLogout);
     document.getElementById('show-signup-link').addEventListener('click', toggleAuthForms);
     document.getElementById('show-login-link').addEventListener('click', toggleAuthForms);
+    document.getElementById('check-setup').addEventListener('click', checkDatabaseSetup);
     
     // App related listeners
     document.getElementById('add-entry').addEventListener('click', addTimeEntry);
@@ -107,6 +140,171 @@ function setupEventListeners() {
     document.getElementById('file-input').addEventListener('change', importData);
     document.getElementById('refresh-dashboard').addEventListener('click', updateDashboard);
     document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
+    
+    // Set up auto-save on form fields
+    setupAutoSave();
+}
+
+function setupAutoSave() {
+    // Auto-save for time entry form
+    const formFields = [
+        'date', 
+        'description', 
+        'client', 
+        'project', 
+        'hours', 
+        'rate'
+    ];
+    
+    // Add input event listeners to all form fields
+    formFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', () => {
+                // Clear any existing timer
+                if (autoSaveTimer) {
+                    clearTimeout(autoSaveTimer);
+                }
+                
+                // Set a new timer
+                autoSaveTimer = setTimeout(() => {
+                    saveFormData();
+                }, AUTO_SAVE_DELAY);
+            });
+        }
+    });
+    
+    // Also add change event for the date field
+    const dateField = document.getElementById('date');
+    if (dateField) {
+        dateField.addEventListener('change', () => {
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+            }
+            autoSaveTimer = setTimeout(() => {
+                saveFormData();
+            }, AUTO_SAVE_DELAY);
+        });
+    }
+    
+    // Load any previously saved form data
+    loadFormData();
+}
+
+async function saveFormData() {
+    if (!currentUser) return;
+    
+    // Get values from form
+    const formData = {
+        date: document.getElementById('date').value,
+        description: document.getElementById('description').value,
+        client: document.getElementById('client').value,
+        project: document.getElementById('project').value,
+        hours: document.getElementById('hours').value,
+        rate: document.getElementById('rate').value,
+        editId: document.getElementById('edit-id').value,
+        lastUpdated: new Date().toISOString()
+    };
+    
+    // Check if we have actual data to save
+    if (!formData.date && !formData.description && !formData.hours) {
+        return; // Don't save empty forms
+    }
+    
+    try {
+        // 1. Store form data in localStorage as a backup
+        localStorage.setItem(`formData_${currentUser.id}`, JSON.stringify(formData));
+        
+        // 2. Also save to Supabase for cross-device persistence
+        // This is an async operation but we don't wait for it to finish
+        SupabaseAPI.saveFormDataToDatabase(currentUser.id, formData)
+            .then(success => {
+                if (!success) {
+                    console.warn('Failed to save form data to database, but saved to localStorage');
+                }
+            })
+            .catch(err => {
+                console.error('Error saving form data to database:', err);
+            });
+        
+        // Show subtle indicator that data was saved
+        const saveIndicator = document.createElement('div');
+        saveIndicator.textContent = 'Auto-saved';
+        saveIndicator.style.position = 'fixed';
+        saveIndicator.style.bottom = '10px';
+        saveIndicator.style.left = '10px';
+        saveIndicator.style.background = 'rgba(52, 199, 89, 0.8)';
+        saveIndicator.style.color = 'white';
+        saveIndicator.style.padding = '5px 10px';
+        saveIndicator.style.borderRadius = '4px';
+        saveIndicator.style.fontSize = '12px';
+        saveIndicator.style.opacity = '0.9';
+        saveIndicator.style.transition = 'opacity 0.5s ease';
+        
+        document.body.appendChild(saveIndicator);
+        
+        // Fade out after 2 seconds
+        setTimeout(() => {
+            saveIndicator.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(saveIndicator);
+            }, 500);
+        }, 2000);
+    } catch (err) {
+        console.error('Error in saveFormData:', err);
+    }
+}
+
+async function loadFormData() {
+    if (!currentUser) return;
+    
+    try {
+        let formData = null;
+        
+        // First try to get data from Supabase
+        try {
+            const dbFormData = await SupabaseAPI.getFormDataFromDatabase(currentUser.id);
+            
+            if (dbFormData) {
+                formData = dbFormData;
+                console.log('Loaded form data from Supabase');
+            }
+        } catch (dbErr) {
+            console.warn('Failed to load form data from database:', dbErr);
+        }
+        
+        // Fall back to localStorage if Supabase failed or returned no data
+        if (!formData) {
+            const savedData = localStorage.getItem(`formData_${currentUser.id}`);
+            
+            if (savedData) {
+                formData = JSON.parse(savedData);
+                console.log('Loaded form data from localStorage');
+            }
+        }
+        
+        // If we didn't get any data, return
+        if (!formData) return;
+        
+        // Populate form fields
+        if (formData.date) document.getElementById('date').value = formData.date;
+        if (formData.description) document.getElementById('description').value = formData.description;
+        if (formData.client) document.getElementById('client').value = formData.client;
+        if (formData.project) document.getElementById('project').value = formData.project;
+        if (formData.hours) document.getElementById('hours').value = formData.hours;
+        if (formData.rate) document.getElementById('rate').value = formData.rate;
+        if (formData.editId) document.getElementById('edit-id').value = formData.editId;
+        
+        // If we are in edit mode
+        if (formData.editId) {
+            document.getElementById('add-entry').style.display = 'none';
+            document.getElementById('update-entry').style.display = 'inline-block';
+            document.getElementById('cancel-edit').style.display = 'inline-block';
+            document.getElementById('form-title').textContent = 'Edit Time Entry';
+        }
+    } catch (err) {
+        console.error('Error loading saved form data:', err);
+    }
 }
 
 async function handleLogin(e) {
@@ -261,6 +459,9 @@ async function addTimeEntry() {
             clientInput.value = '';
             projectInput.value = '';
             
+            // Clear saved form data
+            clearSavedFormData();
+            
             showNotification('Time entry added successfully!', 'success');
         } else {
             showNotification('Failed to add time entry', 'error');
@@ -322,7 +523,7 @@ async function updateTimeEntry() {
             updateTable();
             updateSummary();
             
-            // Reset the form
+            // Reset the form (cancelEdit also clears saved form data)
             cancelEdit();
             
             showNotification('Time entry updated successfully!', 'success');
@@ -353,6 +554,23 @@ function cancelEdit() {
     
     // Reset form title
     document.getElementById('form-title').textContent = 'Record Time';
+    
+    // Clear saved form data
+    clearSavedFormData();
+}
+
+async function clearSavedFormData() {
+    if (!currentUser) return;
+    
+    try {
+        // Remove from localStorage
+        localStorage.removeItem(`formData_${currentUser.id}`);
+        
+        // Remove from database by setting to null
+        await SupabaseAPI.saveFormDataToDatabase(currentUser.id, null);
+    } catch (err) {
+        console.error('Error clearing saved form data:', err);
+    }
 }
 
 async function deleteEntry(id) {
@@ -462,6 +680,78 @@ function editEntry(id) {
     
     // Scroll to the form
     document.querySelector('.time-entry').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function checkDatabaseSetup() {
+    const setupButton = document.getElementById('check-setup');
+    const resultsContainer = document.getElementById('setup-results');
+    
+    // Show loading state
+    setupButton.textContent = 'Checking...';
+    setupButton.disabled = true;
+    resultsContainer.style.display = 'block';
+    resultsContainer.innerHTML = '🔍 Running database setup checks...\n\nThis may take a moment. Please wait...';
+    
+    try {
+        // Run the setup checks
+        const { success, results, error } = await runSetupChecks();
+        
+        if (error) {
+            resultsContainer.innerHTML = `❌ Error checking database setup: ${error}\n\nPlease check your connection and try again.`;
+            return;
+        }
+        
+        // Show detailed results in the UI
+        let output = '';
+        
+        output += `📡 Connection to Supabase: ${results.connection ? "✅ Good" : "❌ Failed"}\n\n`;
+        output += `🗃️ Required tables:\n`;
+        
+        let allTablesExist = true;
+        for (const [table, exists] of Object.entries(results.tables)) {
+            output += `   ${table}: ${exists ? "✅ Exists" : "❌ Missing"}\n`;
+            if (!exists) allTablesExist = false;
+        }
+        
+        output += `\n🔐 Auth System: ${results.auth ? "✅ Working" : "❌ Issues"}\n\n`;
+        output += `🏁 Overall Setup: ${success ? "✅ READY TO USE" : "❌ NEEDS ATTENTION"}\n\n`;
+        
+        if (!success) {
+            output += `❗ Setup incomplete. Please follow these steps to fix the issues:\n\n`;
+            
+            if (!results.connection) {
+                output += `1. Verify your Supabase URL and API key in supabase.js\n`;
+                output += `2. Check if your Supabase project is running\n\n`;
+            }
+            
+            if (!allTablesExist) {
+                output += `3. Run the SQL setup script from schema.sql in the Supabase SQL editor:\n`;
+                output += `   a. Log in to your Supabase dashboard\n`;
+                output += `   b. Go to the SQL Editor\n`;
+                output += `   c. Copy the contents of schema.sql\n`;
+                output += `   d. Paste and execute the SQL\n\n`;
+            }
+            
+            if (!results.auth) {
+                output += `4. Verify auth settings in your Supabase project\n\n`;
+            }
+            
+            output += `Once completed, click "Check Database Setup" again to verify.`;
+        } else {
+            output += `✨ Great! Your database setup is complete and ready to use.\n`;
+            output += `You can now log in or sign up to start using the application.`;
+        }
+        
+        resultsContainer.innerHTML = output;
+        
+    } catch (err) {
+        console.error('Error in checkDatabaseSetup:', err);
+        resultsContainer.innerHTML = `❌ Critical error during setup check: ${err.message}\n\nPlease try again or check the console for details.`;
+    } finally {
+        // Reset button state
+        setupButton.textContent = 'Check Database Setup';
+        setupButton.disabled = false;
+    }
 }
 
 function toggleDarkMode() {
