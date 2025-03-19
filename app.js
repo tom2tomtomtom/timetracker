@@ -141,16 +141,12 @@ function setupEventListeners() {
     document.getElementById('refresh-dashboard').addEventListener('click', updateDashboard);
     document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
     
-    // Tab navigation listeners
-    const tabButtons = document.getElementsByClassName('tab-button');
-    for (let i = 0; i < tabButtons.length; i++) {
-        tabButtons[i].addEventListener('click', function(e) {
-            const tabName = this.getAttribute('data-tab');
-            if (tabName) {
-                openTab(e, tabName);
-            }
-        });
-    }
+    // Tab navigation listeners - simplified direct approach
+    document.querySelector('[data-tab="time-tracking-tab"]').addEventListener('click', e => openTab(e, 'time-tracking-tab'));
+    document.querySelector('[data-tab="dashboard-tab"]').addEventListener('click', e => openTab(e, 'dashboard-tab'));
+    document.querySelector('[data-tab="invoice-tab"]').addEventListener('click', e => openTab(e, 'invoice-tab'));
+    document.querySelector('[data-tab="reports-tab"]').addEventListener('click', e => openTab(e, 'reports-tab'));
+    document.querySelector('[data-tab="settings-tab"]').addEventListener('click', e => openTab(e, 'settings-tab'));
     
     // Set up auto-save on form fields
     setupAutoSave();
@@ -1210,25 +1206,39 @@ async function mergeData(importedData) {
 
 // Tab functionality
 function openTab(evt, tabName) {
-    // Hide all tab content
-    const tabContent = document.getElementsByClassName("tab-content");
-    for (let i = 0; i < tabContent.length; i++) {
-        tabContent[i].style.display = "none";
-    }
+    console.log("Opening tab:", tabName);
     
-    // Remove active class from all tab buttons
-    const tabButtons = document.getElementsByClassName("tab-button");
-    for (let i = 0; i < tabButtons.length; i++) {
-        tabButtons[i].className = tabButtons[i].className.replace(" active", "");
-    }
-    
-    // Show the current tab and add active class to the button
-    document.getElementById(tabName).style.display = "block";
-    evt.currentTarget.className += " active";
-    
-    // Initialize dashboard if it's the dashboard tab
-    if (tabName === 'dashboard-tab') {
-        updateDashboard();
+    try {
+        // Hide all tab content
+        const tabContent = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < tabContent.length; i++) {
+            tabContent[i].style.display = "none";
+        }
+        
+        // Remove active class from all tab buttons
+        const tabButtons = document.getElementsByClassName("tab-button");
+        for (let i = 0; i < tabButtons.length; i++) {
+            tabButtons[i].className = tabButtons[i].className.replace(" active", "");
+        }
+        
+        // Show the current tab and add active class to the button
+        const tabElement = document.getElementById(tabName);
+        if (!tabElement) {
+            console.error("Tab element not found:", tabName);
+            return;
+        }
+        
+        tabElement.style.display = "block";
+        evt.currentTarget.className += " active";
+        
+        // Initialize dashboard if it's the dashboard tab
+        if (tabName === 'dashboard-tab') {
+            updateDashboard();
+        }
+        
+        console.log("Tab opened successfully:", tabName);
+    } catch (error) {
+        console.error("Error opening tab:", error);
     }
 }
 
