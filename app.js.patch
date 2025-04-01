@@ -1,0 +1,109 @@
+--- app.js
++++ app.js
+@@ -85,7 +85,7 @@
+         // Update UI elements
+         updateTable();
+         updateSummary();
+-        populateClientProjectDropdowns();
++        updateClientProjectDropdowns();
+         
+         // Initialize timer functionality
+         initTimer();
+@@ -126,7 +126,7 @@
+     document.getElementById('logout-button').addEventListener('click', handleLogout);
+     document.getElementById('show-signup-link').addEventListener('click', toggleAuthForms);
+     document.getElementById('show-login-link').addEventListener('click', toggleAuthForms);
+-    document.getElementById('check-setup').addEventListener('click', checkDatabaseSetup);
++    document.getElementById('check-setup').addEventListener('click', showDatabaseSetupModal);
+ 
+     // Tab navigation listeners - simplified direct approach
+     document.querySelector('[data-tab="time-tracking-tab"]').addEventListener('click', e => openTab(e, 'time-tracking-tab'));
+@@ -463,6 +463,72 @@
+     }
+ }
+ 
++// Function to update client and project dropdowns
++function updateClientProjectDropdowns() {
++    try {
++        // Get unique clients
++        const clients = [...new Set(timeEntries.map(entry => entry.client).filter(Boolean))];
++        
++        // Get unique projects
++        const projects = [...new Set(timeEntries.map(entry => entry.project).filter(Boolean))];
++        
++        // Populate client dropdowns
++        const clientDropdowns = [
++            'filter-client', 
++            'dash-client', 
++            'invoice-client', 
++            'report-client',
++            'timer-client'
++        ];
++        
++        clientDropdowns.forEach(id => {
++            const dropdown = document.getElementById(id);
++            if (dropdown) {
++                // Keep the first option
++                const firstOption = dropdown.options[0];
++                dropdown.innerHTML = '';
++                dropdown.appendChild(firstOption);
++                
++                // Add client options
++                clients.forEach(client => {
++                    const option = document.createElement('option');
++                    option.value = client;
++                    option.textContent = client;
++                    dropdown.appendChild(option);
++                });
++            }
++        });
++        
++        // Populate project dropdowns
++        const projectDropdowns = [
++            'filter-project', 
++            'dash-project', 
++            'invoice-project', 
++            'report-project',
++            'timer-project'
++        ];
++        
++        projectDropdowns.forEach(id => {
++            const dropdown = document.getElementById(id);
++            if (dropdown) {
++                // Keep the first option
++                const firstOption = dropdown.options[0];
++                dropdown.innerHTML = '';
++                dropdown.appendChild(firstOption);
++                
++                // Add project options
++                projects.forEach(project => {
++                    const option = document.createElement('option');
++                    option.value = project;
++                    option.textContent = project;
++                    dropdown.appendChild(option);
++                });
++            }
++        });
++    } catch (err) {
++        console.error('Error populating dropdowns:', err);
++    }
++}
++
++// Show the database setup modal and run checks
++async function showDatabaseSetupModal() {
++    const setupResults = document.getElementById('setup-results');
++    setupResults.style.display = 'block';
++    setupResults.innerHTML = 'Running database setup checks...\n\n';
++    
++    try {
++        const result = await runSetupChecks();
++        setupResults.innerHTML += JSON.stringify(result, null, 2);
++    } catch (error) {
++        console.error('Error running setup checks:', error);
++        setupResults.innerHTML += 'Error: ' + error.message;
++    }
++}
++
+ editEntry(id) {
+     const entry = timeEntries.find(entry => entry.id === id);
+     
