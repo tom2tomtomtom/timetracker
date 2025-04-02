@@ -71,6 +71,21 @@ async function initApp() {
     
     // Initialize dashboard
     initDashboard();
+    
+    // Set current date for date fields
+    setDefaultDates();
+}
+
+function setDefaultDates() {
+    // Set current date for all date input fields that don't have a value
+    const today = new Date().toISOString().substring(0, 10); // YYYY-MM-DD format
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    
+    dateInputs.forEach(input => {
+        if (!input.value) {
+            input.value = today;
+        }
+    });
 }
 
 async function loadUserData() {
@@ -94,6 +109,9 @@ async function loadUserData() {
             document.body.classList.add('dark-mode');
         }
         
+        // Load settings values into the form
+        populateSettingsForm();
+        
         // Update UI elements
         updateTable();
         updateSummary();
@@ -108,6 +126,29 @@ async function loadUserData() {
         console.error('Error loading user data:', error);
         showNotification('Error loading your data. Please try again.', 'error');
     }
+}
+
+function populateSettingsForm() {
+    // Populate the settings form with current values
+    const defaultRateSelect = document.getElementById('default-rate');
+    const defaultPaymentTermsInput = document.getElementById('default-payment-terms');
+    const nameInput = document.getElementById('your-name');
+    const emailInput = document.getElementById('your-email');
+    const addressInput = document.getElementById('your-address');
+    const paymentInput = document.getElementById('payment-instructions');
+    const themeSelect = document.getElementById('theme-selection');
+    const dateFormatSelect = document.getElementById('date-format');
+    const currencySelect = document.getElementById('currency-format');
+    
+    if (defaultRateSelect) defaultRateSelect.value = settings.defaultRate || 350;
+    if (defaultPaymentTermsInput) defaultPaymentTermsInput.value = settings.defaultPaymentTerms || 'Net 30';
+    if (nameInput) nameInput.value = settings.name || '';
+    if (emailInput) emailInput.value = settings.email || '';
+    if (addressInput) addressInput.value = settings.address || '';
+    if (paymentInput) paymentInput.value = settings.paymentInstructions || '';
+    if (themeSelect) themeSelect.value = settings.theme || 'light';
+    if (dateFormatSelect) dateFormatSelect.value = settings.dateFormat || 'MM/DD/YYYY';
+    if (currencySelect) currencySelect.value = settings.currency || 'USD';
 }
 
 function showApp() {
@@ -138,25 +179,23 @@ function setupEventListeners() {
     document.getElementById('update-entry').addEventListener('click', updateTimeEntry);
     document.getElementById('cancel-edit').addEventListener('click', cancelEdit);
     
-    // Stub for generateInvoice function until fully implemented
-    const generateInvoiceBtn = document.getElementById('generate-invoice');
-    if (generateInvoiceBtn) {
-        generateInvoiceBtn.addEventListener('click', () => {
-            showNotification('Invoice generation is not fully implemented yet', 'info');
-        });
-    }
+    // Invoice related listeners
+    document.getElementById('generate-invoice').addEventListener('click', generateInvoice);
+    document.getElementById('view-invoice-entries').addEventListener('click', viewInvoiceEntries);
     
     const printInvoiceBtn = document.getElementById('print-invoice');
     if (printInvoiceBtn) {
         printInvoiceBtn.addEventListener('click', () => window.print());
     }
     
-    // Stub for export/import functions
+    // Settings related listeners
+    document.getElementById('save-settings').addEventListener('click', saveSettings);
+    document.getElementById('save-display-settings').addEventListener('click', saveDisplaySettings);
+    
+    // Data export/import
     const exportDataBtn = document.getElementById('export-data');
     if (exportDataBtn) {
-        exportDataBtn.addEventListener('click', () => {
-            showNotification('Data export feature is coming soon', 'info');
-        });
+        exportDataBtn.addEventListener('click', exportData);
     }
     
     const importDataBtn = document.getElementById('import-data');
@@ -169,11 +208,10 @@ function setupEventListeners() {
     
     const fileInput = document.getElementById('file-input');
     if (fileInput) {
-        fileInput.addEventListener('change', () => {
-            showNotification('Data import feature is coming soon', 'info');
-        });
+        fileInput.addEventListener('change', importData);
     }
     
+    // Dashboard
     const refreshDashboardBtn = document.getElementById('refresh-dashboard');
     if (refreshDashboardBtn) {
         refreshDashboardBtn.addEventListener('click', () => {
@@ -183,12 +221,16 @@ function setupEventListeners() {
         });
     }
     
+    // Dark mode toggle
     const darkModeToggleBtn = document.getElementById('dark-mode-toggle');
     if (darkModeToggleBtn) {
         darkModeToggleBtn.addEventListener('click', toggleDarkMode);
     }
     
-    // Tab navigation listeners - simplified direct approach
+    // Date range listeners
+    setupDateRangeListeners();
+    
+    // Tab navigation listeners
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach(button => {
         button.addEventListener('click', (e) => {
@@ -199,6 +241,146 @@ function setupEventListeners() {
     
     // Set up auto-save on form fields
     setupAutoSave();
+}
+
+function setupDateRangeListeners() {
+    // For main time tracking
+    const dateRange = document.getElementById('date-range');
+    if (dateRange) {
+        dateRange.addEventListener('change', () => {
+            const customDateRange = document.getElementById('custom-date-range');
+            if (customDateRange) {
+                customDateRange.style.display = dateRange.value === 'custom' ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // For dashboard
+    const dashDateRange = document.getElementById('dash-date-range');
+    if (dashDateRange) {
+        dashDateRange.addEventListener('change', () => {
+            const customDateRange = document.getElementById('dash-custom-date-range');
+            if (customDateRange) {
+                customDateRange.style.display = dashDateRange.value === 'custom' ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // For invoice
+    const invoiceDateRange = document.getElementById('invoice-date-range');
+    if (invoiceDateRange) {
+        invoiceDateRange.addEventListener('change', () => {
+            const customDateRange = document.getElementById('invoice-custom-date-range');
+            if (customDateRange) {
+                customDateRange.style.display = invoiceDateRange.value === 'custom' ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // For reports
+    const reportDateRange = document.getElementById('report-date-range');
+    if (reportDateRange) {
+        reportDateRange.addEventListener('change', () => {
+            const customDateRange = document.getElementById('report-custom-date-range');
+            if (customDateRange) {
+                customDateRange.style.display = reportDateRange.value === 'custom' ? 'block' : 'none';
+            }
+        });
+    }
+}
+
+// Save settings
+async function saveSettings() {
+    if (!currentUser) {
+        showNotification('You must be logged in to save settings', 'error');
+        return;
+    }
+    
+    try {
+        // Get values from form
+        const defaultRate = parseFloat(document.getElementById('default-rate').value) || 350;
+        const defaultPaymentTerms = document.getElementById('default-payment-terms').value;
+        const name = document.getElementById('your-name').value;
+        const email = document.getElementById('your-email').value;
+        const address = document.getElementById('your-address').value;
+        const paymentInstructions = document.getElementById('payment-instructions').value;
+        
+        // Update settings object
+        settings.defaultRate = defaultRate;
+        settings.defaultPaymentTerms = defaultPaymentTerms;
+        settings.name = name;
+        settings.email = email;
+        settings.address = address;
+        settings.paymentInstructions = paymentInstructions;
+        
+        // Save to database
+        const updatedSettings = await SupabaseAPI.saveSettings({
+            ...settings,
+            user_id: currentUser.id
+        });
+        
+        if (updatedSettings) {
+            showNotification('Settings saved successfully!', 'success');
+        } else {
+            showNotification('Failed to save settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showNotification('Error saving settings. Please try again.', 'error');
+    }
+}
+
+// Save display settings
+async function saveDisplaySettings() {
+    if (!currentUser) {
+        showNotification('You must be logged in to save settings', 'error');
+        return;
+    }
+    
+    try {
+        // Get values from form
+        const theme = document.getElementById('theme-selection').value;
+        const dateFormat = document.getElementById('date-format').value;
+        const currency = document.getElementById('currency-format').value;
+        
+        // Update settings object
+        settings.theme = theme;
+        settings.dateFormat = dateFormat;
+        settings.currency = currency;
+        
+        // Apply theme if changed
+        if (theme === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('dark-mode-toggle').textContent = '☀️';
+        } else if (theme === 'light') {
+            document.body.classList.remove('dark-mode');
+            document.getElementById('dark-mode-toggle').textContent = '🌙';
+        } else if (theme === 'auto') {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (prefersDark) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('dark-mode-toggle').textContent = '☀️';
+            } else {
+                document.body.classList.remove('dark-mode');
+                document.getElementById('dark-mode-toggle').textContent = '🌙';
+            }
+        }
+        
+        // Save to database
+        const updatedSettings = await SupabaseAPI.saveSettings({
+            ...settings,
+            user_id: currentUser.id
+        });
+        
+        if (updatedSettings) {
+            showNotification('Display settings saved successfully!', 'success');
+        } else {
+            showNotification('Failed to save display settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving display settings:', error);
+        showNotification('Error saving display settings. Please try again.', 'error');
+    }
 }
 
 // Function for toggling dark mode
@@ -218,6 +400,124 @@ function toggleDarkMode() {
             user_id: currentUser.id
         });
     }
+}
+
+// Export data to JSON file
+function exportData() {
+    if (!timeEntries.length && !expenses.length) {
+        showNotification('No data to export', 'error');
+        return;
+    }
+    
+    try {
+        // Create export object with all data
+        const exportData = {
+            timeEntries,
+            expenses,
+            settings,
+            exportDate: new Date().toISOString(),
+            version: '1.0'
+        };
+        
+        // Convert to JSON
+        const jsonData = JSON.stringify(exportData, null, 2);
+        
+        // Create blob and download link
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `timetracker_export_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+        
+        showNotification('Data exported successfully!', 'success');
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showNotification('Error exporting data. Please try again.', 'error');
+    }
+}
+
+// Import data from JSON file
+function importData(e) {
+    const file = e.target.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    const reader = new FileReader();
+    
+    reader.onload = async (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            
+            // Validate data structure
+            if (!data.timeEntries || !Array.isArray(data.timeEntries)) {
+                showNotification('Invalid data format', 'error');
+                return;
+            }
+            
+            // Confirm import
+            if (!confirm(`This will import ${data.timeEntries.length} time entries and ${(data.expenses || []).length} expenses. Continue?`)) {
+                return;
+            }
+            
+            // Import time entries
+            let successCount = 0;
+            
+            for (const entry of data.timeEntries) {
+                // Add user_id if not present
+                if (!entry.user_id) {
+                    entry.user_id = currentUser.id;
+                }
+                
+                const newEntry = await SupabaseAPI.addTimeEntry(entry);
+                if (newEntry) {
+                    successCount++;
+                }
+            }
+            
+            // Import expenses if present
+            let expenseCount = 0;
+            
+            if (data.expenses && Array.isArray(data.expenses)) {
+                for (const expense of data.expenses) {
+                    // Add user_id if not present
+                    if (!expense.user_id) {
+                        expense.user_id = currentUser.id;
+                    }
+                    
+                    const newExpense = await SupabaseAPI.addExpense(expense);
+                    if (newExpense) {
+                        expenseCount++;
+                    }
+                }
+            }
+            
+            // Reload data
+            await loadUserData();
+            
+            // Show success message
+            showNotification(`Imported ${successCount} time entries and ${expenseCount} expenses successfully!`, 'success');
+            
+            // Clear file input
+            e.target.value = '';
+        } catch (error) {
+            console.error('Error importing data:', error);
+            showNotification('Error importing data. Please check file format and try again.', 'error');
+        }
+    };
+    
+    reader.readAsText(file);
 }
 
 function setupAutoSave() {
@@ -480,7 +780,469 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// App Functions
+// Invoice generation functionality
+async function generateInvoice() {
+    try {
+        // Get form values
+        const client = document.getElementById('invoice-client').value;
+        const project = document.getElementById('invoice-project').value;
+        const dateRange = document.getElementById('invoice-date-range').value;
+        const customFrom = document.getElementById('invoice-date-from').value;
+        const customTo = document.getElementById('invoice-date-to').value;
+        const includeExpenses = document.getElementById('include-expenses').value === 'yes';
+        const invoiceNumber = document.getElementById('invoice-number').value || generateInvoiceNumber();
+        const invoiceDate = document.getElementById('invoice-date').value || new Date().toISOString().slice(0, 10);
+        const paymentTerms = document.getElementById('payment-terms').value || settings.defaultPaymentTerms || 'Net 30';
+        const notes = document.getElementById('invoice-notes').value || '';
+        
+        // Validate inputs
+        if (!client) {
+            showNotification('Please select a client', 'error');
+            return;
+        }
+        
+        // Get filtered entries
+        const { from: startDate, to: endDate } = getDateRangeFromOption(
+            dateRange, customFrom, customTo
+        );
+        
+        // Filter time entries
+        const filteredEntries = timeEntries.filter(entry => {
+            const entryDate = new Date(entry.date);
+            
+            // Check date range
+            const inDateRange = entryDate >= startDate && entryDate <= endDate;
+            
+            // Check client
+            const clientMatch = entry.client === client;
+            
+            // Check project
+            const projectMatch = project === 'all' || entry.project === project;
+            
+            return inDateRange && clientMatch && projectMatch;
+        });
+        
+        // Filter expenses
+        const filteredExpenses = includeExpenses ? expenses.filter(expense => {
+            const expenseDate = new Date(expense.date);
+            
+            // Check date range
+            const inDateRange = expenseDate >= startDate && expenseDate <= endDate;
+            
+            // Check client
+            const clientMatch = expense.client === client;
+            
+            // Check project
+            const projectMatch = project === 'all' || expense.project === project;
+            
+            return inDateRange && clientMatch && projectMatch;
+        }) : [];
+        
+        // Calculate totals
+        const totalHours = filteredEntries.reduce((sum, entry) => sum + entry.hours, 0);
+        const totalAmount = filteredEntries.reduce((sum, entry) => sum + entry.amount, 0);
+        const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const grandTotal = totalAmount + totalExpenses;
+        
+        // Check if we have entries
+        if (filteredEntries.length === 0) {
+            showNotification('No time entries found for selected criteria', 'error');
+            return;
+        }
+        
+        // Create invoice object
+        const invoice = {
+            user_id: currentUser.id,
+            invoice_number: invoiceNumber,
+            client,
+            project: project !== 'all' ? project : '',
+            invoice_date: invoiceDate,
+            payment_terms: paymentTerms,
+            notes,
+            total_hours: totalHours,
+            total_amount: totalAmount,
+            expenses_amount: totalExpenses,
+            grand_total: grandTotal,
+            status: 'unpaid'
+        };
+        
+        // Create invoice items from time entries
+        const invoiceItems = filteredEntries.map(entry => ({
+            invoice_id: null, // Will be set after invoice is created
+            date: entry.date,
+            description: entry.description,
+            hours: entry.hours,
+            rate: entry.rate,
+            amount: entry.amount,
+            type: 'time'
+        }));
+        
+        // Add expense items if needed
+        if (includeExpenses) {
+           filteredExpenses.forEach(expense => {
+                invoiceItems.push({
+                    invoice_id: null, // Will be set after invoice is created
+                    date: expense.date,
+                    description: expense.description,
+                    hours: null,
+                    rate: null,
+                    amount: expense.amount,
+                    type: 'expense'
+                });
+            });
+        }
+        
+        // Store invoice and items in state
+        const currentInvoice = {
+            invoice,
+            items: invoiceItems
+        };
+        
+        // Store current invoice in window variable for access
+        window.currentInvoice = currentInvoice;
+        
+        // Generate HTML invoice
+        const invoiceHtml = generateInvoiceHtml(currentInvoice);
+        
+        // Display invoice
+        const invoicePreview = document.getElementById('invoice-preview');
+        invoicePreview.innerHTML = invoiceHtml;
+        invoicePreview.style.display = 'block';
+        
+        // Enable additional buttons
+        document.getElementById('print-invoice').style.display = 'inline-block';
+        document.getElementById('save-invoice-pdf').style.display = 'inline-block';
+        document.getElementById('export-invoice-excel').style.display = 'inline-block';
+        document.getElementById('mark-as-paid').style.display = 'inline-block';
+        
+        // Show invoice history if it was hidden
+        document.querySelector('.invoice-history').style.display = 'block';
+        
+        showNotification('Invoice generated successfully!', 'success');
+    } catch (error) {
+        console.error('Error generating invoice:', error);
+        showNotification('Error generating invoice. Please try again.', 'error');
+    }
+}
+
+// Function to view entries that would be included in the invoice
+function viewInvoiceEntries() {
+    try {
+        // Get form values
+        const client = document.getElementById('invoice-client').value;
+        const project = document.getElementById('invoice-project').value;
+        const dateRange = document.getElementById('invoice-date-range').value;
+        const customFrom = document.getElementById('invoice-date-from').value;
+        const customTo = document.getElementById('invoice-date-to').value;
+        const includeExpenses = document.getElementById('include-expenses').value === 'yes';
+        
+        // Validate inputs
+        if (!client) {
+            showNotification('Please select a client', 'error');
+            return;
+        }
+        
+        // Get filtered entries
+        const { from: startDate, to: endDate } = getDateRangeFromOption(
+            dateRange, customFrom, customTo
+        );
+        
+        // Filter time entries
+        const filteredEntries = timeEntries.filter(entry => {
+            const entryDate = new Date(entry.date);
+            
+            // Check date range
+            const inDateRange = entryDate >= startDate && entryDate <= endDate;
+            
+            // Check client
+            const clientMatch = entry.client === client;
+            
+            // Check project
+            const projectMatch = project === 'all' || entry.project === project;
+            
+            return inDateRange && clientMatch && projectMatch;
+        });
+        
+        // Filter expenses
+        const filteredExpenses = includeExpenses ? expenses.filter(expense => {
+            const expenseDate = new Date(expense.date);
+            
+            // Check date range
+            const inDateRange = expenseDate >= startDate && expenseDate <= endDate;
+            
+            // Check client
+            const clientMatch = expense.client === client;
+            
+            // Check project
+            const projectMatch = project === 'all' || expense.project === project;
+            
+            return inDateRange && clientMatch && projectMatch;
+        }) : [];
+        
+        // Calculate totals
+        const totalHours = filteredEntries.reduce((sum, entry) => sum + entry.hours, 0);
+        const totalAmount = filteredEntries.reduce((sum, entry) => sum + entry.amount, 0);
+        const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        const grandTotal = totalAmount + totalExpenses;
+        
+        // Update the UI
+        const entriesTable = document.getElementById('invoice-entries-body');
+        const expensesTable = document.getElementById('invoice-expenses-body');
+        
+        entriesTable.innerHTML = '';
+        expensesTable.innerHTML = '';
+        
+        // Add time entries to table
+        filteredEntries.forEach(entry => {
+            const row = document.createElement('tr');
+            const date = new Date(entry.date).toLocaleDateString();
+            
+            row.innerHTML = `
+                <td>${date}</td>
+                <td>${entry.description}</td>
+                <td>${entry.hours.toFixed(2)}</td>
+                <td>$${entry.rate.toFixed(2)}</td>
+                <td>$${entry.amount.toFixed(2)}</td>
+                <td><input type="checkbox" class="include-entry" data-id="${entry.id}" checked></td>
+            `;
+            
+            entriesTable.appendChild(row);
+        });
+        
+        // Add expenses to table
+        filteredExpenses.forEach(expense => {
+            const row = document.createElement('tr');
+            const date = new Date(expense.date).toLocaleDateString();
+            
+            row.innerHTML = `
+                <td>${date}</td>
+                <td>${expense.description}</td>
+                <td>$${expense.amount.toFixed(2)}</td>
+                <td><input type="checkbox" class="include-expense" data-id="${expense.id}" checked></td>
+            `;
+            
+            expensesTable.appendChild(row);
+        });
+        
+        // Update totals
+        document.getElementById('invoice-total-hours').textContent = totalHours.toFixed(2);
+        document.getElementById('invoice-total-amount').textContent = totalAmount.toFixed(2);
+        document.getElementById('invoice-total-expenses').textContent = totalExpenses.toFixed(2);
+        document.getElementById('invoice-grand-total').textContent = grandTotal.toFixed(2);
+        
+        // Show the entries preview
+        document.getElementById('invoice-entries-preview').style.display = 'block';
+        
+        // Add event listeners to checkboxes
+        document.querySelectorAll('.include-entry, .include-expense').forEach(checkbox => {
+            checkbox.addEventListener('change', updateInvoiceTotals);
+        });
+    } catch (error) {
+        console.error('Error viewing invoice entries:', error);
+        showNotification('Error retrieving entries. Please try again.', 'error');
+    }
+}
+
+// Update totals based on checked entries
+function updateInvoiceTotals() {
+    try {
+        // Calculate totals from checked entries
+        let totalHours = 0;
+        let totalAmount = 0;
+        let totalExpenses = 0;
+        
+        // Calculate time entry totals
+        document.querySelectorAll('.include-entry:checked').forEach(checkbox => {
+            const id = checkbox.getAttribute('data-id');
+            const entry = timeEntries.find(e => e.id === id);
+            
+            if (entry) {
+                totalHours += entry.hours;
+                totalAmount += entry.amount;
+            }
+        });
+        
+        // Calculate expense totals
+        document.querySelectorAll('.include-expense:checked').forEach(checkbox => {
+            const id = checkbox.getAttribute('data-id');
+            const expense = expenses.find(e => e.id === id);
+            
+            if (expense) {
+                totalExpenses += expense.amount;
+            }
+        });
+        
+        // Update totals display
+        document.getElementById('invoice-total-hours').textContent = totalHours.toFixed(2);
+        document.getElementById('invoice-total-amount').textContent = totalAmount.toFixed(2);
+        document.getElementById('invoice-total-expenses').textContent = totalExpenses.toFixed(2);
+        document.getElementById('invoice-grand-total').textContent = (totalAmount + totalExpenses).toFixed(2);
+    } catch (error) {
+        console.error('Error updating invoice totals:', error);
+    }
+}
+
+// Generate HTML for invoice
+function generateInvoiceHtml(invoiceData) {
+    const { invoice, items } = invoiceData;
+    
+    // Format dates
+    const invoiceDate = new Date(invoice.invoice_date).toLocaleDateString();
+    
+    // Calculate due date based on payment terms
+    const dueDate = new Date(invoice.invoice_date);
+    const terms = invoice.payment_terms || 'Net 30';
+    const days = parseInt(terms.match(/\d+/)?.[0] || 30);
+    dueDate.setDate(dueDate.getDate() + days);
+    const formattedDueDate = dueDate.toLocaleDateString();
+    
+    // Group items by type (time or expense)
+    const timeItems = items.filter(item => item.type === 'time');
+    const expenseItems = items.filter(item => item.type === 'expense');
+    
+    // Generate HTML
+    return `
+        <div class="invoice-container">
+            <div class="invoice-header">
+                <div class="company-info">
+                    <h2>${settings.name || 'Your Name/Company'}</h2>
+                    <p>${settings.email || ''}</p>
+                    <p>${settings.address || ''}</p>
+                </div>
+                <div class="invoice-info">
+                    <h1>INVOICE</h1>
+                    <table>
+                        <tr>
+                            <td>Invoice #:</td>
+                            <td>${invoice.invoice_number}</td>
+                        </tr>
+                        <tr>
+                            <td>Date:</td>
+                            <td>${invoiceDate}</td>
+                        </tr>
+                        <tr>
+                            <td>Due Date:</td>
+                            <td>${formattedDueDate}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="client-info">
+                <h3>Bill To:</h3>
+                <p>${invoice.client}</p>
+                ${invoice.project ? `<p>Project: ${invoice.project}</p>` : ''}
+            </div>
+            
+            <div class="invoice-items">
+                <h3>Services:</h3>
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Hours</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${timeItems.map(item => `
+                            <tr>
+                                <td>${new Date(item.date).toLocaleDateString()}</td>
+                                <td>${item.description}</td>
+                                <td>${item.hours?.toFixed(2) || ''}</td>
+                                <td>$${item.rate?.toFixed(2) || ''}</td>
+                                <td>$${item.amount.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2"></td>
+                            <td><strong>Total Hours:</strong></td>
+                            <td><strong>${invoice.total_hours.toFixed(2)}</strong></td>
+                            <td><strong>$${invoice.total_amount.toFixed(2)}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                ${expenseItems.length > 0 ? `
+                    <h3>Expenses:</h3>
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th colspan="2"></th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${expenseItems.map(item => `
+                                <tr>
+                                    <td>${new Date(item.date).toLocaleDateString()}</td>
+                                    <td>${item.description}</td>
+                                    <td colspan="2"></td>
+                                    <td>$${item.amount.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2"></td>
+                                <td colspan="2"><strong>Total Expenses:</strong></td>
+                                <td><strong>$${invoice.expenses_amount.toFixed(2)}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                ` : ''}
+                
+                <div class="invoice-summary">
+                    <table>
+                        <tr>
+                            <td>Subtotal:</td>
+                            <td>$${invoice.total_amount.toFixed(2)}</td>
+                        </tr>
+                        ${invoice.expenses_amount > 0 ? `
+                            <tr>
+                                <td>Expenses:</td>
+                                <td>$${invoice.expenses_amount.toFixed(2)}</td>
+                            </tr>
+                        ` : ''}
+                        <tr class="grand-total">
+                            <td>Grand Total:</td>
+                            <td>$${invoice.grand_total.toFixed(2)}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="invoice-notes">
+                <h3>Notes:</h3>
+                <p>${invoice.notes || ''}</p>
+                <p><strong>Payment Terms:</strong> ${invoice.payment_terms}</p>
+                <p>${settings.paymentInstructions || ''}</p>
+            </div>
+            
+            <div class="invoice-footer">
+                <p>Thank you for your business!</p>
+            </div>
+        </div>
+    `;
+}
+
+// Generate a unique invoice number
+function generateInvoiceNumber() {
+    const date = new Date();
+    const year = date.getFullYear().toString().substr(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    
+    return `INV-${year}${month}${day}-${random}`;
+}
+
 async function addTimeEntry() {
     const dateInput = document.getElementById('date');
     const descriptionInput = document.getElementById('description');
@@ -527,6 +1289,7 @@ async function addTimeEntry() {
             // Update the UI
             updateTable();
             updateSummary();
+            updateClientProjectDropdowns();
             
             // Clear form (except rate)
             descriptionInput.value = '';
@@ -597,6 +1360,7 @@ async function updateTimeEntry() {
             // Update the UI
             updateTable();
             updateSummary();
+            updateClientProjectDropdowns();
             
             // Reset the form (cancelEdit also clears saved form data)
             cancelEdit();
@@ -665,6 +1429,7 @@ async function deleteEntry(id) {
             // Update the UI
             updateTable();
             updateSummary();
+            updateClientProjectDropdowns();
             
             showNotification('Time entry deleted successfully!', 'success');
         } else {
@@ -895,7 +1660,7 @@ async function showDatabaseSetupModal() {
                 setupResults.innerHTML += '   - Make sure Email Auth is enabled\n';
                 setupResults.innerHTML += '   - Verify that row-level security policies are set up correctly\n\n';
             }
-      } else {
+        } else {
             setupResults.innerHTML += 'Your database is correctly set up! You can now use the application.\n';
         }
     } catch (error) {
@@ -933,9 +1698,60 @@ function openTab(e, tabName) {
     }
 }
 
+// Helper function to get date range from option
+function getDateRangeFromOption(option, fromDate, toDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const from = new Date(today);
+    const to = new Date(today);
+    to.setHours(23, 59, 59, 999);
+    
+    switch (option) {
+        case 'today':
+            // from and to are already set to today
+            break;
+        case 'yesterday':
+            from.setDate(from.getDate() - 1);
+            to.setDate(to.getDate() - 1);
+            break;
+        case 'this-week':
+            from.setDate(from.getDate() - from.getDay()); // Start of week (Sunday)
+            break;
+        case 'last-week':
+            from.setDate(from.getDate() - from.getDay() - 7); // Start of last week
+            to.setDate(to.getDate() - to.getDay() - 1); // End of last week
+            break;
+        case 'this-month':
+            from.setDate(1); // First day of current month
+            break;
+       case 'last-month':
+            from.setMonth(from.getMonth() - 1, 1); // First day of last month
+            to.setDate(0); // Last day of last month
+            break;
+        case 'this-year':
+            from.setMonth(0, 1); // January 1st of current year
+            break;
+        case 'custom':
+            // Use the provided custom date range
+            if (fromDate && toDate) {
+                from.setTime(new Date(fromDate).getTime());
+                to.setTime(new Date(toDate).getTime());
+                to.setHours(23, 59, 59, 999);
+            }
+            break;
+        default: // 'all'
+            from.setFullYear(2000, 0, 1); // Far in the past
+            to.setFullYear(2099, 11, 31); // Far in the future
+    }
+    
+    return { from, to };
+}
+
 // Export global state and functions to window object for module access
 window.timeEntries = timeEntries;
 window.expenses = expenses;
 window.settings = settings;
 window.currentUser = currentUser;
 window.showNotification = showNotification;
+window.updateDashboard = typeof updateDashboard === 'function' ? updateDashboard : null;
