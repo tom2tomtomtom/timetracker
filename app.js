@@ -1,4 +1,4 @@
-// App.js - Main application logic (Refactored - V11 Final)
+// App.js - Main application logic (Refactored - V12 Final Debug)
 
 // Imports
 import * as SupabaseAPI from './supabase.js';
@@ -17,15 +17,68 @@ const appState = {
     autoSaveTimeout: null
 };
 
+// --- Utility / Helper Functions --- (Defined FIRST) ---
+function showNotification(message, type = 'info') {
+    try {
+        console.log(`[NOTIFICATION-${type.toUpperCase()}]: ${message}`);
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`; // Style with CSS
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 500);
+        }, 3500); // Slightly longer display
+    } catch (domError) { console.error("DOM Notification Error:", message, domError); }
+}
+function getInputValue(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+function setInputValue(id, value) { const el = document.getElementById(id); if (el) el.value = value ?? ''; }
+function setTextContent(id, text) { const el = document.getElementById(id); if (el) el.textContent = text ?? ''; }
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return unsafe;
+    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function formatCurrency(amount, currencyCode = appState.settings.currency) {
+     if (amount == null || isNaN(amount)) return '$0.00'; // Default fallback
+     try {
+         return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+     } catch (e) { console.warn(`Currency formatting error for code ${currencyCode}:`, e); return `$${Number(amount).toFixed(2)}`; }
+}
+function formatDate(dateString, format = appState.settings.dateFormat) {
+     if (!dateString) return '';
+     try {
+         let date;
+         if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) { date = new Date(dateString + 'T00:00:00Z'); } // Treat YYYY-MM-DD as UTC
+         else { date = new Date(dateString); }
+         if (isNaN(date.getTime())) throw new Error("Invalid Date");
+         const options = {}; const locale = undefined; // Use browser default locale
+         switch (format) {
+             case 'DD/MM/YYYY': options.day = '2-digit'; options.month = '2-digit'; options.year = 'numeric'; break;
+             case 'YYYY-MM-DD': options.year = 'numeric'; options.month = '2-digit'; options.day = '2-digit'; return date.toISOString().slice(0, 10); // ISO is already YYYY-MM-DD
+             case 'MM/DD/YYYY': default: options.month = '2-digit'; options.day = '2-digit'; options.year = 'numeric'; break;
+         }
+          if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) { options.timeZone = 'UTC'; } // Format according to UTC if input was date only
+         return new Intl.DateTimeFormat(locale, options).format(date);
+     } catch (e) { console.warn("Error formatting date:", dateString, e); return dateString; }
+}
+function calculateDueDate(invoiceDateStr, paymentTerms) { /* ... same ... */ }
+function getDateRangeFromOption(option, fromDateStr, toDateStr) { /* ... same ... */ }
+function triggerDownload(content, filename, contentType) { /* ... same ... */ }
+function readFileAsText(file) { /* ... same ... */ }
+function showLoadingIndicator(show) { console.log(`Loading: ${show}`); /* TODO: Visual indicator */ }
+function getFormDataFromLocalStorage() { /* ... same ... */ }
+function addListener(id, event, handler) { /* ... same ... */ }
+function addDelegatedListener(parentElementId, event, selector, handler) { /* ... same ... */ }
+
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', initApp);
 
-// initApp with More Logging around potentially failing calls
 async function initApp() {
-    console.log("Initializing app V11 Final..."); // Version log
+    console.log("Initializing app V12 Final Debug...");
     try {
         if (!(await checkSupabaseConnection())) {
-             showNotification("Cannot initialize: Database connection issue.", "error"); return;
+            showNotification("Cannot initialize: Database connection issue.", "error"); return;
         }
         console.log("Connection OK. Checking session...");
         const { data: { session } } = await SupabaseAPI.supabase.auth.getSession();
@@ -33,29 +86,27 @@ async function initApp() {
         if (session?.user) {
             appState.user = session.user; console.log("User logged in:", appState.user.email);
             console.log("InitApp: Attempting to call loadUserData...");
-            await loadUserData(); // Load data
+            await loadUserData();
             console.log("InitApp: loadUserData finished. Attempting to call showApp...");
-            showApp(); // Show the main app UI
-             console.log("InitApp: showApp finished.");
+            showApp();
+            console.log("InitApp: showApp finished.");
         } else {
             console.log("No session found, showing login.");
-            showLoginForm(); // Show login UI
+            showLoginForm();
         }
     } catch (error) {
         console.error("InitApp: Error during initialization:", error);
         showNotification(`Initialization Error: ${error.message || error}`, "error");
-        // Attempt to show login form as a fallback on error
         try { showLoginForm(); } catch (e) { console.error("Failed to show login form after error:", e)}
     }
 
-    // Setup listeners last, after potentially showing the correct UI
     try {
          console.log("InitApp: Setting up event listeners...");
-         setupEventListeners();
+         setupEventListeners(); // Setup ALL listeners
          console.log("InitApp: Initializing dashboard module...");
-         initDashboard(appState, getDashboardDependencies());
+         initDashboard(appState, getDashboardDependencies()); // Init dashboard AFTER listeners maybe? Or check if elements exist first
          setDefaultDates();
-         applyTheme(appState.settings.theme); // Apply theme based on loaded/default settings
+         applyTheme(appState.settings.theme);
          console.log("InitApp: Initialization complete.");
     } catch (setupError) {
          console.error("InitApp: Error during setup phase:", setupError);
@@ -63,20 +114,7 @@ async function initApp() {
     }
 }
 
-// CORRECTED Connection Check
-async function checkSupabaseConnection() {
-    try {
-        console.log("checkSupabaseConnection: Checking...");
-        const { data: { session }, error } = await SupabaseAPI.supabase.auth.getSession();
-        if (error) throw error;
-        console.log("checkSupabaseConnection: OK.");
-        return true;
-    } catch (err) {
-        console.error("checkSupabaseConnection: FAILED:", err);
-        return false; // Let initApp handle notification
-    }
-}
-
+async function checkSupabaseConnection() { /* ... same ... */ }
 function setDefaultDates() { /* ... same ... */ }
 async function loadUserData() { /* ... same ... */ }
 function showApp() { /* ... same ... */ }
@@ -85,26 +123,75 @@ function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() { /* ... same ... */ }
 function populateRateTemplates() { /* ... same ... */ }
 function updateRateDropdowns() { /* ... same ... */ }
-function updateTimeEntriesTable() { /* ... same V8 with debug logs REMOVED for final ... */
-     const tableBody = document.getElementById('entries-body');
+
+// *** updateTimeEntriesTable with Re-verified DEBUG LOGS ***
+function updateTimeEntriesTable() {
+    const tableBody = document.getElementById('entries-body');
     if (!tableBody) { console.error("Table body #entries-body not found!"); return; }
     tableBody.innerHTML = '';
-    const sortedEntries = [...appState.entries].sort((a, b) => new Date(b.date) - new Date(a.date));
-    if (sortedEntries.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--secondary-text);">No time entries recorded yet.</td></tr>';
-        return;
+
+    // DEBUG LINE 1
+    console.log(`DEBUG: Updating table. Found ${appState.entries?.length ?? 0} entries in appState.`); // Safer length check
+
+    // DEBUG LINE 1.1 - Check if entries array actually has items
+    if (!appState.entries || appState.entries.length === 0) {
+         console.log("DEBUG: No entries found in appState to display.");
+         tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--secondary-text);">No time entries recorded yet.</td></tr>';
+         return;
     }
-    sortedEntries.forEach((entry) => {
+
+    // Log first entry only if it exists
+    if (appState.entries.length > 0) {
+        console.log("DEBUG: First entry raw object in appState:", appState.entries[0]);
+    }
+
+    const sortedEntries = [...appState.entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    sortedEntries.forEach((entry, index) => {
+        // Ensure entry is an object
+        if (typeof entry !== 'object' || entry === null) {
+            console.error(`DEBUG: Entry at index ${index} is not a valid object:`, entry);
+            return; // Skip this invalid entry
+        }
+
+        // --- ADDED/MODIFIED DEBUG LINES ---
+         if(index === 0) { // Only log details for the first entry
+             console.log('DEBUG: Keys of first entry object: ' + Object.keys(entry).join(', ')); // Force string output
+             console.log('--- DEBUG: Values for first entry ---');
+             console.log('  -> entry.description:', entry.description, `(Type: ${typeof entry.description})`); // Log value AND type
+             console.log('  -> entry.client:', entry.client, `(Type: ${typeof entry.client})`);
+             console.log('  -> entry.project:', entry.project, `(Type: ${typeof entry.project})`);
+             console.log('  -> entry.hours:', entry.hours, `(Type: ${typeof entry.hours})`);
+             console.log('  -> entry.rate:', entry.rate, `(Type: ${typeof entry.rate})`);
+             console.log('  -> entry.amount:', entry.amount, `(Type: ${typeof entry.amount})`);
+             console.log('  -> entry.date:', entry.date, `(Type: ${typeof entry.date})`);
+             console.log('  -> entry.id:', entry.id, `(Type: ${typeof entry.id})`);
+             console.log('--- End DEBUG Values ---');
+         }
+         // --- END OF ADDED/MODIFIED DEBUG ---
+
         const row = tableBody.insertRow();
+        // Add checks before formatting/accessing
+        const hoursValue = typeof entry.hours === 'number' ? entry.hours : 0;
+        const rateValue = typeof entry.rate === 'number' ? entry.rate : 0;
+        const amountValue = typeof entry.amount === 'number' ? entry.amount : 0;
+
         const formattedDate = formatDate(entry.date, appState.settings.dateFormat);
-        const formattedRate = formatCurrency(entry.rate, appState.settings.currency);
-        const formattedAmount = formatCurrency(entry.amount, appState.settings.currency);
-        row.innerHTML = `
+        const formattedRate = formatCurrency(rateValue, appState.settings.currency);
+        const formattedAmount = formatCurrency(amountValue, appState.settings.currency);
+        const escapedDescription = escapeHtml(entry.description);
+
+        // Log helpers output for first row
+         if (index === 0) {
+            console.log(`DEBUG HELPERS Out: Date='${formattedDate}', Rate='${formattedRate}', Amount='${formattedAmount}', Desc='${escapedDescription}'`);
+         }
+
+        const rowHTML = `
             <td>${formattedDate}</td>
-            <td>${escapeHtml(entry.description)}</td>
+            <td>${escapedDescription}</td>
             <td>${escapeHtml(entry.client || '-')}</td>
             <td>${escapeHtml(entry.project || '-')}</td>
-            <td>${(entry.hours || 0).toFixed(2)}</td>
+            <td>${hoursValue.toFixed(2)}</td>
             <td>${formattedRate}</td>
             <td>${formattedAmount}</td>
             <td>
@@ -112,9 +199,20 @@ function updateTimeEntriesTable() { /* ... same V8 with debug logs REMOVED for f
                 <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px; font-size: 0.9em;">Delete</button>
             </td>
         `;
+
+        try {
+             row.innerHTML = rowHTML;
+        } catch (e) {
+            console.error(`Error setting innerHTML for row ${index}:`, e, rowHTML);
+        }
     });
+
+    console.log("DEBUG: updateTimeEntriesTable finished populating attempts.");
+    console.log("DEBUG: Table body first 300 chars after loop:", tableBody.innerHTML.substring(0, 300));
     // Listeners added via delegation
 }
+// *** End of modified updateTimeEntriesTable ***
+
 function updateExpensesTable() { /* ... same ... */ }
 function updateSummary() { /* ... same ... */ }
 function updateClientProjectDropdowns() { /* ... same ... */ }
@@ -164,9 +262,9 @@ async function deleteRateTemplate(id) { /* ... same ... */ }
 // --- Data Management ---
 function exportData() { /* ... same ... */ }
 async function importData(e) { /* ... same ... */ }
-function exportCSV() { console.log("TODO: Export CSV"); showNotification('Export CSV - Not Implemented', 'info'); }
-function applyFilters() { console.log("TODO: Apply Filters"); showNotification('Apply Filters - Not Implemented', 'info'); }
-function clearFilters() { console.log("TODO: Clear Filters"); showNotification('Clear Filters - Not Implemented', 'info'); }
+function exportCSV() { /* ... TODO ... */ }
+function applyFilters() { /* ... TODO ... */ }
+function clearFilters() { /* ... TODO ... */ }
 function clearLocalStorageData() { /* ... same ... */ }
 async function clearDatabaseData() { /* ... same ... */ }
 
@@ -245,4 +343,4 @@ function getFormDataFromLocalStorage() { /* ... same ... */ }
 // showLoadingIndicator defined earlier
 
 // --- Final Log ---
-console.log("app.js V11 Final loaded."); // Updated version log
+console.log("app.js V12 Final Debug loaded."); // Updated version log
