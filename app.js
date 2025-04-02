@@ -98,9 +98,20 @@ async function loadUserData() {
         
         // Load user settings
         const userSettings = await SupabaseAPI.getSettings(currentUser.id);
-        if (userSettings) {
-            settings = userSettings;
-        }
+       if (userSettings) {
+    // Map database snake_case to JavaScript camelCase
+    settings = {
+        defaultRate: userSettings.default_rate || 350,
+        defaultPaymentTerms: userSettings.default_payment_terms || 'Net 30',
+        name: userSettings.name || '',
+        email: userSettings.email || '',
+        address: userSettings.address || '',
+        paymentInstructions: userSettings.payment_instructions || '',
+        theme: userSettings.theme || 'light',
+        dateFormat: userSettings.date_format || 'MM/DD/YYYY',
+        currency: userSettings.currency || 'USD'
+    };
+}
         
         // Apply theme if set
         if (settings.theme === 'dark' || 
@@ -305,7 +316,7 @@ async function saveSettings() {
         const address = document.getElementById('your-address').value;
         const paymentInstructions = document.getElementById('payment-instructions').value;
         
-        // Update settings object
+        // Update local settings object
         settings.defaultRate = defaultRate;
         settings.defaultPaymentTerms = defaultPaymentTerms;
         settings.name = name;
@@ -313,13 +324,21 @@ async function saveSettings() {
         settings.address = address;
         settings.paymentInstructions = paymentInstructions;
         
-        // Save to database
-        const updatedSettings = await SupabaseAPI.saveSettings({
-            ...settings,
-            user_id: currentUser.id
-        });
+        // Create object to send to database (using snake_case)
+        const updatedSettings = {
+            user_id: currentUser.id,
+            default_rate: defaultRate,
+            default_payment_terms: defaultPaymentTerms,
+            name: name,
+            email: email,
+            address: address,
+            payment_instructions: paymentInstructions
+        };
         
-        if (updatedSettings) {
+        // Save to database
+        const result = await SupabaseAPI.saveSettings(updatedSettings);
+        
+        if (result) {
             showNotification('Settings saved successfully!', 'success');
         } else {
             showNotification('Failed to save settings', 'error');
@@ -329,7 +348,6 @@ async function saveSettings() {
         showNotification('Error saving settings. Please try again.', 'error');
     }
 }
-
 // Save display settings
 async function saveDisplaySettings() {
     if (!currentUser) {
@@ -343,7 +361,7 @@ async function saveDisplaySettings() {
         const dateFormat = document.getElementById('date-format').value;
         const currency = document.getElementById('currency-format').value;
         
-        // Update settings object
+        // Update local settings object
         settings.theme = theme;
         settings.dateFormat = dateFormat;
         settings.currency = currency;
@@ -365,6 +383,28 @@ async function saveDisplaySettings() {
                 document.getElementById('dark-mode-toggle').textContent = '🌙';
             }
         }
+        
+        // Create object to send to database (using snake_case)
+        const updatedSettings = {
+            user_id: currentUser.id,
+            theme: theme,
+            date_format: dateFormat, // Use snake_case for the database
+            currency: currency
+        };
+        
+        // Save to database
+        const result = await SupabaseAPI.saveSettings(updatedSettings);
+        
+        if (result) {
+            showNotification('Display settings saved successfully!', 'success');
+        } else {
+            showNotification('Failed to save display settings', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving display settings:', error);
+        showNotification('Error saving display settings. Please try again.', 'error');
+    }
+}
         
         // Save to database
         const updatedSettings = await SupabaseAPI.saveSettings({
