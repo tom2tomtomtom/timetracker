@@ -93,7 +93,7 @@ async function loadUserData() {
         // Update UI elements
         updateTable();
         updateSummary();
-        populateClientProjectDropdowns();
+        updateClientProjectDropdowns();
         
         // Update dark mode toggle button text
         const darkModeToggle = document.getElementById('dark-mode-toggle');
@@ -127,7 +127,7 @@ function setupEventListeners() {
     document.getElementById('logout-button').addEventListener('click', handleLogout);
     document.getElementById('show-signup-link').addEventListener('click', toggleAuthForms);
     document.getElementById('show-login-link').addEventListener('click', toggleAuthForms);
-    document.getElementById('check-setup').addEventListener('click', checkDatabaseSetup);
+    document.getElementById('check-setup').addEventListener('click', showDatabaseSetupModal);
     
     // App related listeners
     document.getElementById('add-entry').addEventListener('click', addTimeEntry);
@@ -687,4 +687,180 @@ function editEntry(id) {
     
     // Scroll to the form
     document.querySelector('.time-entry').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Function to update client and project dropdowns
+function updateClientProjectDropdowns() {
+    try {
+        // Get unique clients
+        const clients = [...new Set(timeEntries.map(entry => entry.client).filter(Boolean))];
+        
+        // Get unique projects
+        const projects = [...new Set(timeEntries.map(entry => entry.project).filter(Boolean))];
+        
+        // Populate client dropdowns
+        const clientDropdowns = [
+            'filter-client', 
+            'dash-client', 
+            'invoice-client', 
+            'report-client',
+            'timer-client'
+        ];
+        
+        clientDropdowns.forEach(id => {
+            const dropdown = document.getElementById(id);
+            if (dropdown) {
+                // Keep the first option
+                const firstOption = dropdown.options[0];
+                dropdown.innerHTML = '';
+                dropdown.appendChild(firstOption);
+                
+                // Add client options
+                clients.forEach(client => {
+                    const option = document.createElement('option');
+                    option.value = client;
+                    option.textContent = client;
+                    dropdown.appendChild(option);
+                });
+            }
+        });
+        
+        // Populate project dropdowns
+        const projectDropdowns = [
+            'filter-project', 
+            'dash-project', 
+            'invoice-project', 
+            'report-project',
+            'timer-project'
+        ];
+        
+        projectDropdowns.forEach(id => {
+            const dropdown = document.getElementById(id);
+            if (dropdown) {
+                // Keep the first option
+                const firstOption = dropdown.options[0];
+                dropdown.innerHTML = '';
+                dropdown.appendChild(firstOption);
+                
+                // Add project options
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project;
+                    option.textContent = project;
+                    dropdown.appendChild(option);
+                });
+            }
+        });
+        
+        // Populate datalists for client and project inputs
+        const clientsList = document.getElementById('clients-list');
+        const projectsList = document.getElementById('projects-list');
+        
+        if (clientsList) {
+            clientsList.innerHTML = '';
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client;
+                clientsList.appendChild(option);
+            });
+        }
+        
+        if (projectsList) {
+            projectsList.innerHTML = '';
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                projectsList.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Error populating dropdowns:', err);
+    }
+}
+
+// Show the database setup modal and run checks
+async function showDatabaseSetupModal() {
+    // Show the results container
+    const setupResults = document.getElementById('setup-results');
+    setupResults.style.display = 'block';
+    setupResults.innerHTML = 'Running database setup checks...\n\n';
+    
+    try {
+        // Run the setup checks
+        const result = await runSetupChecks();
+        
+        // Display results
+        setupResults.innerHTML += '---- Setup Check Results ----\n\n';
+        setupResults.innerHTML += `Connection to Supabase: ${result.results.connection ? '✅ Good' : '❌ Failed'}\n\n`;
+        setupResults.innerHTML += 'Required tables:\n';
+        
+        for (const [table, exists] of Object.entries(result.results.tables)) {
+            setupResults.innerHTML += `   ${table}: ${exists ? '✅ Exists' : '❌ Missing'}\n`;
+        }
+        
+        setupResults.innerHTML += `\nAuth System: ${result.results.auth ? '✅ Working' : '❌ Issues'}\n\n`;
+        setupResults.innerHTML += `Overall Setup: ${result.success ? '✅ READY TO USE' : '❌ NEEDS ATTENTION'}\n\n`;
+        
+        // If setup is not complete, show instructions
+        if (!result.success) {
+            setupResults.innerHTML += 'To complete the setup:\n\n';
+            
+            if (!result.results.connection) {
+                setupResults.innerHTML += '1. Verify your Supabase URL and API key in supabase.js\n';
+                setupResults.innerHTML += '2. Make sure your Supabase project is active\n\n';
+            }
+            
+            let missingTables = Object.entries(result.results.tables)
+                .filter(([_, exists]) => !exists)
+                .map(([table]) => table);
+                
+            if (missingTables.length > 0) {
+                setupResults.innerHTML += '3. Run the SQL setup script to create missing tables:\n';
+                setupResults.innerHTML += '   - Go to your Supabase project dashboard\n';
+                setupResults.innerHTML += '   - Open the SQL Editor\n';
+                setupResults.innerHTML += '   - Copy and paste the schema.sql file content\n';
+                setupResults.innerHTML += '   - Click "Run" to execute the SQL\n\n';
+            }
+            
+            if (!result.results.auth) {
+                setupResults.innerHTML += '4. Check Auth settings in your Supabase project:\n';
+                setupResults.innerHTML += '   - Make sure Email Auth is enabled\n';
+                setupResults.innerHTML += '   - Verify that row-level security policies are set up correctly\n\n';
+            }
+        } else {
+            setupResults.innerHTML += 'Your database is correctly set up! You can now use the application.\n';
+        }
+    } catch (error) {
+        console.error('Error running setup checks:', error);
+        setupResults.innerHTML += 'An error occurred while checking the setup:\n';
+        setupResults.innerHTML += error.message || 'Unknown error';
+    }
+}
+
+// Add the openTab function for tab navigation
+function openTab(e, tabName) {
+    // Hide all tab content
+    const tabContents = document.getElementsByClassName('tab-content');
+    for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].style.display = 'none';
+    }
+    
+    // Remove active class from all tab buttons
+    const tabButtons = document.getElementsByClassName('tab-button');
+    for (let i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].classList.remove('active');
+    }
+    
+    // Show the selected tab content and add active class to the button
+    document.getElementById(tabName).style.display = 'block';
+    e.currentTarget.classList.add('active');
+    
+    // Initialize dashboard if it's the dashboard tab
+    if (tabName === 'dashboard-tab') {
+        if (typeof updateDashboard === 'function') {
+            updateDashboard();
+        } else {
+            console.warn('updateDashboard function not found');
+        }
+    }
 }
