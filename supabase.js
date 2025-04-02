@@ -27,9 +27,11 @@ function mapToCamelCase(obj) {
             const camelCaseKey = key.replace(/([-_][a-z])/g, (group) =>
                 group.toUpperCase().replace('-', '').replace('_', '')
             );
-            result[camelCaseKey] = mapToCamelCase(obj[key]); // Recursively map nested objects/arrays
+            // Recursively map values which might be objects or arrays
+            result[camelCaseKey] = mapToCamelCase(obj[key]);
         } else {
-            result[key] = mapToCamelCase(obj[key]); // Keep original key if no underscore
+             // Also apply mapping recursively even if the key itself doesn't change
+            result[key] = mapToCamelCase(obj[key]);
         }
         return result;
     }, {});
@@ -44,13 +46,11 @@ function mapToSnakeCase(obj) {
         return obj.map(mapToSnakeCase);
     }
     return Object.keys(obj).reduce((result, key) => {
-        // Check if key needs conversion (contains uppercase letters)
-        if (/[A-Z]/.test(key)) {
-            const snakeCaseKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-            result[snakeCaseKey] = mapToSnakeCase(obj[key]); // Handle nested objects recursively
-        } else {
-             result[key] = mapToSnakeCase(obj[key]); // Keep original key
-        }
+        // Check if key needs conversion (contains uppercase letters NOT at the start)
+        // and avoid converting keys that might already be snake_case with acronyms (like userId -> user_id)
+        const snakeCaseKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+        // Recursively map values
+        result[snakeCaseKey] = mapToSnakeCase(obj[key]);
         return result;
     }, {});
 }
@@ -71,14 +71,14 @@ export async function getTimeEntries() {
         console.error('Error fetching time entries:', error);
         throw new Error(`Supabase error: ${error.message}`); // Throw error
     }
-    console.log(`Workspaceed ${data.length} time entries.`);
+    console.log(`Workspaceed ${data?.length ?? 0} time entries.`);
     // Map to camelCase before returning
-    return mapToCamelCase(data).map(entry => ({
+    return mapToCamelCase(data || []).map(entry => ({
         ...entry, // Spread mapped properties
         // Ensure numeric types (mapping doesn't change types)
-        hours: Number(entry.hours),
-        rate: Number(entry.rate),
-        amount: Number(entry.amount)
+        hours: Number(entry.hours || 0),
+        rate: Number(entry.rate || 0),
+        amount: Number(entry.amount || 0)
     }));
 }
 
@@ -126,7 +126,7 @@ export async function updateTimeEntry(entryDataCamel) { // Expects camelCase wit
              amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate),
          });
          // Don't try to update the id itself or userId
-         const { id, userId, ...updateData } = entryDataSnake;
+         const { id, userId, createdAt, updatedAt, ...updateData } = entryDataSnake; // Exclude non-updatable fields
 
          const { data, error } = await supabase
             .from('time_entries')
@@ -174,8 +174,8 @@ export async function getExpenses() {
         console.error('Error fetching expenses:', error);
         throw new Error(`Supabase error: ${error.message}`);
     }
-    console.log(`Workspaceed ${data.length} expenses.`);
-    return mapToCamelCase(data).map(exp => ({ ...exp, amount: Number(exp.amount) })); // Map keys and ensure amount is number
+    console.log(`Workspaceed ${data?.length ?? 0} expenses.`);
+    return mapToCamelCase(data || []).map(exp => ({ ...exp, amount: Number(exp.amount || 0) })); // Map keys and ensure amount is number
 }
 
 export async function addExpense(expenseDataCamel) { // Expects camelCase
@@ -214,7 +214,7 @@ export async function updateExpense(expenseDataCamel) { // Expects camelCase wit
              ...expenseDataCamel,
              amount: Number(expenseDataCamel.amount)
          });
-         const { id, userId, ...updateData } = expenseDataSnake;
+         const { id, userId, createdAt, updatedAt, ...updateData } = expenseDataSnake; // Exclude non-updatable fields
 
          const { data, error } = await supabase
             .from('expenses')
@@ -265,7 +265,7 @@ export async function getSettings(userId) {
         throw new Error(`Failed to get settings: ${error.message}`);
     }
     console.log('Fetched settings:', data);
-    // Map result to camelCase. Note: form_data key remains snake_case
+    // Map result to camelCase. Note: form_data key remains snake_case if it exists
     return data ? mapToCamelCase(data) : null;
 }
 
@@ -277,8 +277,11 @@ export async function saveSettings(settingsCamel) { // Expects camelCase, includ
         const { formData, ...otherSettings } = settingsCamel;
         const settingsSnake = mapToSnakeCase(otherSettings);
 
-        // Add back form_data (key is already snake_case, value remains camelCase JSON)
-        const payload = { ...settingsSnake, form_data: formData };
+        // Add back form_data (key is already snake_case 'form_data', value remains camelCase JSON)
+        // Only include form_data if it was passed in
+        const payload = settingsCamel.hasOwnProperty('formData')
+            ? { ...settingsSnake, form_data: formData }
+            : settingsSnake;
 
         const { data, error } = await supabase
             .from('settings')
@@ -340,10 +343,7 @@ export async function getFormDataFromDatabase(userId) {
 export async function signUp(email, password) {
     console.log(`Attempting sign up for: ${email}`);
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-        console.error('Sign up error:', error);
-        return { success: false, error };
-    }
+    if (error) { console.error('Sign up error:', error); return { success: false, error }; }
     console.log('Sign up successful:', data.user?.email);
     return { success: true, user: data.user };
 }
@@ -351,10 +351,7 @@ export async function signUp(email, password) {
 export async function signIn(email, password) {
     console.log(`Attempting sign in for: ${email}`);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        console.error('Sign in error:', error);
-        return { success: false, error };
-    }
+    if (error) { console.error('Sign in error:', error); return { success: false, error }; }
     console.log('Sign in successful:', data.user?.email);
     return { success: true, user: data.user, session: data.session };
 }
@@ -362,63 +359,61 @@ export async function signIn(email, password) {
 export async function signOut() {
     console.log('Signing out...');
     const { error } = await supabase.auth.signOut();
-    if (error) {
-        console.error('Sign out error:', error);
-        // Return false as app.js might expect
-        return false;
-    }
-    console.log('Sign out successful.');
-    return true;
+    if (error) { console.error('Sign out error:', error); return false; }
+    console.log('Sign out successful.'); return true;
 }
 
-// --- TODO: Add functions for Rates, Recurring Entries, Invoices, Invoice Items ---
-// Remember to apply case mapping consistently using the helpers.
-
+// --- Rates ---
 export async function getRates() {
      console.log("Fetching rates...");
      const { data, error } = await supabase.from('rates').select('*').order('name');
      if (error) throw new Error(`Failed to get rates: ${error.message}`);
-     return mapToCamelCase(data).map(r => ({...r, amount: Number(r.amount)}));
+     return mapToCamelCase(data || []).map(r => ({...r, amount: Number(r.amount || 0)}));
 }
 export async function addRate(rateDataCamel) { // Expects camelCase { userId, name, amount }
      console.log("Adding rate:", rateDataCamel);
-      if (!rateDataCamel.userId || !rateDataCamel.name || !rateDataCamel.amount) throw new Error("Rate data missing required fields.");
+     if (!rateDataCamel.userId || !rateDataCamel.name || !rateDataCamel.amount) throw new Error("Rate data missing required fields.");
      const rateDataSnake = mapToSnakeCase({...rateDataCamel, amount: Number(rateDataCamel.amount)});
      const { data, error } = await supabase.from('rates').insert(rateDataSnake).select().single();
      if (error) throw new Error(`Failed to add rate: ${error.message}`);
      return mapToCamelCase(data);
 }
-// export async function updateRate(rateDataCamel) { ... } // Similar mapping/update
 export async function deleteRate(id) {
-    console.log(`Deleting rate with id: ${id}`);
+    console.log(`Deleting rate template with id: ${id}`);
     const { error } = await supabase.from('rates').delete().eq('id', id);
     if (error) throw new Error(`Failed to delete rate: ${error.message}`);
     return true;
 }
+// TODO: Add updateRate function if needed
 
-
+// --- Recurring Entries --- (Stubs - requires implementation)
 export async function getRecurringEntries() {
      console.log("Fetching recurring entries...");
      const { data, error } = await supabase.from('recurring_entries').select('*').order('description');
-     if (error) throw new Error(`Failed to get recurring entries: ${error.message}`);
-     return mapToCamelCase(data); // Ensure numeric fields are parsed if needed
+     if (error) { console.error(error); return []; } // Return empty array on error
+     return mapToCamelCase(data || []);
 }
-// export async function saveRecurringEntry(entryDataCamel) { ... }
-// export async function deleteRecurringEntry(id) { ... }
+// TODO: export async function saveRecurringEntry(entryDataCamel) { ... }
+// TODO: export async function deleteRecurringEntry(id) { ... }
 
+// --- Invoices --- (Stubs - requires implementation)
 export async function getInvoices() {
      console.log("Fetching invoices...");
      const { data, error } = await supabase.from('invoices').select('*').order('invoice_date', { ascending: false });
-     if (error) throw new Error(`Failed to get invoices: ${error.message}`);
-     return mapToCamelCase(data); // Ensure numeric fields are parsed if needed
+      if (error) { console.error(error); return []; }
+     return mapToCamelCase(data || []);
 }
-// export async function saveInvoice(invoiceDataCamel) { ... }
-// export async function saveInvoiceItems(itemsArrayCamel, invoiceId) { ... }
-// export async function updateInvoiceStatus(invoiceId, status) { ... }
-// export async function deleteInvoice(invoiceId) { ... }
+// TODO: export async function saveInvoice(invoiceDataCamel) { ... }
+// TODO: export async function saveInvoiceItems(itemsArrayCamel, invoiceId) { ... }
+// TODO: export async function updateInvoiceStatus(invoiceId, status) { ... }
+// TODO: export async function deleteInvoice(invoiceId) { ... }
+
+// --- Danger Zone ---
+// TODO: Implement if needed - BE VERY CAREFUL WITH THIS
+// export async function deleteAllUserData(userId) { ... delete from all tables ... }
 
 
-// Export the initialized client for direct use if needed elsewhere (or for setup checks)
+// Export the initialized client for direct use (e.g., for auth state changes, setup checks)
 export { supabase };
 
 console.log("supabase.js with case mapping loaded.");
