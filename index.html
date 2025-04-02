@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
 
+    <script>
+      window.exports = {};
+      window.module = { exports: {} };
+    </script>
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Time Tracker & Invoice Generator</title>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js" defer></script>
 
     <link rel="stylesheet" href="styles.css">
-</head>
-<body>
+
+</head> <body>
     <div id="login-container" class="login-container">
         <section class="auth-brand">
             <h1>Time Tracker</h1>
@@ -59,14 +64,12 @@
                 Already have an account? <a id="show-login-link">Log in</a>
             </div>
         </section>
-    </div>
-
-    <div id="app-container" style="display: none;">
+    </div> <div id="app-container" style="display: none;">
         <header class="app-header">
             <h1>Time Tracker & Invoice Generator</h1>
             <button id="logout-button">Log Out</button>
         </header>
-        
+
         <nav class="tabs">
             <button class="tab-button active" data-tab="time-tracking-tab">Time Tracking</button>
             <button class="tab-button" data-tab="dashboard-tab">Dashboard</button>
@@ -74,9 +77,9 @@
             <button class="tab-button" data-tab="reports-tab">Reports</button>
             <button class="tab-button" data-tab="settings-tab">Settings</button>
         </nav>
-        
+
         <button id="dark-mode-toggle" title="Toggle Dark Mode">🌙</button>
-        
+
         <main>
             <div id="time-tracking-tab" class="tab-content" style="display: block;">
                 <section class="file-operations">
@@ -89,7 +92,7 @@
                         <input type="file" id="file-input" style="display:none;">
                     </div>
                 </section>
-                
+
                 <section class="filter-section">
                     <h2>Filter Entries</h2>
                     <div class="filter-row">
@@ -138,7 +141,7 @@
                         </div>
                     </div>
                 </section>
-                
+
                 <section class="timer-container">
                     <h2>Timer</h2>
                     <div class="timer-display" id="timer-display">00:00:00</div>
@@ -151,7 +154,7 @@
                             <option value="">Select Client (optional)</option>
                         </select>
                         <select id="timer-rate">
-                            <option value="350">Standard Rate ($350)</option> </select>
+                            </select>
                     </div>
                     <div class="filter-row">
                         <button id="start-timer" class="blue-btn">Start Timer</button>
@@ -161,7 +164,7 @@
                         <button id="cancel-timer" style="display: none;">Cancel</button>
                     </div>
                 </section>
-                
+
                 <section class="time-entry">
                     <h2 id="form-title">Record Time Manually</h2>
                     <div>
@@ -191,7 +194,8 @@
                         </div>
                         <div class="filter-group">
                             <label for="rate">Hourly Rate ($):</label>
-                            <input type="number" id="rate" value="350" min="1"> </div>
+                            <input type="number" id="rate" min="1">
+                            </div>
                     </div>
                     <input type="hidden" id="edit-id" value="">
                     <div class="filter-row">
@@ -201,14 +205,14 @@
                         <button id="save-recurring" class="blue-btn">Save as Recurring</button>
                     </div>
                 </section>
-                
+
                 <section class="time-entry" style="margin-top: 20px;">
                     <h2>Recurring Entries</h2>
                     <div id="recurring-entries-container">
                         <p id="no-recurring" style="font-style: italic;">No saved recurring entries yet.</p>
-                    </div>
+                        </div>
                 </section>
-                
+
                 <section class="expense-section">
                     <h2>Expenses</h2>
                     <div class="filter-row">
@@ -246,7 +250,7 @@
                             <button id="add-expense" class="blue-btn">Add Expense</button>
                         </div>
                     </div>
-                    
+
                     <div style="margin-top: 20px;">
                         <h3>Expenses List</h3>
                         <table id="expenses-table">
@@ -262,9 +266,9 @@
                             </thead>
                             <tbody id="expenses-body"></tbody>
                         </table>
-                        
+
                         <div class="summary">
-                            <p><strong>Total Expenses:</strong> $<span id="total-expenses">0.00</span></p>
+                            <p><strong>Total Expenses:</strong> <span id="total-expenses">$0.00</span></p>
                         </div>
                     </div>
                 </section>
@@ -286,19 +290,17 @@
                         </thead>
                         <tbody id="entries-body"></tbody>
                     </table>
-                    
+
                     <div class="summary">
                         <p><strong>Filtered Hours:</strong> <span id="filtered-hours">0</span></p>
-                        <p><strong>Filtered Amount:</strong> $<span id="filtered-amount">0.00</span></p>
+                        <p><strong>Filtered Amount:</strong> <span id="filtered-amount">$0.00</span></p>
                         <p><strong>Total Hours:</strong> <span id="total-hours">0</span></p>
-                        <p><strong>Total Amount:</strong> $<span id="total-amount">0.00</span></p>
+                        <p><strong>Total Amount:</strong> <span id="total-amount">$0.00</span></p>
                     </div>
                 </section>
-            </div>
-            
-            <div id="dashboard-tab" class="tab-content" style="display: none;">
-                <h2>Dashboard</h2>
-                
+            </div> <div id="dashboard-tab" class="tab-content" style="display: none;">
+                 <h2>Dashboard</h2>
+
                 <section class="filter-section">
                     <h3>Dashboard Filters</h3>
                     <div class="filter-row">
@@ -315,7 +317,7 @@
                             </select>
                         </div>
                         <div class="filter-group" id="dash-custom-date-range" style="display: none;">
-                            <div style="display: flex; gap: 10px;">
+                             <div style="display: flex; gap: 10px;">
                                 <div style="flex: 1;">
                                     <label for="dash-date-from">From:</label>
                                     <input type="date" id="dash-date-from">
@@ -343,7 +345,7 @@
                         </div>
                     </div>
                 </section>
-                
+
                 <section class="stats-row">
                     <div class="stats-card">
                         <div class="stats-label">Total Hours</div>
@@ -362,7 +364,7 @@
                         <div id="dash-avg-revenue" class="stats-value">$0</div>
                     </div>
                 </section>
-                
+
                 <section class="stats-row">
                     <div class="stats-card">
                         <div class="stats-label">Hourly Rate (Average)</div>
@@ -381,7 +383,7 @@
                         <div id="dash-days-tracked" class="stats-value">0</div>
                     </div>
                 </section>
-                
+
                 <section class="chart-row">
                     <div class="chart-column">
                         <div class="chart-container">
@@ -396,7 +398,7 @@
                         </div>
                     </div>
                 </section>
-                
+
                 <section class="chart-row">
                     <div class="chart-column">
                         <div class="chart-container">
@@ -411,7 +413,7 @@
                         </div>
                     </div>
                 </section>
-                
+
                 <section class="chart-row">
                     <div class="chart-column">
                         <div class="chart-container">
@@ -426,12 +428,10 @@
                         </div>
                     </div>
                 </section>
-            </div>
-            
-            <div id="invoice-tab" class="tab-content" style="display: none;">
+            </div> <div id="invoice-tab" class="tab-content" style="display: none;">
                 <section class="invoice-generator">
                     <h2>Invoice Generator</h2>
-                    
+
                     <div class="filter-section">
                         <h3>Invoice Details</h3>
                         <div class="filter-row">
@@ -454,19 +454,15 @@
                                 <select id="invoice-date-range">
                                     <option value="this-month">This Month</option>
                                     <option value="last-month">Last Month</option>
+                                     <option value="this-week">This Week</option>
+                                     <option value="last-week">Last Week</option>
                                     <option value="custom">Custom Range</option>
                                 </select>
                             </div>
                             <div class="filter-group" id="invoice-custom-date-range" style="display: none;">
                                 <div style="display: flex; gap: 10px;">
-                                    <div style="flex: 1;">
-                                        <label for="invoice-date-from">From:</label>
-                                        <input type="date" id="invoice-date-from">
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <label for="invoice-date-to">To:</label>
-                                        <input type="date" id="invoice-date-to">
-                                    </div>
+                                    <div style="flex: 1;"><label for="invoice-date-from">From:</label><input type="date" id="invoice-date-from"></div>
+                                    <div style="flex: 1;"><label for="invoice-date-to">To:</label><input type="date" id="invoice-date-to"></div>
                                 </div>
                             </div>
                         </div>
@@ -480,7 +476,7 @@
                             </div>
                             <div class="filter-group">
                                 <label for="invoice-number">Invoice Number:</label>
-                                <input type="text" id="invoice-number" placeholder="Invoice #">
+                                <input type="text" id="invoice-number" placeholder="Auto-generated or enter manually">
                             </div>
                         </div>
                         <div class="filter-row">
@@ -490,244 +486,186 @@
                             </div>
                             <div class="filter-group">
                                 <label for="payment-terms">Payment Terms:</label>
-                                <input type="text" id="payment-terms" placeholder="e.g., Net 30" value="Net 30">
+                                <input type="text" id="payment-terms" placeholder="e.g., Net 30">
                             </div>
                         </div>
                         <div class="filter-row">
-                            <div class="filter-group">
+                             <div class="filter-group" style="flex-basis: 100%;">
                                 <label for="invoice-notes">Notes/Additional Information:</label>
                                 <textarea id="invoice-notes" rows="3" placeholder="Any additional notes or payment instructions"></textarea>
                             </div>
                         </div>
                         <div class="filter-row">
-                            <button id="generate-invoice" class="blue-btn">Generate Invoice</button>
-                            <button id="view-invoice-entries">View Entries to be Included</button>
-                        </div>
+                            <button id="view-invoice-entries" class="blue-btn">View/Select Entries</button>
+                             <button id="generate-invoice" class="blue-btn" title="Generate invoice preview after viewing/selecting entries">Generate Preview</button>
+                            </div>
                     </div>
-                    
+
                     <div id="invoice-entries-preview" style="display: none; margin-top: 20px;">
                         <h3>Entries to be Included</h3>
                         <table id="invoice-entries-table">
                             <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Hours</th>
-                                    <th>Rate</th>
-                                    <th>Amount</th>
-                                    <th>Include</th>
-                                </tr>
+                                <tr><th>Date</th><th>Description</th><th>Hours</th><th>Rate</th><th>Amount</th><th>Include</th></tr>
                             </thead>
                             <tbody id="invoice-entries-body"></tbody>
                         </table>
-                        
+
                         <h3>Expenses to be Included</h3>
                         <table id="invoice-expenses-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
-                                    <th>Include</th>
-                                </tr>
-                            </thead>
-                            <tbody id="invoice-expenses-body"></tbody>
+                           <thead>
+                               <tr><th>Date</th><th>Description</th><th>Amount</th><th>Include</th></tr>
+                           </thead>
+                           <tbody id="invoice-expenses-body"></tbody>
                         </table>
-                        
+
                         <div class="summary">
-                            <p><strong>Total Hours:</strong> <span id="invoice-total-hours">0</span></p>
-                            <p><strong>Total Hours Amount:</strong> $<span id="invoice-total-amount">0.00</span></p>
-                            <p><strong>Total Expenses:</strong> $<span id="invoice-total-expenses">0.00</span></p>
-                            <p><strong>Grand Total:</strong> $<span id="invoice-grand-total">0.00</span></p>
+                            <p><strong>Selected Hours:</strong> <span id="invoice-total-hours">0</span></p>
+                            <p><strong>Selected Time Amount:</strong> <span id="invoice-total-amount">$0.00</span></p>
+                            <p><strong>Selected Expenses:</strong> <span id="invoice-total-expenses">$0.00</span></p>
+                            <p><strong>Invoice Grand Total:</strong> <span id="invoice-grand-total">$0.00</span></p>
                         </div>
+                         <button id="confirm-invoice-items" class="blue-btn" style="margin-top:15px;">Confirm Items & Generate Preview</button>
                     </div>
-                    
+
                     <div class="filter-row" style="margin-top: 20px;">
-                        <button id="print-invoice" style="display: none;">Print Invoice</button>
-                        <button id="save-invoice-pdf" class="blue-btn" style="display: none;">Save Invoice as PDF</button>
+                         <button id="print-invoice" style="display: none;">Print Invoice</button>
+                        <button id="save-invoice-pdf" class="blue-btn" style="display: none;">Save as PDF</button>
                         <button id="export-invoice-excel" class="blue-btn" style="display: none;">Export to Excel</button>
-                        <button id="mark-as-paid" class="blue-btn" style="display: none;">Mark as Paid</button>
+                        <button id="mark-as-paid" class="blue-btn" style="display: none;">Mark as Paid (Requires Save)</button>
                     </div>
                 </section>
 
-                <section id="invoice-preview" class="invoice" style="display: none;"></section>
-                
-                <section class="invoice-history" style="margin-top: 30px; display: none;">
-                    <h3>Invoice History</h3>
+                <section id="invoice-preview" class="invoice printable-invoice" style="display: none;"></section>
+
+                <section class="invoice-history" style="margin-top: 30px; display: block;"> <h3>Invoice History</h3>
                     <table id="invoice-history-table">
                         <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Client</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
+                            <tr><th>Invoice #</th><th>Client</th><th>Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
                         </thead>
                         <tbody id="invoice-history-body"></tbody>
                     </table>
                 </section>
-            </div>
-
-            <div id="reports-tab" class="tab-content" style="display: none;">
-                <h2>Reports</h2>
-                
-                <section class="filter-section">
+            </div> <div id="reports-tab" class="tab-content" style="display: none;">
+                 <h2>Reports</h2>
+                 <section class="filter-section">
                     <h3>Report Settings</h3>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="report-type">Report Type:</label>
-                            <select id="report-type">
-                                <option value="summary">Summary Report</option>
-                                <option value="detailed">Detailed Time Report</option>
-                                <option value="client">Client Report</option>
-                                <option value="project">Project Report</option>
-                                <option value="expense">Expense Report</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="report-date-range">Date Range:</label>
-                            <select id="report-date-range">
-                                <option value="this-month">This Month</option>
-                                <option value="last-month">Last Month</option>
-                                <option value="this-year">This Year</option>
-                                <option value="custom">Custom Range</option>
-                            </select>
-                        </div>
-                        <div class="filter-group" id="report-custom-date-range" style="display: none;">
+                     <div class="filter-row">
+                         <div class="filter-group">
+                             <label for="report-type">Report Type:</label>
+                             <select id="report-type">
+                                 <option value="summary">Summary Report</option>
+                                 <option value="detailed">Detailed Time Report</option>
+                                 <option value="client">Client Report</option>
+                                 <option value="project">Project Report</option>
+                                 <option value="expense">Expense Report</option>
+                             </select>
+                         </div>
+                         <div class="filter-group">
+                             <label for="report-date-range">Date Range:</label>
+                             <select id="report-date-range">
+                                 <option value="this-month">This Month</option>
+                                 <option value="last-month">Last Month</option>
+                                 <option value="this-year">This Year</option>
+                                 <option value="all">All Time</option>
+                                 <option value="custom">Custom Range</option>
+                             </select>
+                         </div>
+                         <div class="filter-group" id="report-custom-date-range" style="display: none;">
                             <div style="display: flex; gap: 10px;">
-                                <div style="flex: 1;">
-                                    <label for="report-date-from">From:</label>
-                                    <input type="date" id="report-date-from">
-                                </div>
-                                <div style="flex: 1;">
-                                    <label for="report-date-to">To:</label>
-                                    <input type="date" id="report-date-to">
-                                </div>
+                                <div style="flex: 1;"><label for="report-date-from">From:</label><input type="date" id="report-date-from"></div>
+                                <div style="flex: 1;"><label for="report-date-to">To:</label><input type="date" id="report-date-to"></div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="report-client">Client:</label>
-                            <select id="report-client">
-                                <option value="all">All Clients</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="report-project">Project:</label>
-                            <select id="report-project">
-                                <option value="all">All Projects</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <button id="generate-report" class="blue-btn">Generate Report</button>
-                            <button id="export-report" class="blue-btn">Export Report</button>
-                        </div>
-                    </div>
-                </section>
-                
-                <section id="report-container" style="margin-top: 20px;">
-                    <p id="no-report" style="font-style: italic; text-align: center;">Select report settings and click "Generate Report" to view your data.</p>
-                </section>
-            </div>
-            
-            <div id="settings-tab" class="tab-content" style="display: none;">
+                         </div>
+                     </div>
+                     <div class="filter-row">
+                         <div class="filter-group">
+                             <label for="report-client">Client:</label>
+                             <select id="report-client"><option value="all">All Clients</option></select>
+                         </div>
+                         <div class="filter-group">
+                             <label for="report-project">Project:</label>
+                             <select id="report-project"><option value="all">All Projects</option></select>
+                         </div>
+                         <div class="filter-group">
+                             <button id="generate-report" class="blue-btn">Generate Report</button>
+                             <button id="export-report" class="blue-btn">Export Report</button>
+                         </div>
+                     </div>
+                 </section>
+
+                 <section id="report-container" style="margin-top: 20px;">
+                     <p id="no-report" style="font-style: italic; text-align: center;">Select report settings and click "Generate Report".</p>
+                     </section>
+            </div> <div id="settings-tab" class="tab-content" style="display: none;">
                 <h2>Settings</h2>
-                
-                <section class="filter-section">
-                    <h3>Rate Templates</h3>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="rate-name">Rate Name:</label>
-                            <input type="text" id="rate-name" placeholder="e.g., Standard, Rush, Design, etc.">
-                        </div>
-                        <div class="filter-group">
-                            <label for="rate-amount">Hourly Rate ($):</label>
-                            <input type="number" id="rate-amount" min="1" placeholder="Hourly rate">
-                        </div>
-                        <div class="filter-group">
-                            <button id="add-rate" class="blue-btn">Add Rate</button>
-                        </div>
-                    </div>
-                    <div id="rates-container">
-                        </div>
-                </section>
-                
-                <section class="filter-section">
-                    <h3>Default Settings</h3>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="default-rate">Default Hourly Rate:</label>
-                            <select id="default-rate">
-                                </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="default-payment-terms">Default Payment Terms:</label>
-                            <input type="text" id="default-payment-terms" value="Net 30">
-                        </div>
-                    </div>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="your-name">Your Name/Business Name:</label>
-                            <input type="text" id="your-name" placeholder="Your name or business name">
-                        </div>
-                        <div class="filter-group">
-                            <label for="your-email">Your Email:</label>
-                            <input type="email" id="your-email" placeholder="Your email address">
-                        </div>
-                    </div>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="your-address">Your Address:</label>
-                            <textarea id="your-address" rows="3" placeholder="Your address for invoices"></textarea>
-                        </div>
-                        <div class="filter-group">
-                            <label for="payment-instructions">Payment Instructions:</label>
-                            <textarea id="payment-instructions" rows="3" placeholder="Default payment instructions for invoices"></textarea>
-                        </div>
-                    </div>
-                    <div class="filter-row">
-                        <button id="save-settings" class="blue-btn">Save Settings</button>
-                    </div>
-                </section>
-                
-                <section class="filter-section">
-                    <h3>Display Settings</h3>
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="theme-selection">Theme:</label>
-                            <select id="theme-selection">
-                                <option value="light">Light</option>
-                                <option value="dark">Dark</option>
-                                <option value="auto">Auto (System Preference)</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="date-format">Date Format:</label>
-                            <select id="date-format">
-                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="currency-format">Currency:</label>
-                            <select id="currency-format">
-                                <option value="USD">USD ($)</option>
-                                <option value="EUR">EUR (€)</option>
-                                <option value="GBP">GBP (£)</option>
-                                <option value="CAD">CAD ($)</option>
-                                <option value="AUD">AUD ($)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="filter-row">
-                        <button id="save-display-settings" class="blue-btn">Save Display Settings</button>
-                    </div>
-                </section>
-            </div>
-        </main> </div> <script type="module" src="app.js"></script>
+                 <section class="filter-section">
+                     <h3>Rate Templates</h3>
+                     <div class="filter-row">
+                         <div class="filter-group"><label for="rate-name">Rate Name:</label><input type="text" id="rate-name" placeholder="e.g., Standard, Rush"></div>
+                         <div class="filter-group"><label for="rate-amount">Hourly Rate ($):</label><input type="number" id="rate-amount" min="1" placeholder="Hourly rate"></div>
+                         <div class="filter-group"><button id="add-rate" class="blue-btn">Add Rate</button></div>
+                     </div>
+                     <div id="rates-container"></div>
+                 </section>
+
+                 <section class="filter-section">
+                     <h3>Default Settings</h3>
+                     <div class="filter-row">
+                         <div class="filter-group"><label for="default-rate">Default Hourly Rate:</label><select id="default-rate"></select></div>
+                         <div class="filter-group"><label for="default-payment-terms">Default Payment Terms:</label><input type="text" id="default-payment-terms"></div>
+                     </div>
+                     <div class="filter-row">
+                         <div class="filter-group"><label for="your-name">Your Name/Business Name:</label><input type="text" id="your-name"></div>
+                         <div class="filter-group"><label for="your-email">Your Email:</label><input type="email" id="your-email"></div>
+                     </div>
+                     <div class="filter-row">
+                          <div class="filter-group" style="flex-basis: 48%;"><label for="your-address">Your Address:</label><textarea id="your-address" rows="3"></textarea></div>
+                          <div class="filter-group" style="flex-basis: 48%;"><label for="payment-instructions">Payment Instructions:</label><textarea id="payment-instructions" rows="3"></textarea></div>
+                     </div>
+                     <div class="filter-row"><button id="save-settings" class="blue-btn">Save Core Settings</button></div>
+                 </section>
+
+                 <section class="filter-section">
+                     <h3>Display Settings</h3>
+                     <div class="filter-row">
+                         <div class="filter-group">
+                             <label for="theme-selection">Theme:</label>
+                             <select id="theme-selection">
+                                 <option value="light">Light</option>
+                                 <option value="dark">Dark</option>
+                                 <option value="auto">Auto (System Preference)</option>
+                             </select>
+                         </div>
+                         <div class="filter-group">
+                             <label for="date-format">Date Format:</label>
+                             <select id="date-format">
+                                 <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                 <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                 <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                             </select>
+                         </div>
+                         <div class="filter-group">
+                             <label for="currency-format">Currency:</label>
+                             <select id="currency-format">
+                                 <option value="USD">USD ($)</option>
+                                 <option value="EUR">EUR (€)</option>
+                                 <option value="GBP">GBP (£)</option>
+                                 <option value="CAD">CAD ($)</option>
+                                 <option value="AUD">AUD ($)</option>
+                                  </select>
+                         </div>
+                     </div>
+                     <div class="filter-row"><button id="save-display-settings" class="blue-btn">Save Display Settings</button></div>
+                 </section>
+
+                 <section class="filter-section">
+                    <h3>Danger Zone</h3>
+                     <p>These actions cannot be undone.</p>
+                    <button id="clear-local-storage" style="background-color: #ff9f0a;">Clear Local Storage Data</button>
+                    <button id="clear-database-data" style="background-color: #ff3b30;">Clear ALL Database Data</button>
+                 </section>
+
+            </div> </main> </div> <script type="module" src="app.js"></script>
+
 </body>
 </html>
