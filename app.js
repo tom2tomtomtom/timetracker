@@ -40,47 +40,18 @@ async function initApp() {
 }
 
 // CORRECTED Connection Check
-async function checkSupabaseConnection() {
-    try {
-        console.log("Checking Supabase connection & auth status...");
-        const { data: { session }, error } = await SupabaseAPI.supabase.auth.getSession();
-        if (error) throw error; console.log("Supabase connection check successful."); return true;
-    } catch (err) { console.error("Supabase connection check error:", err); alert(`Database connection error: ${err.message}.`); return false; }
-}
-
-function setDefaultDates() { /* ... same ... */ }
-
+async function checkSupabaseConnection() { /* ... same as V6 ... */ }
+function setDefaultDates() { /* ... same as V6 ... */ }
 // Corrected loadUserData
-async function loadUserData() {
-    if (!appState.user) return; console.log("Loading user data..."); showLoadingIndicator(true);
-    try {
-        const [entries, expensesData, settingsData, recurringData, ratesData, invoiceData] = await Promise.all([
-            SupabaseAPI.getTimeEntries(), SupabaseAPI.getExpenses(), SupabaseAPI.getSettings(appState.user.id),
-            SupabaseAPI.getRecurringEntries(), SupabaseAPI.getRates(), SupabaseAPI.getInvoices(),
-        ]);
-        appState.entries = entries || []; appState.expenses = expensesData || []; appState.recurringEntries = recurringData || [];
-        appState.rates = ratesData || [];
-        if (appState.rates.length === 0) { console.log("No custom rate templates loaded."); }
-        else if (!appState.rates.some(r => String(r.amount) === String(appState.settings.defaultRate))) { console.log("Default rate value not found in loaded rate templates."); }
-        appState.invoices = invoiceData || [];
-        let loadedFormData = null;
-        if (settingsData) {
-            loadedFormData = settingsData?.formData ?? settingsData?.form_data ?? null;
-            const validSettings = Object.entries(settingsData).filter(([key, value]) => key !== 'formData' && key !== 'form_data' && value !== null && value !== undefined).reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
-            appState.settings = { ...appState.settings, ...validSettings };
-        }
-        applyTheme(appState.settings.theme);
-        populateSettingsForm(); populateRateTemplates(); updateTimeEntriesTable(); updateExpensesTable(); updateSummary();
-        updateClientProjectDropdowns(); updateRecurringEntriesUI(); updateInvoiceHistoryTable();
-        appState.currentFormData = loadedFormData || getFormDataFromLocalStorage();
-        if (appState.currentFormData) { loadFormDataIntoForm(appState.currentFormData); }
-        console.log("User data loaded.");
-    } catch (error) { console.error('Error loading user data:', error); showNotification('Error loading your data.', 'error'); }
-    finally { showLoadingIndicator(false); }
-}
+async function loadUserData() { /* ... same as V6 ... */ }
 
 // --- UI Updates ---
-function showApp() { /* ... same ... */ }
+function showApp() {
+    // --- ADDED DEBUG LOG ---
+    console.log("DEBUG: showApp() called");
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+}
 function showLoginForm() { /* ... same ... */ }
 function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() { /* ... same ... */ }
@@ -94,7 +65,7 @@ function updateTimeEntriesTable() {
     tableBody.innerHTML = '';
 
     // DEBUG LINE 1
-    console.log(`DEBUG: Updating table. Found ${appState.entries.length} entries in appState. First entry:`, appState.entries[0]);
+    console.log(`DEBUG: Updating table. Found ${appState.entries.length} entries in appState.`);
 
     const sortedEntries = [...appState.entries].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -105,10 +76,10 @@ function updateTimeEntriesTable() {
 
     sortedEntries.forEach((entry, index) => {
         // --- ADDED/MODIFIED DEBUG LINES ---
-         if(index === 0) { // Only log details for the first entry to avoid flooding console
-             console.log('DEBUG: Keys of first entry object: ' + Object.keys(entry).join(', ')); // Force string output of keys
+         if(index === 0) { // Only log details for the first entry
+             console.log('DEBUG: Keys of first entry object: ' + Object.keys(entry).join(', ')); // Force string output
              console.log('--- DEBUG: Values for first entry ---');
-             console.log('  -> entry.description:', entry.description); // Check value directly
+             console.log('  -> entry.description:', entry.description);
              console.log('  -> entry.client:', entry.client);
              console.log('  -> entry.project:', entry.project);
              console.log('  -> entry.hours:', entry.hours);
@@ -121,14 +92,27 @@ function updateTimeEntriesTable() {
          // --- END OF ADDED/MODIFIED DEBUG ---
 
         const row = tableBody.insertRow();
-        // These will likely show undefined if keys are wrong
+        // Log inputs to helpers for first row
+        if (index === 0) console.log(`DEBUG: Input to formatDate: ${entry.date}, ${appState.settings.dateFormat}`);
         const formattedDate = formatDate(entry.date, appState.settings.dateFormat);
+        if (index === 0) console.log(`DEBUG: Output of formatDate: ${formattedDate}`);
+
+        if (index === 0) console.log(`DEBUG: Input to formatCurrency (Rate): ${entry.rate}, ${appState.settings.currency}`);
         const formattedRate = formatCurrency(entry.rate, appState.settings.currency);
+        if (index === 0) console.log(`DEBUG: Output of formatCurrency (Rate): ${formattedRate}`);
+
+        if (index === 0) console.log(`DEBUG: Input to formatCurrency (Amount): ${entry.amount}, ${appState.settings.currency}`);
         const formattedAmount = formatCurrency(entry.amount, appState.settings.currency);
+        if (index === 0) console.log(`DEBUG: Output of formatCurrency (Amount): ${formattedAmount}`);
+
+        if (index === 0) console.log(`DEBUG: Input to escapeHtml (Desc): ${entry.description}`);
+        const escapedDescription = escapeHtml(entry.description);
+        if (index === 0) console.log(`DEBUG: Output of escapeHtml (Desc): ${escapedDescription}`);
+
 
         const rowHTML = `
             <td>${formattedDate}</td>
-            <td>${escapeHtml(entry.description)}</td>
+            <td>${escapedDescription}</td>
             <td>${escapeHtml(entry.client || '-')}</td>
             <td>${escapeHtml(entry.project || '-')}</td>
             <td>${(entry.hours || 0).toFixed(2)}</td>
@@ -139,11 +123,15 @@ function updateTimeEntriesTable() {
                 <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px; font-size: 0.9em;">Delete</button>
             </td>
         `;
-        // DEBUG LINE 3 (optional, can comment out if rowHTML looks okay based on values)
-        // if(index === 0) console.log('DEBUG: Generated HTML for first row (first 200 chars):', rowHTML.substring(0, 200));
+        if(index === 0) console.log('DEBUG: Generated HTML for first row (first 200 chars):', rowHTML.substring(0, 200));
 
         row.innerHTML = rowHTML;
     });
+
+    // --- ADDED DEBUG LINE ---
+    console.log("DEBUG: updateTimeEntriesTable finished populating.");
+    console.log("DEBUG: Table body innerHTML (first 300 chars):", tableBody.innerHTML.substring(0, 300));
+
     // Listeners added via delegation
 }
 // *** End of modified updateTimeEntriesTable ***
@@ -198,14 +186,15 @@ async function deleteRateTemplate(id) { /* ... same ... */ }
 // --- Data Management ---
 function exportData() { /* ... same ... */ }
 async function importData(e) { /* ... same ... */ }
-function exportCSV() { /* ... TODO ... */ }
-function applyFilters() { /* ... TODO ... */ }
-function clearFilters() { /* ... TODO ... */ }
+function exportCSV() { console.log("TODO: Export CSV"); showNotification('Export CSV - Not Implemented', 'info'); }
+function applyFilters() { console.log("TODO: Apply Filters"); showNotification('Apply Filters - Not Implemented', 'info'); }
+function clearFilters() { console.log("TODO: Clear Filters"); showNotification('Clear Filters - Not Implemented', 'info'); }
 function clearLocalStorageData() { /* ... same ... */ }
 async function clearDatabaseData() { /* ... same ... */ }
 
 // --- Auto Save ---
 const AUTO_SAVE_DELAY = 2500;
+// setupAutoSave defined within setupEventListeners structure now
 function handleAutoSaveInput() { /* ... same ... */ }
 async function saveCurrentFormData() { /* ... same ... */ }
 function loadFormDataIntoForm(formData) { /* ... same ... */ }
@@ -279,4 +268,4 @@ function readFileAsText(file) { /* ... same ... */ }
 function showLoadingIndicator(show) { /* ... same ... */ }
 
 // --- Final Log ---
-console.log("app.js V8 with detailed debug logs loaded."); // Updated version log
+console.log("app.js V8 with detailed debug logs loaded.");
