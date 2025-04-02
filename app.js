@@ -1,4 +1,4 @@
-// App.js - Main application logic (Refactored - V6 + Debug Logs)
+// App.js - Main application logic (Refactored - V7 Enhanced Debug)
 
 // Imports
 import * as SupabaseAPI from './supabase.js';
@@ -8,11 +8,7 @@ import { runSetupChecks } from './setup-check.js';
 // --- Application State ---
 const appState = {
     entries: [], expenses: [], recurringEntries: [], invoices: [], rates: [],
-    settings: { // Default settings (camelCase)
-        defaultRate: 350, defaultPaymentTerms: 'Net 30', name: '', email: '',
-        address: '', paymentInstructions: '', theme: 'auto',
-        dateFormat: 'MM/DD/YYYY', currency: 'USD',
-    },
+    settings: { defaultRate: 350, defaultPaymentTerms: 'Net 30', name: '', email: '', address: '', paymentInstructions: '', theme: 'auto', dateFormat: 'MM/DD/YYYY', currency: 'USD' },
     user: null,
     currentTimer: { intervalId: null, startTime: null, pausedTime: 0, isPaused: false },
     currentFormData: null,
@@ -25,32 +21,22 @@ const appState = {
 document.addEventListener('DOMContentLoaded', initApp);
 
 async function initApp() {
-    console.log("Initializing app V6+Debug..."); // Version log
+    console.log("Initializing app V7+Debug..."); // Version log
     if (!(await checkSupabaseConnection())) {
-        showNotification("Cannot initialize: Database connection issue.", "error");
-        return;
+        showNotification("Cannot initialize: Database connection issue.", "error"); return;
     }
     console.log("Checking session...");
     try {
         const { data: { session } } = await SupabaseAPI.supabase.auth.getSession();
         if (session?.user) {
-            appState.user = session.user;
-            console.log("User logged in:", appState.user.email);
-            await loadUserData();
-            showApp();
-        } else {
-            console.log("No session found, showing login.");
-            showLoginForm();
-        }
-    } catch (error) {
-        console.error("Session check error:", error);
-        showNotification("Error checking session.", "error");
-        showLoginForm();
-    }
+            appState.user = session.user; console.log("User logged in:", appState.user.email);
+            await loadUserData(); showApp();
+        } else { console.log("No session found, showing login."); showLoginForm(); }
+    } catch (error) { console.error("Session check error:", error); showNotification("Error checking session.", "error"); showLoginForm(); }
     setupEventListeners();
-    initDashboard(appState, getDashboardDependencies()); // Init dashboard module
+    initDashboard(appState, getDashboardDependencies());
     setDefaultDates();
-    applyTheme(appState.settings.theme); // Apply theme after settings potentially loaded
+    applyTheme(appState.settings.theme);
 }
 
 // CORRECTED Connection Check
@@ -58,81 +44,39 @@ async function checkSupabaseConnection() {
     try {
         console.log("Checking Supabase connection & auth status...");
         const { data: { session }, error } = await SupabaseAPI.supabase.auth.getSession();
-        if (error) throw error; // Throw error if getSession fails
-        console.log("Supabase connection check successful.");
-        return true;
-    } catch (err) {
-        console.error("Supabase connection check error:", err);
-        alert(`Database connection error: ${err.message}. Check Supabase config and network.`);
-        return false;
-    }
+        if (error) throw error; console.log("Supabase connection check successful."); return true;
+    } catch (err) { console.error("Supabase connection check error:", err); alert(`Database connection error: ${err.message}.`); return false; }
 }
 
-function setDefaultDates() {
-    const today = new Date().toISOString().substring(0, 10);
-    document.querySelectorAll('input[type="date"]').forEach(input => {
-        if (!input.value) input.value = today;
-    });
-}
+function setDefaultDates() { /* ... same ... */ }
 
-// Corrected loadUserData (uses settings fetch for form_data)
+// Corrected loadUserData
 async function loadUserData() {
-    if (!appState.user) return;
-    console.log("Loading user data...");
-    showLoadingIndicator(true); // Show loading indicator
+    if (!appState.user) return; console.log("Loading user data..."); showLoadingIndicator(true);
     try {
         const [entries, expensesData, settingsData, recurringData, ratesData, invoiceData] = await Promise.all([
-            SupabaseAPI.getTimeEntries(), SupabaseAPI.getExpenses(),
-            SupabaseAPI.getSettings(appState.user.id), SupabaseAPI.getRecurringEntries(),
-            SupabaseAPI.getRates(), SupabaseAPI.getInvoices(),
+            SupabaseAPI.getTimeEntries(), SupabaseAPI.getExpenses(), SupabaseAPI.getSettings(appState.user.id),
+            SupabaseAPI.getRecurringEntries(), SupabaseAPI.getRates(), SupabaseAPI.getInvoices(),
         ]);
-
-        appState.entries = entries || [];
-        appState.expenses = expensesData || [];
-        appState.recurringEntries = recurringData || [];
+        appState.entries = entries || []; appState.expenses = expensesData || []; appState.recurringEntries = recurringData || [];
         appState.rates = ratesData || [];
-        // Ensure default rate exists if none loaded from DB
-        if (appState.rates.length === 0) {
-             console.log("No custom rate templates found in database.");
-        } else if (!appState.rates.some(r => String(r.amount) === String(appState.settings.defaultRate))) {
-             console.log("Default rate value not found in loaded rate templates.");
-        }
-
+        if (appState.rates.length === 0) { console.log("No custom rate templates loaded."); }
+        else if (!appState.rates.some(r => String(r.amount) === String(appState.settings.defaultRate))) { console.log("Default rate value not found in loaded rate templates."); }
         appState.invoices = invoiceData || [];
-
         let loadedFormData = null;
         if (settingsData) {
             loadedFormData = settingsData?.formData ?? settingsData?.form_data ?? null;
-            const validSettings = Object.entries(settingsData)
-                .filter(([key, value]) => key !== 'formData' && key !== 'form_data' && value !== null && value !== undefined)
-                .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
+            const validSettings = Object.entries(settingsData).filter(([key, value]) => key !== 'formData' && key !== 'form_data' && value !== null && value !== undefined).reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
             appState.settings = { ...appState.settings, ...validSettings };
         }
-
         applyTheme(appState.settings.theme);
-
-        // Populate UI
-        populateSettingsForm();       // Includes updateRateDropdowns
-        populateRateTemplates();      // Populates the list of templates
-        updateTimeEntriesTable();     // *** DEBUG LOGS ADDED INSIDE HERE ***
-        updateExpensesTable();
-        updateSummary();
-        updateClientProjectDropdowns();
-        updateRecurringEntriesUI();   // Includes addRecurringEntryActionListeners
-        updateInvoiceHistoryTable();  // Includes addInvoiceHistoryActionListeners
-
-        // Load auto-saved form data
-        appState.currentFormData = loadedFormData || getFormDataFromLocalStorage(); // Helper now defined
-        if (appState.currentFormData) {
-            loadFormDataIntoForm(appState.currentFormData);
-        }
+        populateSettingsForm(); populateRateTemplates(); updateTimeEntriesTable(); updateExpensesTable(); updateSummary();
+        updateClientProjectDropdowns(); updateRecurringEntriesUI(); updateInvoiceHistoryTable();
+        appState.currentFormData = loadedFormData || getFormDataFromLocalStorage();
+        if (appState.currentFormData) { loadFormDataIntoForm(appState.currentFormData); }
         console.log("User data loaded.");
-    } catch (error) {
-        console.error('Error loading user data:', error);
-        showNotification('Error loading your data.', 'error');
-    } finally {
-        showLoadingIndicator(false); // Hide loading indicator
-    }
+    } catch (error) { console.error('Error loading user data:', error); showNotification('Error loading your data.', 'error'); }
+    finally { showLoadingIndicator(false); }
 }
 
 // --- UI Updates ---
@@ -143,13 +87,13 @@ function populateSettingsForm() { /* ... same ... */ }
 function populateRateTemplates() { /* ... same ... */ }
 function updateRateDropdowns() { /* ... same ... */ }
 
-// *** updateTimeEntriesTable with DEBUG LOGS ***
+// *** updateTimeEntriesTable with Enhanced DEBUG LOG ***
 function updateTimeEntriesTable() {
     const tableBody = document.getElementById('entries-body');
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    // --- ADDED DEBUG LINE ---
+    // DEBUG LINE 1
     console.log(`DEBUG: Updating table. Found ${appState.entries.length} entries in appState. First entry:`, appState.entries[0]);
 
     const sortedEntries = [...appState.entries].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -160,8 +104,8 @@ function updateTimeEntriesTable() {
     }
 
     sortedEntries.forEach((entry, index) => {
-         // --- ADDED DEBUG LINE ---
-         if(index === 0) console.log('DEBUG: Structure of first entry object:', entry);
+        // DEBUG LINE 2 (MODIFIED)
+         if(index === 0) console.log('DEBUG: Keys of first entry object:', Object.keys(entry));
 
         const row = tableBody.insertRow();
         const formattedDate = formatDate(entry.date, appState.settings.dateFormat);
@@ -181,12 +125,12 @@ function updateTimeEntriesTable() {
                 <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px; font-size: 0.9em;">Delete</button>
             </td>
         `;
-        // --- ADDED DEBUG LINE ---
+        // DEBUG LINE 3
         if(index === 0) console.log('DEBUG: Generated HTML for first row (first 200 chars):', rowHTML.substring(0, 200));
 
         row.innerHTML = rowHTML;
     });
-    // Listeners are added via delegation
+    // Listeners added via delegation
 }
 // *** End of modified updateTimeEntriesTable ***
 
@@ -199,7 +143,7 @@ function updateRecurringEntriesUI() { /* ... same ... */ }
 function updateInvoiceHistoryTable() { /* ... same ... */ }
 
 // --- Event Listeners Setup ---
-function setupEventListeners() { /* ... same structure calling smaller setup functions ... */ }
+function setupEventListeners() { /* ... same ... */ }
 // --- Specific Listener Setup Function DEFINITIONS ---
 function addListener(id, event, handler) { /* ... same ... */ }
 function addDelegatedListener(parentElementId, event, selector, handler) { /* ... same ... */ }
@@ -240,21 +184,19 @@ async function deleteRateTemplate(id) { /* ... same ... */ }
 // --- Data Management ---
 function exportData() { /* ... same ... */ }
 async function importData(e) { /* ... same ... */ }
-function exportCSV() { console.log("TODO: Export CSV"); showNotification('Export CSV - Not Implemented', 'info'); }
-function applyFilters() { console.log("TODO: Apply Filters"); showNotification('Apply Filters - Not Implemented', 'info'); }
-function clearFilters() { console.log("TODO: Clear Filters"); showNotification('Clear Filters - Not Implemented', 'info'); }
+function exportCSV() { /* ... TODO ... */ }
+function applyFilters() { /* ... TODO ... */ }
+function clearFilters() { /* ... TODO ... */ }
 function clearLocalStorageData() { /* ... same ... */ }
 async function clearDatabaseData() { /* ... same ... */ }
 
 // --- Auto Save ---
 const AUTO_SAVE_DELAY = 2500;
-// setupAutoSave defined within setupEventListeners structure now
 function handleAutoSaveInput() { /* ... same ... */ }
 async function saveCurrentFormData() { /* ... same ... */ }
 function loadFormDataIntoForm(formData) { /* ... same ... */ }
 async function clearSavedFormData() { /* ... same ... */ }
 function showAutoSaveIndicator() { /* ... same ... */ }
-// getFormDataFromLocalStorage defined in helpers
 
 // --- Time Entry CRUD ---
 async function addTimeEntry() { /* ... same ... */ }
@@ -323,4 +265,4 @@ function readFileAsText(file) { /* ... same ... */ }
 function showLoadingIndicator(show) { /* ... same ... */ }
 
 // --- Final Log ---
-console.log("app.js V6 with fixes loaded."); // Keep this log to confirm the right version is running
+console.log("app.js V7 with debug logs loaded."); // Updated version log
