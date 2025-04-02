@@ -1,5 +1,6 @@
 // App.js - Main application logic
 import * as SupabaseAPI from './supabase.js';
+import { initDashboard, updateDashboard } from './dashboard.js';
 import { runSetupChecks } from './setup-check.js';
 
 document.addEventListener('DOMContentLoaded', initApp);
@@ -67,6 +68,9 @@ async function initApp() {
     
     // Set up event listeners
     setupEventListeners();
+    
+    // Initialize dashboard
+    initDashboard();
 }
 
 async function loadUserData() {
@@ -133,23 +137,87 @@ function setupEventListeners() {
     document.getElementById('add-entry').addEventListener('click', addTimeEntry);
     document.getElementById('update-entry').addEventListener('click', updateTimeEntry);
     document.getElementById('cancel-edit').addEventListener('click', cancelEdit);
-    document.getElementById('generate-invoice').addEventListener('click', generateInvoice);
-    document.getElementById('print-invoice').addEventListener('click', () => window.print());
-    document.getElementById('export-data').addEventListener('click', exportData);
-    document.getElementById('import-data').addEventListener('click', () => document.getElementById('file-input').click());
-    document.getElementById('file-input').addEventListener('change', importData);
-    document.getElementById('refresh-dashboard').addEventListener('click', updateDashboard);
-    document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
+    
+    // Stub for generateInvoice function until fully implemented
+    const generateInvoiceBtn = document.getElementById('generate-invoice');
+    if (generateInvoiceBtn) {
+        generateInvoiceBtn.addEventListener('click', () => {
+            showNotification('Invoice generation is not fully implemented yet', 'info');
+        });
+    }
+    
+    const printInvoiceBtn = document.getElementById('print-invoice');
+    if (printInvoiceBtn) {
+        printInvoiceBtn.addEventListener('click', () => window.print());
+    }
+    
+    // Stub for export/import functions
+    const exportDataBtn = document.getElementById('export-data');
+    if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', () => {
+            showNotification('Data export feature is coming soon', 'info');
+        });
+    }
+    
+    const importDataBtn = document.getElementById('import-data');
+    if (importDataBtn) {
+        importDataBtn.addEventListener('click', () => {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) fileInput.click();
+        });
+    }
+    
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            showNotification('Data import feature is coming soon', 'info');
+        });
+    }
+    
+    const refreshDashboardBtn = document.getElementById('refresh-dashboard');
+    if (refreshDashboardBtn) {
+        refreshDashboardBtn.addEventListener('click', () => {
+            if (typeof updateDashboard === 'function') {
+                updateDashboard();
+            }
+        });
+    }
+    
+    const darkModeToggleBtn = document.getElementById('dark-mode-toggle');
+    if (darkModeToggleBtn) {
+        darkModeToggleBtn.addEventListener('click', toggleDarkMode);
+    }
     
     // Tab navigation listeners - simplified direct approach
-    document.querySelector('[data-tab="time-tracking-tab"]').addEventListener('click', e => openTab(e, 'time-tracking-tab'));
-    document.querySelector('[data-tab="dashboard-tab"]').addEventListener('click', e => openTab(e, 'dashboard-tab'));
-    document.querySelector('[data-tab="invoice-tab"]').addEventListener('click', e => openTab(e, 'invoice-tab'));
-    document.querySelector('[data-tab="reports-tab"]').addEventListener('click', e => openTab(e, 'reports-tab'));
-    document.querySelector('[data-tab="settings-tab"]').addEventListener('click', e => openTab(e, 'settings-tab'));
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const tabName = e.currentTarget.getAttribute('data-tab');
+            openTab(e, tabName);
+        });
+    });
     
     // Set up auto-save on form fields
     setupAutoSave();
+}
+
+// Function for toggling dark mode
+function toggleDarkMode() {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    
+    // Update settings
+    settings.theme = isDarkMode ? 'dark' : 'light';
+    
+    // Update button text
+    document.getElementById('dark-mode-toggle').textContent = isDarkMode ? '☀️' : '🌙';
+    
+    // Save settings if user is logged in
+    if (currentUser) {
+        SupabaseAPI.saveSettings({
+            ...settings,
+            user_id: currentUser.id
+        });
+    }
 }
 
 function setupAutoSave() {
@@ -827,7 +895,7 @@ async function showDatabaseSetupModal() {
                 setupResults.innerHTML += '   - Make sure Email Auth is enabled\n';
                 setupResults.innerHTML += '   - Verify that row-level security policies are set up correctly\n\n';
             }
-        } else {
+      } else {
             setupResults.innerHTML += 'Your database is correctly set up! You can now use the application.\n';
         }
     } catch (error) {
@@ -864,3 +932,10 @@ function openTab(e, tabName) {
         }
     }
 }
+
+// Export global state and functions to window object for module access
+window.timeEntries = timeEntries;
+window.expenses = expenses;
+window.settings = settings;
+window.currentUser = currentUser;
+window.showNotification = showNotification;
