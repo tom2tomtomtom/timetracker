@@ -1,4 +1,4 @@
-// App.js - Main application logic (Refactored - V7 Enhanced Debug)
+// App.js - Main application logic (Refactored - V8 Enhanced Debug)
 
 // Imports
 import * as SupabaseAPI from './supabase.js';
@@ -21,7 +21,7 @@ const appState = {
 document.addEventListener('DOMContentLoaded', initApp);
 
 async function initApp() {
-    console.log("Initializing app V7+Debug..."); // Version log
+    console.log("Initializing app V8+Debug..."); // Version log
     if (!(await checkSupabaseConnection())) {
         showNotification("Cannot initialize: Database connection issue.", "error"); return;
     }
@@ -80,17 +80,17 @@ async function loadUserData() {
 }
 
 // --- UI Updates ---
-function showApp() { document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'block'; }
-function showLoginForm() { document.getElementById('login-container').style.display = 'block'; document.getElementById('app-container').style.display = 'none'; }
+function showApp() { /* ... same ... */ }
+function showLoginForm() { /* ... same ... */ }
 function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() { /* ... same ... */ }
 function populateRateTemplates() { /* ... same ... */ }
 function updateRateDropdowns() { /* ... same ... */ }
 
-// *** updateTimeEntriesTable with Enhanced DEBUG LOG ***
+// *** updateTimeEntriesTable with MORE DETAILED DEBUG LOGS ***
 function updateTimeEntriesTable() {
     const tableBody = document.getElementById('entries-body');
-    if (!tableBody) return;
+    if (!tableBody) { console.error("Table body #entries-body not found!"); return; }
     tableBody.innerHTML = '';
 
     // DEBUG LINE 1
@@ -104,10 +104,24 @@ function updateTimeEntriesTable() {
     }
 
     sortedEntries.forEach((entry, index) => {
-        // DEBUG LINE 2 (MODIFIED)
-         if(index === 0) console.log('DEBUG: Keys of first entry object:', Object.keys(entry));
+        // --- ADDED/MODIFIED DEBUG LINES ---
+         if(index === 0) { // Only log details for the first entry to avoid flooding console
+             console.log('DEBUG: Keys of first entry object: ' + Object.keys(entry).join(', ')); // Force string output of keys
+             console.log('--- DEBUG: Values for first entry ---');
+             console.log('  -> entry.description:', entry.description); // Check value directly
+             console.log('  -> entry.client:', entry.client);
+             console.log('  -> entry.project:', entry.project);
+             console.log('  -> entry.hours:', entry.hours);
+             console.log('  -> entry.rate:', entry.rate);
+             console.log('  -> entry.amount:', entry.amount);
+             console.log('  -> entry.date:', entry.date);
+             console.log('  -> entry.id:', entry.id);
+             console.log('--- End DEBUG Values ---');
+         }
+         // --- END OF ADDED/MODIFIED DEBUG ---
 
         const row = tableBody.insertRow();
+        // These will likely show undefined if keys are wrong
         const formattedDate = formatDate(entry.date, appState.settings.dateFormat);
         const formattedRate = formatCurrency(entry.rate, appState.settings.currency);
         const formattedAmount = formatCurrency(entry.amount, appState.settings.currency);
@@ -125,8 +139,8 @@ function updateTimeEntriesTable() {
                 <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px; font-size: 0.9em;">Delete</button>
             </td>
         `;
-        // DEBUG LINE 3
-        if(index === 0) console.log('DEBUG: Generated HTML for first row (first 200 chars):', rowHTML.substring(0, 200));
+        // DEBUG LINE 3 (optional, can comment out if rowHTML looks okay based on values)
+        // if(index === 0) console.log('DEBUG: Generated HTML for first row (first 200 chars):', rowHTML.substring(0, 200));
 
         row.innerHTML = rowHTML;
     });
@@ -143,7 +157,7 @@ function updateRecurringEntriesUI() { /* ... same ... */ }
 function updateInvoiceHistoryTable() { /* ... same ... */ }
 
 // --- Event Listeners Setup ---
-function setupEventListeners() { /* ... same ... */ }
+function setupEventListeners() { /* ... same structure calling smaller setup functions ... */ }
 // --- Specific Listener Setup Function DEFINITIONS ---
 function addListener(id, event, handler) { /* ... same ... */ }
 function addDelegatedListener(parentElementId, event, selector, handler) { /* ... same ... */ }
@@ -265,4 +279,4 @@ function readFileAsText(file) { /* ... same ... */ }
 function showLoadingIndicator(show) { /* ... same ... */ }
 
 // --- Final Log ---
-console.log("app.js V7 with debug logs loaded."); // Updated version log
+console.log("app.js V8 with detailed debug logs loaded."); // Updated version log
