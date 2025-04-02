@@ -8,7 +8,7 @@ import { runSetupChecks } from './setup-check.js';
 // --- Application State ---
 const appState = {
     entries: [], expenses: [], recurringEntries: [], invoices: [], rates: [],
-    settings: {
+    settings: { // Default settings (camelCase)
         defaultRate: 350, defaultPaymentTerms: 'Net 30', name: '', email: '',
         address: '', paymentInstructions: '', theme: 'auto',
         dateFormat: 'MM/DD/YYYY', currency: 'USD',
@@ -25,10 +25,9 @@ const appState = {
 document.addEventListener('DOMContentLoaded', initApp);
 
 async function initApp() {
-    console.log("Initializing app V6...");
+    console.log("Initializing app V6..."); // Version log
     if (!(await checkSupabaseConnection())) {
         showNotification("Cannot initialize: Database connection issue.", "error");
-        // Consider disabling parts of the UI if connection fails
         return;
     }
     console.log("Checking session...");
@@ -54,7 +53,7 @@ async function initApp() {
     applyTheme(appState.settings.theme); // Apply theme after settings potentially loaded
 }
 
-// Corrected Connection Check
+// CORRECTED Connection Check
 async function checkSupabaseConnection() {
     try {
         console.log("Checking Supabase connection & auth status...");
@@ -91,7 +90,13 @@ async function loadUserData() {
         appState.entries = entries || [];
         appState.expenses = expensesData || [];
         appState.recurringEntries = recurringData || [];
+        // Ensure rates has a default if needed (or handle empty state in UI)
         appState.rates = ratesData || [];
+        if (appState.rates.length === 0) {
+             // Maybe add a default rate if none exist? Or rely on defaultRate setting?
+             console.log("No custom rate templates found in database.");
+        }
+
         appState.invoices = invoiceData || [];
 
         let loadedFormData = null;
@@ -105,7 +110,7 @@ async function loadUserData() {
 
         applyTheme(appState.settings.theme);
 
-        // Populate UI (order matters sometimes)
+        // Populate UI
         populateSettingsForm();       // Includes updateRateDropdowns
         populateRateTemplates();      // Populates the list of templates
         updateTimeEntriesTable();
@@ -116,9 +121,10 @@ async function loadUserData() {
         updateInvoiceHistoryTable();  // Includes addInvoiceHistoryActionListeners
 
         // Load auto-saved form data
-        appState.currentFormData = loadedFormData || getFormDataFromLocalStorage();
-        if (appState.currentFormData) loadFormDataIntoForm(appState.currentFormData);
-
+        appState.currentFormData = loadedFormData || getFormDataFromLocalStorage(); // Helper now defined
+        if (appState.currentFormData) {
+            loadFormDataIntoForm(appState.currentFormData);
+        }
         console.log("User data loaded.");
     } catch (error) {
         console.error('Error loading user data:', error);
@@ -144,7 +150,7 @@ function populateDatalist(elementId, optionsArray) { /* ... same ... */ }
 function updateRecurringEntriesUI() { /* ... same ... */ }
 function updateInvoiceHistoryTable() { /* ... same ... */ }
 
-// --- Event Listeners Setup ---
+// --- Event Listeners Setup --- (Main function calling specific setups)
 function setupEventListeners() {
     setupAuthListeners(); setupNavigationListeners(); setupTimeEntryListeners();
     setupExpenseListeners(); setupInvoiceListeners(); setupReportListeners();
@@ -153,25 +159,137 @@ function setupEventListeners() {
     setupDatabaseCheckListener(); addRecurringEntryActionListeners();
     addInvoiceHistoryActionListeners();
 }
-// Definitions for ALL setup... and add... Listener functions
-function addListener(id, event, handler) { /* ... same ... */ }
-function addDelegatedListener(parentElementId, event, selector, handler) { /* ... same ... */ }
-function setupAuthListeners() { /* ... same ... */ }
-function setupNavigationListeners() { /* ... same ... */ }
-function setupTimeEntryListeners() { /* ... same ... */ }
-function setupExpenseListeners() { /* ... same ... */ }
-function setupInvoiceListeners() { /* ... same, includes confirm button ... */ }
-function addInvoiceHistoryActionListeners() { /* ... same ... */ }
-function setupReportListeners() { /* ... same ... */ }
-function setupSettingsListeners() { /* ... same ... */ }
-function addRateActionListeners() { /* ... same ... */ }
-function setupDataManagementListeners() { /* ... same, includes danger zone ... */ }
-function setupDateRangeListeners() { /* ... same ... */ }
-function setupAutoSave() { /* ... same ... */ }
-function setupDarkModeToggle() { /* ... same ... */ }
-function setupDatabaseCheckListener() { /* ... same ... */ }
-function addRecurringEntryActionListeners() { /* ... same ... */ }
-function getDashboardDependencies() { /* ... same ... */ }
+
+// --- Specific Listener Setup Functions --- (DEFINITIONS NOW INCLUDED) ---
+function addListener(id, event, handler) {
+    const element = document.getElementById(id);
+    if (element) element.addEventListener(event, handler);
+    else console.warn(`Listener Warning: Element ID "${id}" not found.`);
+}
+function addDelegatedListener(parentElementId, event, selector, handler) {
+     const parent = document.getElementById(parentElementId);
+     if (parent) {
+         parent.addEventListener(event, (e) => {
+             const targetElement = e.target.closest(selector);
+             if (targetElement && parent.contains(targetElement)) {
+                 const id = targetElement.getAttribute('data-id');
+                 handler(id, targetElement, e);
+             }
+         });
+     } else console.warn(`Delegation Warning: Parent ID "${parentElementId}" not found.`);
+}
+function setupAuthListeners() {
+    addListener('login-form', 'submit', handleLogin);
+    addListener('signup-form', 'submit', handleSignup);
+    addListener('logout-button', 'click', handleLogout);
+    addListener('show-signup-link', 'click', () => toggleAuthForms(true));
+    addListener('show-login-link', 'click', () => toggleAuthForms(false));
+}
+function setupNavigationListeners() {
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const tabName = e.currentTarget.getAttribute('data-tab');
+            if(tabName) openTab(e, tabName);
+        });
+    });
+}
+function setupTimeEntryListeners() {
+    addListener('add-entry', 'click', addTimeEntry);
+    addListener('update-entry', 'click', updateTimeEntry);
+    addListener('cancel-edit', 'click', cancelEdit);
+    addListener('save-recurring', 'click', saveRecurringEntry);
+    addDelegatedListener('entries-body', 'click', '.edit-btn', editTimeEntry);
+    addDelegatedListener('entries-body', 'click', '.delete-btn', deleteTimeEntry);
+    // Timer listeners
+    addListener('start-timer', 'click', startTimer);
+    addListener('pause-timer', 'click', pauseTimer);
+    addListener('resume-timer', 'click', resumeTimer);
+    addListener('stop-timer', 'click', stopAndSaveTimer);
+    addListener('cancel-timer', 'click', cancelTimer);
+}
+function setupExpenseListeners() {
+    addListener('add-expense', 'click', addExpense);
+    addDelegatedListener('expenses-body', 'click', '.edit-expense-btn', editExpense);
+    addDelegatedListener('expenses-body', 'click', '.delete-expense-btn', deleteExpense);
+}
+function setupInvoiceListeners() {
+    addListener('generate-invoice', 'click', handleGenerateInvoiceClick);
+    addListener('view-invoice-entries', 'click', viewInvoiceEntries);
+    addListener('confirm-invoice-items', 'click', handleGenerateInvoiceClick);
+    const printBtn = document.getElementById('print-invoice');
+    if (printBtn) printBtn.addEventListener('click', () => window.print());
+    addListener('save-invoice-pdf', 'click', saveInvoicePdf);
+    addListener('export-invoice-excel', 'click', exportInvoiceExcel);
+    addListener('mark-as-paid', 'click', markCurrentlyGeneratedInvoicePaid);
+    addDelegatedListener('invoice-entries-preview', 'change', '.include-entry, .include-expense', updateInvoiceTotalsFromPreview);
+    // History listeners added separately
+}
+function addInvoiceHistoryActionListeners() {
+     addDelegatedListener('invoice-history-body', 'click', '.view-invoice-btn', viewInvoiceFromHistory);
+     addDelegatedListener('invoice-history-body', 'click', '.delete-invoice-btn', deleteInvoiceFromHistory);
+     addDelegatedListener('invoice-history-body', 'click', '.mark-paid-hist-btn', markInvoicePaidFromHistory);
+}
+function setupReportListeners() {
+    addListener('generate-report', 'click', generateReport);
+    addListener('export-report', 'click', exportReport);
+}
+function setupSettingsListeners() {
+    addListener('save-settings', 'click', saveCoreSettings);
+    addListener('save-display-settings', 'click', saveDisplaySettings);
+    addListener('add-rate', 'click', addRateTemplate);
+    // Delegated listeners for rate items added separately
+}
+function addRateActionListeners() {
+     addDelegatedListener('rates-container', 'click', '.edit-rate-btn', editRateTemplate);
+     addDelegatedListener('rates-container', 'click', '.delete-rate-btn', deleteRateTemplate);
+}
+function setupDataManagementListeners() {
+    addListener('export-data', 'click', exportData);
+    addListener('import-data', 'click', () => document.getElementById('file-input')?.click());
+    addListener('file-input', 'change', importData);
+    addListener('export-csv', 'click', exportCSV);
+    addListener('apply-filters', 'click', applyFilters);
+    addListener('clear-filters', 'click', clearFilters);
+    addListener('refresh-dashboard', 'click', () => {
+        console.log("Refreshing dashboard data...");
+        updateDashboard(appState, getDashboardDependencies());
+    });
+     addListener('clear-local-storage', 'click', clearLocalStorageData);
+     addListener('clear-database-data', 'click', clearDatabaseData);
+}
+function setupDateRangeListeners() {
+    const addRangeListener = (selectId, customRangeId) => { /* ... same ... */ };
+    addRangeListener('date-range', 'custom-date-range');
+    addRangeListener('dash-date-range', 'dash-custom-date-range');
+    addRangeListener('invoice-date-range', 'invoice-custom-date-range');
+    addRangeListener('report-date-range', 'report-custom-date-range');
+}
+function setupAutoSave() {
+    const fields = ['date', 'description', 'client', 'project', 'hours', 'rate'];
+    fields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.addEventListener('input', handleAutoSaveInput);
+            if (field.type === 'date') field.addEventListener('change', handleAutoSaveInput);
+        }
+    });
+}
+function setupDarkModeToggle() {
+     addListener('dark-mode-toggle', 'click', toggleDarkMode);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (appState.settings.theme === 'auto') applyTheme('auto');
+    });
+}
+function setupDatabaseCheckListener() {
+     addListener('check-setup', 'click', showDatabaseSetupModal);
+}
+function addRecurringEntryActionListeners() {
+    addDelegatedListener('recurring-entries-container', 'click', '.use-recurring-btn', useRecurringEntry);
+    addDelegatedListener('recurring-entries-container', 'click', '.delete-recurring-btn', deleteRecurringEntry);
+}
+function getDashboardDependencies() {
+    return { Chart: window.Chart, showNotification, formatCurrency, formatDate, getDateRangeFromOption };
+}
 
 // --- Authentication ---
 async function handleLogin(e) { /* ... same ... */ }
@@ -186,9 +304,9 @@ async function saveDisplaySettings() { /* ... same ... */ }
 function toggleDarkMode() { /* ... same ... */ }
 
 // --- Rate Templates ---
-async function addRateTemplate() { /* ... same (with basic logic) ... */ }
-function editRateTemplate(id) { /* ... same (basic logic) ... */ }
-async function deleteRateTemplate(id) { /* ... same (basic logic) ... */ }
+async function addRateTemplate() { /* ... same ... */ }
+function editRateTemplate(id) { /* ... same ... */ }
+async function deleteRateTemplate(id) { /* ... same ... */ }
 
 // --- Data Management ---
 function exportData() { /* ... same ... */ }
@@ -201,34 +319,13 @@ async function clearDatabaseData() { /* ... same ... */ }
 
 // --- Auto Save ---
 const AUTO_SAVE_DELAY = 2500;
-function setupAutoSave() { /* ... same ... */ }
+// setupAutoSave defined within setupEventListeners now via call structure
 function handleAutoSaveInput() { /* ... same ... */ }
 async function saveCurrentFormData() { /* ... same ... */ }
 function loadFormDataIntoForm(formData) { /* ... same ... */ }
 async function clearSavedFormData() { /* ... same ... */ }
-function showAutoSaveIndicator() {
-    let indicator = document.getElementById('autosave-indicator');
-    if (!indicator) {
-        indicator = document.createElement('div');
-        indicator.id = 'autosave-indicator'; indicator.textContent = 'Auto-saved';
-        indicator.classList.add('autosave-indicator'); // Style with CSS
-        document.body.appendChild(indicator);
-    }
-    indicator.classList.add('visible');
-    if (indicator.hideTimeout) clearTimeout(indicator.hideTimeout);
-    indicator.hideTimeout = setTimeout(() => {
-        indicator.classList.remove('visible');
-        indicator.hideTimeout = null;
-    }, 2000);
-}
-// Added missing helper definition
-function getFormDataFromLocalStorage() {
-    if (!appState.user) return null;
-    const saved = localStorage.getItem(`formData_${appState.user.id}`);
-    try { return saved ? JSON.parse(saved) : null; }
-    catch (e) { console.error("Error parsing localStorage form data", e); return null; }
-}
-
+function showAutoSaveIndicator() { /* ... same ... */ }
+// getFormDataFromLocalStorage defined in helpers section
 
 // --- Time Entry CRUD ---
 async function addTimeEntry() { /* ... same ... */ }
@@ -246,7 +343,6 @@ function resumeTimer() { console.log("TODO: Resume Timer"); showNotification("Ti
 function stopAndSaveTimer() { console.log("TODO: Stop & Save Timer"); showNotification("Timer Stopped (Not Implemented)", "info"); }
 function cancelTimer() { console.log("TODO: Cancel Timer"); showNotification("Timer Cancelled (Not Implemented)", "info"); }
 
-
 // --- Expense CRUD --- (Basic implementations)
 async function addExpense() { /* ... same ... */ }
 function editExpense(id) { /* ... same ... */ }
@@ -257,29 +353,20 @@ async function saveRecurringEntry() { /* ... same ... */ }
 function useRecurringEntry(id) { /* ... same ... */ }
 async function deleteRecurringEntry(id) { /* ... same ... */ }
 
-// --- Invoice Generation --- (Ensure handleGenerateInvoiceClick definition is present)
+// --- Invoice Generation --- (handleGenerateInvoiceClick DEFINITION included)
 function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) { /* ... same ... */ }
 function viewInvoiceEntries() { /* ... same ... */ }
 function updateInvoiceTotalsFromPreview() { /* ... same ... */ }
-// Definition added here
-function handleGenerateInvoiceClick() { // Renamed handler
+function handleGenerateInvoiceClick() { // Definition is here
      if (!appState.currentInvoicePreview || (appState.currentInvoicePreview.includedEntryIds.size === 0 && appState.currentInvoicePreview.includedExpenseIds.size === 0)) {
-         // If called from Confirm button without viewing first, show preview items
          if (document.getElementById('invoice-entries-preview').style.display === 'none') {
-             viewInvoiceEntries(); // Show the preview items first
+             viewInvoiceEntries();
              if (!appState.currentInvoicePreview || (appState.currentInvoicePreview.includedEntryIds.size === 0 && appState.currentInvoicePreview.includedExpenseIds.size === 0)) {
                 return showNotification('View entries first, or no billable items found.', 'warning');
-             } else {
-                 // If viewInvoiceEntries found items, instruct user to confirm
-                 return showNotification('Review items below and click "Confirm Items & Generate Preview" or "Generate Preview" again.', 'info');
-             }
-         } else {
-            // If preview was visible but nothing selected
-            return showNotification('No items selected to include in the invoice.', 'warning');
-         }
+             } else { return showNotification('Review items below and click "Confirm Items & Generate Preview" or "Generate Preview" again.', 'info'); }
+         } else { return showNotification('No items selected to include in the invoice.', 'warning'); }
      }
-     // If preview data exists and items are selected, proceed
-     generateInvoicePreview(); // Proceed with generation using selected items
+     generateInvoicePreview();
 }
 function generateInvoicePreview() { /* ... same ... */ }
 function generateInvoiceHtml(invoiceData) { /* ... same ... */ }
@@ -290,7 +377,6 @@ async function markCurrentlyGeneratedInvoicePaid() { /* ... same ... */ }
 function viewInvoiceFromHistory(id) { console.log("TODO: View invoice", id); showNotification('View History - Not Implemented', 'info'); }
 async function deleteInvoiceFromHistory(id) { console.log("TODO: Delete invoice", id); showNotification('Delete History - Not Implemented', 'info'); }
 async function markInvoicePaidFromHistory(id) { console.log("TODO: Mark paid", id); showNotification('Mark Paid History - Not Implemented', 'info'); }
-
 
 // --- Reports (Stubs) ---
 function generateReport() { console.log("TODO: Generate Report"); showNotification('Generate Report - Not Implemented', 'info'); }
@@ -303,6 +389,12 @@ async function showDatabaseSetupModal() { /* ... same ... */ }
 function openTab(evt, tabName) { /* ... same ... */ }
 
 // --- Utility / Helper Functions --- (ALL DEFINED HERE) ---
+function getFormDataFromLocalStorage() { // Definition included
+    if (!appState.user) return null;
+    const saved = localStorage.getItem(`formData_${appState.user.id}`);
+    try { return saved ? JSON.parse(saved) : null; }
+    catch (e) { console.error("Error parsing localStorage form data", e); return null; }
+}
 function showNotification(message, type = 'info') { /* ... same ... */ }
 function escapeHtml(unsafe) { /* ... same ... */ }
 function formatCurrency(amount, currencyCode = appState.settings.currency) { /* ... same ... */ }
@@ -314,12 +406,7 @@ function setInputValue(id, value) { /* ... same ... */ }
 function setTextContent(id, text) { /* ... same ... */ }
 function triggerDownload(content, filename, contentType) { /* ... same ... */ }
 function readFileAsText(file) { /* ... same ... */ }
-function showLoadingIndicator(show) { // Added basic loading indicator
-    // TODO: Add a proper loading indicator element to your HTML/CSS
-    console.log(`Loading indicator: ${show ? 'SHOW' : 'HIDE'}`);
-    // Example: document.getElementById('loading-spinner').style.display = show ? 'block' : 'none';
-}
-
+function showLoadingIndicator(show) { /* ... same ... */ }
 
 // --- Final Log ---
 console.log("app.js V6 with fixes loaded.");
