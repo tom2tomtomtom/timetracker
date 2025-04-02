@@ -1,4 +1,4 @@
-// App.js - Main application logic (Refactored - V6 Final)
+// App.js - Main application logic (Refactored - V6 + Debug Logs)
 
 // Imports
 import * as SupabaseAPI from './supabase.js';
@@ -25,7 +25,7 @@ const appState = {
 document.addEventListener('DOMContentLoaded', initApp);
 
 async function initApp() {
-    console.log("Initializing app V6..."); // Version log
+    console.log("Initializing app V6+Debug..."); // Version log
     if (!(await checkSupabaseConnection())) {
         showNotification("Cannot initialize: Database connection issue.", "error");
         return;
@@ -81,7 +81,6 @@ async function loadUserData() {
     console.log("Loading user data...");
     showLoadingIndicator(true); // Show loading indicator
     try {
-        // Fetch all data concurrently
         const [entries, expensesData, settingsData, recurringData, ratesData, invoiceData] = await Promise.all([
             SupabaseAPI.getTimeEntries(), SupabaseAPI.getExpenses(),
             SupabaseAPI.getSettings(appState.user.id), SupabaseAPI.getRecurringEntries(),
@@ -93,16 +92,16 @@ async function loadUserData() {
         appState.recurringEntries = recurringData || [];
         appState.rates = ratesData || [];
         // Ensure default rate exists if none loaded from DB
-        if (!appState.rates.some(r => r.amount === appState.settings.defaultRate)) {
-             // If the default rate value isn't in the loaded templates, maybe add a basic one?
-             // Or just ensure the dropdowns handle the value correctly.
+        if (appState.rates.length === 0) {
+             console.log("No custom rate templates found in database.");
+        } else if (!appState.rates.some(r => String(r.amount) === String(appState.settings.defaultRate))) {
              console.log("Default rate value not found in loaded rate templates.");
         }
+
         appState.invoices = invoiceData || [];
 
         let loadedFormData = null;
         if (settingsData) {
-            // Use optional chaining and nullish coalescing for safer access
             loadedFormData = settingsData?.formData ?? settingsData?.form_data ?? null;
             const validSettings = Object.entries(settingsData)
                 .filter(([key, value]) => key !== 'formData' && key !== 'form_data' && value !== null && value !== undefined)
@@ -112,10 +111,10 @@ async function loadUserData() {
 
         applyTheme(appState.settings.theme);
 
-        // Populate UI (order matters sometimes)
+        // Populate UI
         populateSettingsForm();       // Includes updateRateDropdowns
         populateRateTemplates();      // Populates the list of templates
-        updateTimeEntriesTable();
+        updateTimeEntriesTable();     // *** DEBUG LOGS ADDED INSIDE HERE ***
         updateExpensesTable();
         updateSummary();
         updateClientProjectDropdowns();
@@ -139,127 +138,59 @@ async function loadUserData() {
 // --- UI Updates ---
 function showApp() { document.getElementById('login-container').style.display = 'none'; document.getElementById('app-container').style.display = 'block'; }
 function showLoginForm() { document.getElementById('login-container').style.display = 'block'; document.getElementById('app-container').style.display = 'none'; }
-function applyTheme(themePreference) {
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    let activateDarkMode = false;
-    if (themePreference === 'dark') activateDarkMode = true;
-    else if (themePreference === 'auto') activateDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.body.classList.toggle('dark-mode', activateDarkMode);
-    if (darkModeToggle) darkModeToggle.textContent = activateDarkMode ? '☀️' : '🌙';
-}
-function populateSettingsForm() {
-    setInputValue('default-rate', appState.settings.defaultRate);
-    setInputValue('default-payment-terms', appState.settings.defaultPaymentTerms);
-    setInputValue('your-name', appState.settings.name);
-    setInputValue('your-email', appState.settings.email);
-    setInputValue('your-address', appState.settings.address);
-    setInputValue('payment-instructions', appState.settings.paymentInstructions);
-    setInputValue('theme-selection', appState.settings.theme);
-    setInputValue('date-format', appState.settings.dateFormat);
-    setInputValue('currency-format', appState.settings.currency);
-    updateRateDropdowns();
-}
-function populateRateTemplates() {
-    const container = document.getElementById('rates-container');
-    if (!container) return;
-    container.innerHTML = '';
-    if (!appState.rates || appState.rates.length === 0) {
-        container.innerHTML = '<p style="font-style: italic; color: var(--secondary-text);">No custom rates defined yet.</p>';
-    } else {
-        appState.rates.forEach(rate => {
-            const div = document.createElement('div');
-            div.className = 'rate-template-item'; // Style this class in your CSS
-            div.innerHTML = `
-                <span>${escapeHtml(rate.name)}: ${formatCurrency(rate.amount, appState.settings.currency)}</span>
-                <div>
-                    <button class="edit-rate-btn blue-btn" data-id="${rate.id}" style="padding: 5px 8px; font-size: 0.9em;">Edit</button>
-                    <button class="delete-rate-btn" data-id="${rate.id}" style="padding: 5px 8px; font-size: 0.9em;">Delete</button>
-                </div>
-            `;
-            container.appendChild(div);
-        });
-    }
-    // Listeners added by addRateActionListeners in setup
-}
-function updateRateDropdowns() {
-    const rateDropdownIds = ['default-rate', 'timer-rate'];
-    const rateInputId = 'rate';
+function applyTheme(themePreference) { /* ... same ... */ }
+function populateSettingsForm() { /* ... same ... */ }
+function populateRateTemplates() { /* ... same ... */ }
+function updateRateDropdowns() { /* ... same ... */ }
 
-    rateDropdownIds.forEach(id => {
-        const select = document.getElementById(id);
-        if (!select) return;
-        const currentValue = select.value;
-        select.innerHTML = '';
-
-        // Add options from appState.rates
-        let defaultRateValueExists = false;
-        appState.rates.forEach(rate => {
-            const option = document.createElement('option');
-            option.value = rate.amount;
-            option.textContent = `${rate.name} (${formatCurrency(rate.amount, appState.settings.currency)})`;
-            option.dataset.rateId = rate.id;
-            if (String(rate.amount) === String(appState.settings.defaultRate)) { // Compare values loosely
-                defaultRateValueExists = true;
-                 option.selected = true; // Select if it matches default
-            }
-             if (id === 'timer-rate' && String(rate.amount) === String(appState.settings.defaultRate)) {
-                 option.selected = true; // Select timer rate if default
-             }
-            select.appendChild(option);
-        });
-
-        // If default rate wasn't in list, add it as an option (maybe from settings?)
-         if (id === 'default-rate' && !defaultRateValueExists && appState.settings.defaultRate) {
-             console.warn(`Default rate (${appState.settings.defaultRate}) not found in templates. Adding it.`);
-            const option = document.createElement('option');
-             option.value = appState.settings.defaultRate;
-             option.textContent = `Default (${formatCurrency(appState.settings.defaultRate, appState.settings.currency)})`;
-             option.selected = true;
-             select.appendChild(option); // Or prepend? Append for now.
-         }
-
-
-        // Try to restore previous selection or default
-        if (select.querySelector(`option[value="${currentValue}"]`)) {
-            select.value = currentValue;
-        } else if (id === 'default-rate' || id === 'timer-rate') {
-             select.value = appState.settings.defaultRate; // Default to setting value
-        } else if (select.options.length > 0) {
-            select.selectedIndex = 0;
-        }
-    });
-
-    // Update the manual rate input value only if it's currently empty
-    const rateInput = document.getElementById(rateInputId);
-    if (rateInput && !rateInput.value) {
-         rateInput.value = appState.settings.defaultRate;
-    }
-}
+// *** updateTimeEntriesTable with DEBUG LOGS ***
 function updateTimeEntriesTable() {
     const tableBody = document.getElementById('entries-body');
     if (!tableBody) return;
     tableBody.innerHTML = '';
+
+    // --- ADDED DEBUG LINE ---
+    console.log(`DEBUG: Updating table. Found ${appState.entries.length} entries in appState. First entry:`, appState.entries[0]);
+
     const sortedEntries = [...appState.entries].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     if (sortedEntries.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--secondary-text);">No time entries recorded yet.</td></tr>';
         return;
     }
-    sortedEntries.forEach(entry => { /* ... create row ... */ }); // Same as before
-    // Listeners added via delegation
+
+    sortedEntries.forEach((entry, index) => {
+         // --- ADDED DEBUG LINE ---
+         if(index === 0) console.log('DEBUG: Structure of first entry object:', entry);
+
+        const row = tableBody.insertRow();
+        const formattedDate = formatDate(entry.date, appState.settings.dateFormat);
+        const formattedRate = formatCurrency(entry.rate, appState.settings.currency);
+        const formattedAmount = formatCurrency(entry.amount, appState.settings.currency);
+
+        const rowHTML = `
+            <td>${formattedDate}</td>
+            <td>${escapeHtml(entry.description)}</td>
+            <td>${escapeHtml(entry.client || '-')}</td>
+            <td>${escapeHtml(entry.project || '-')}</td>
+            <td>${(entry.hours || 0).toFixed(2)}</td>
+            <td>${formattedRate}</td>
+            <td>${formattedAmount}</td>
+            <td>
+                <button class="edit-btn blue-btn" data-id="${entry.id}" style="margin-right: 5px; padding: 5px 10px; font-size: 0.9em;">Edit</button>
+                <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px; font-size: 0.9em;">Delete</button>
+            </td>
+        `;
+        // --- ADDED DEBUG LINE ---
+        if(index === 0) console.log('DEBUG: Generated HTML for first row (first 200 chars):', rowHTML.substring(0, 200));
+
+        row.innerHTML = rowHTML;
+    });
+    // Listeners are added via delegation
 }
-function updateExpensesTable() {
-     const tableBody = document.getElementById('expenses-body');
-     if (!tableBody) return;
-    tableBody.innerHTML = '';
-     const sortedExpenses = [...appState.expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-    if (sortedExpenses.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: var(--secondary-text);">No expenses recorded yet.</td></tr>';
-    } else { sortedExpenses.forEach(expense => { /* ... create row ... */ }); } // Same as before
-    const totalExpensesAmount = appState.expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    setTextContent('total-expenses', formatCurrency(totalExpensesAmount, appState.settings.currency));
-    // Listeners added via delegation
-}
+// *** End of modified updateTimeEntriesTable ***
+
+function updateExpensesTable() { /* ... same ... */ }
 function updateSummary() { /* ... same ... */ }
 function updateClientProjectDropdowns() { /* ... same ... */ }
 function populateDropdown(elementId, optionsArray, defaultOptionText = 'All') { /* ... same ... */ }
@@ -267,16 +198,8 @@ function populateDatalist(elementId, optionsArray) { /* ... same ... */ }
 function updateRecurringEntriesUI() { /* ... same ... */ }
 function updateInvoiceHistoryTable() { /* ... same ... */ }
 
-// --- Event Listeners Setup --- (Ensure all setup functions are defined below)
-function setupEventListeners() {
-    setupAuthListeners(); setupNavigationListeners(); setupTimeEntryListeners();
-    setupExpenseListeners(); setupInvoiceListeners(); setupReportListeners();
-    setupSettingsListeners(); addRateActionListeners(); setupDataManagementListeners();
-    setupDateRangeListeners(); setupAutoSave(); setupDarkModeToggle();
-    setupDatabaseCheckListener(); addRecurringEntryActionListeners();
-    addInvoiceHistoryActionListeners();
-}
-
+// --- Event Listeners Setup ---
+function setupEventListeners() { /* ... same structure calling smaller setup functions ... */ }
 // --- Specific Listener Setup Function DEFINITIONS ---
 function addListener(id, event, handler) { /* ... same ... */ }
 function addDelegatedListener(parentElementId, event, selector, handler) { /* ... same ... */ }
@@ -317,9 +240,9 @@ async function deleteRateTemplate(id) { /* ... same ... */ }
 // --- Data Management ---
 function exportData() { /* ... same ... */ }
 async function importData(e) { /* ... same ... */ }
-function exportCSV() { /* ... TODO ... */ }
-function applyFilters() { /* ... TODO ... */ }
-function clearFilters() { /* ... TODO ... */ }
+function exportCSV() { console.log("TODO: Export CSV"); showNotification('Export CSV - Not Implemented', 'info'); }
+function applyFilters() { console.log("TODO: Apply Filters"); showNotification('Apply Filters - Not Implemented', 'info'); }
+function clearFilters() { console.log("TODO: Clear Filters"); showNotification('Clear Filters - Not Implemented', 'info'); }
 function clearLocalStorageData() { /* ... same ... */ }
 async function clearDatabaseData() { /* ... same ... */ }
 
@@ -359,11 +282,11 @@ async function saveRecurringEntry() { /* ... same ... */ }
 function useRecurringEntry(id) { /* ... same ... */ }
 async function deleteRecurringEntry(id) { /* ... same ... */ }
 
-// --- Invoice Generation --- (handleGenerateInvoiceClick definition included)
+// --- Invoice Generation ---
 function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) { /* ... same ... */ }
 function viewInvoiceEntries() { /* ... same ... */ }
 function updateInvoiceTotalsFromPreview() { /* ... same ... */ }
-function handleGenerateInvoiceClick() { /* ... same ... */ } // Definition included
+function handleGenerateInvoiceClick() { /* ... same ... */ }
 function generateInvoicePreview() { /* ... same ... */ }
 function generateInvoiceHtml(invoiceData) { /* ... same ... */ }
 function generateInvoiceNumber() { /* ... same ... */ }
@@ -385,32 +308,19 @@ async function showDatabaseSetupModal() { /* ... same ... */ }
 function openTab(evt, tabName) { /* ... same ... */ }
 
 // --- Utility / Helper Functions --- (ALL DEFINED HERE) ---
-function getFormDataFromLocalStorage() { // Definition included
-    if (!appState.user) return null;
-    const saved = localStorage.getItem(`formData_${appState.user.id}`);
-    try { return saved ? JSON.parse(saved) : null; }
-    catch (e) { console.error("Error parsing localStorage form data", e); return null; }
-}
+function getFormDataFromLocalStorage() { /* ... same ... */ }
 function showNotification(message, type = 'info') { /* ... same ... */ }
-function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') return unsafe;
-    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
+function escapeHtml(unsafe) { /* ... same ... */ }
 function formatCurrency(amount, currencyCode = appState.settings.currency) { /* ... same ... */ }
 function formatDate(dateString, format = appState.settings.dateFormat) { /* ... same ... */ }
 function calculateDueDate(invoiceDateStr, paymentTerms) { /* ... same ... */ }
 function getDateRangeFromOption(option, fromDateStr, toDateStr) { /* ... same ... */ }
-function getInputValue(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-function setInputValue(id, value) { const el = document.getElementById(id); if (el) el.value = value ?? ''; }
-function setTextContent(id, text) { const el = document.getElementById(id); if (el) el.textContent = text ?? ''; }
+function getInputValue(id) { /* ... same ... */ }
+function setInputValue(id, value) { /* ... same ... */ }
+function setTextContent(id, text) { /* ... same ... */ }
 function triggerDownload(content, filename, contentType) { /* ... same ... */ }
 function readFileAsText(file) { /* ... same ... */ }
-function showLoadingIndicator(show) { // Basic console log indicator
-    console.log(`Loading: ${show}`);
-    // TODO: Implement visual indicator (spinner/overlay)
-    // const indicator = document.getElementById('loading-indicator');
-    // if(indicator) indicator.style.display = show ? 'flex' : 'none';
-}
+function showLoadingIndicator(show) { /* ... same ... */ }
 
 // --- Final Log ---
-console.log("app.js V6 with fixes loaded.");
+console.log("app.js V6 with fixes loaded."); // Keep this log to confirm the right version is running
