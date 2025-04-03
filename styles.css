@@ -432,6 +432,32 @@ tbody tr:hover {
     letter-spacing: -0.02em;
 }
 
+/* Tracked days color indicators */
+.stats-value .low-tracking {
+    color: var(--error-color);
+}
+
+.stats-value .medium-tracking {
+    color: var(--warning-color);
+}
+
+.stats-value .high-tracking {
+    color: var(--success-color);
+}
+
+/* Apply colors directly to element if it has classes */
+#dash-days-tracked.low-tracking {
+    color: var(--error-color);
+}
+
+#dash-days-tracked.medium-tracking {
+    color: var(--warning-color);
+}
+
+#dash-days-tracked.high-tracking {
+    color: var(--success-color);
+}
+
 .stats-label {
     color: var(--secondary-text);
     font-size: 14px;

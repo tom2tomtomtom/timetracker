@@ -386,7 +386,169 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
     }
     
     const avgRate = totalHours > 0 ? totalRevenue / totalHours : 0;
-    const trackedDays = new Set(entries.map(entry => entry.date)).size;
+    
+    // Calculate days tracked as a ratio of days worked to total working days in period
+    let trackedDaysRatio = "0/0";
+    let trackedDays = 0;
+    
+    if (entries.length > 0) {
+        // Get unique days that have entries
+        const uniqueDates = new Set();
+        let invalidDateCount = 0;
+        
+        entries.forEach(entry => {
+            if (entry.date) {
+                try {
+                    // Parse and validate the date
+                    const entryDate = new Date(entry.date);
+                    
+                    // Check if date is valid
+                    if (isNaN(entryDate.getTime())) {
+                        invalidDateCount++;
+                        return;
+                    }
+                    
+                    // Normalize date format to ensure consistent comparison
+                    const normalizedDate = entryDate.toISOString().split('T')[0];
+                    uniqueDates.add(normalizedDate);
+                } catch (err) {
+                    console.warn(`Error processing date format for entry: ${entry.date}`, err);
+                    invalidDateCount++;
+                }
+            } else {
+                invalidDateCount++;
+            }
+        });
+        
+        if (invalidDateCount > 0) {
+            console.warn(`Skipped ${invalidDateCount} entries with missing or invalid dates`);
+        }
+        
+        const uniqueDaysWorked = uniqueDates.size;
+        trackedDays = uniqueDaysWorked;
+        
+        console.log(`Found ${uniqueDaysWorked} unique days with time entries`);
+        
+        // Calculate potential working days (Mon-Fri) in the period
+        let workingDays = 0;
+        let totalDays = 0;
+        
+        if (startDate && endDate) {
+            // Clone to avoid modifying the original dates
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            // For date range calculations, ensure we're using the correct boundaries
+            // When a date range is selected, the end date typically means "end of that day"
+            // So we need to include the full end date in our calculations
+            
+            // Format for logging
+            const startFormatted = start.toISOString().split('T')[0];
+            const endFormatted = end.toISOString().split('T')[0];
+            console.log(`Calculating working days from ${startFormatted} to ${endFormatted}`);
+            
+            // Count working days (Monday to Friday)
+            const currentDay = new Date(start);
+            while (currentDay < end) {
+                totalDays++;
+                // 0 is Sunday, 6 is Saturday
+                const dayOfWeek = currentDay.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    workingDays++;
+                }
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+            
+            // If we have no working days in range, set to at least 1
+            // This prevents division by zero
+            workingDays = Math.max(1, workingDays);
+            
+            console.log(`Date range contains ${totalDays} total days, with ${workingDays} working days (Mon-Fri)`);
+            
+            // Calculate percentage
+            const trackingPercentage = Math.round((uniqueDaysWorked / workingDays) * 100);
+            
+            // Create enhanced ratio string with percentage
+            trackedDaysRatio = `${uniqueDaysWorked}/${workingDays} (${trackingPercentage}%)`;
+            
+            // Add color coding to the days tracked element based on coverage percentage
+            const daysTrackedEl = document.getElementById('dash-days-tracked');
+            if (daysTrackedEl) {
+                // Remove any existing classes
+                daysTrackedEl.classList.remove('low-tracking', 'medium-tracking', 'high-tracking');
+                
+                // Add appropriate class based on percentage
+                if (trackingPercentage < 50) {
+                    daysTrackedEl.classList.add('low-tracking');
+                } else if (trackingPercentage < 80) {
+                    daysTrackedEl.classList.add('medium-tracking');
+                } else {
+                    daysTrackedEl.classList.add('high-tracking');
+                }
+            }
+            
+            console.log(`Time tracked on ${uniqueDaysWorked} days out of ${workingDays} working days (${trackingPercentage}%)`);
+        } else {
+            // For the "All Time" view, calculate a meaningful percentage
+            // by looking at the user's tracking history and finding the average workdays per week
+            
+            // Calculate total date range of all entries
+            const dates = Array.from(uniqueDates).map(date => new Date(date));
+            
+            if (dates.length > 0) {
+                // Get min/max dates from the actual entry dates
+                const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+                const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+                
+                // Calculate total days in range
+                const totalDaysInRange = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
+                
+                // Calculate total working days in the entry date range (Mon-Fri)
+                let totalWorkingDays = 0;
+                const currentDay = new Date(minDate);
+                
+                while (currentDay <= maxDate) {
+                    const dayOfWeek = currentDay.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        totalWorkingDays++;
+                    }
+                    currentDay.setDate(currentDay.getDate() + 1);
+                }
+                
+                // If we have no working days in range, set to at least 1
+                totalWorkingDays = Math.max(1, totalWorkingDays);
+                
+                // Calculate percentage of working days that were tracked
+                const trackingPercentage = Math.round((uniqueDaysWorked / totalWorkingDays) * 100);
+                
+                // Format for display
+                trackedDaysRatio = `${uniqueDaysWorked}/${totalWorkingDays} (${trackingPercentage}%)`;
+                
+                // Add color coding
+                const daysTrackedEl = document.getElementById('dash-days-tracked');
+                if (daysTrackedEl) {
+                    // Remove any existing classes
+                    daysTrackedEl.classList.remove('low-tracking', 'medium-tracking', 'high-tracking');
+                    
+                    // Add appropriate class based on percentage
+                    if (trackingPercentage < 50) {
+                        daysTrackedEl.classList.add('low-tracking');
+                    } else if (trackingPercentage < 80) {
+                        daysTrackedEl.classList.add('medium-tracking');
+                    } else {
+                        daysTrackedEl.classList.add('high-tracking');
+                    }
+                }
+                
+                console.log(`All-time view: ${uniqueDaysWorked} days tracked out of ${totalWorkingDays} working days (${trackingPercentage}%)`);
+                console.log(`Date range: ${minDate.toISOString().split('T')[0]} to ${maxDate.toISOString().split('T')[0]} (${totalDaysInRange} days total)`);
+            } else {
+                // If we couldn't calculate dates, just show days worked
+                trackedDaysRatio = `${uniqueDaysWorked} days`;
+                console.log(`No date range provided. Showing total unique days tracked: ${uniqueDaysWorked}`);
+            }
+        }
+    }
 
     setTextContent('dash-total-hours', totalHours.toFixed(2));
     setTextContent('dash-total-revenue', formatCurrency(totalRevenue, settings.currency));
@@ -395,7 +557,7 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
     setTextContent('dash-avg-rate', formatCurrency(avgRate, settings.currency));
     setTextContent('dash-total-expenses', formatCurrency(totalExpenses, settings.currency));
     setTextContent('dash-net-income', formatCurrency(netIncome, settings.currency));
-    setTextContent('dash-days-tracked', trackedDays);
+    setTextContent('dash-days-tracked', trackedDaysRatio);
 }
 
 // --- Update Charts ---
