@@ -782,8 +782,8 @@ async function addTimeEntry() {
             hours,
             rate,
             amount,
-            user_id: appState.user.id,
-            created_at: new Date().toISOString()
+            userId: appState.user.id, // Using camelCase as expected by supabase.js
+            createdAt: new Date().toISOString() // Using camelCase as expected by supabase.js
         };
         
         // Add to Supabase
@@ -857,7 +857,8 @@ async function updateTimeEntry() {
             hours,
             rate,
             amount,
-            updated_at: new Date().toISOString()
+            userId: appState.user.id, // Include user ID for validation
+            updatedAt: new Date().toISOString() // Using camelCase as expected by supabase.js
         };
         
         // Update in Supabase
