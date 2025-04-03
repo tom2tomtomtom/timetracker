@@ -43,35 +43,63 @@ function showNotification(message, type = 'info') {
 export function initDashboard(appState, dependencies) {
     console.log("Initializing dashboard module...");
     
-    // Check if dashboard tab exists and is accessible
-    const dashboardTab = document.getElementById('dashboard-tab');
-    if (!dashboardTab) {
-        console.warn("Dashboard tab not found in DOM. Skipping initialization.");
-        return;
-    }
-    
-    // Ensure all dashboard elements exist before adding listeners
-    if (!elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
-        console.warn("Dashboard elements not found. Dashboard may not be fully loaded.");
-        
-        // Try again after a short delay to ensure DOM is ready
-        setTimeout(() => {
-            if (elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
-                console.log("Dashboard elements now available. Setting up listeners...");
-                setupDashboardListeners(appState, dependencies);
-                updateDashboard(appState, dependencies); // Initial update
-            } else {
-                console.error("Dashboard elements still not available after delay.");
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if dashboard tab exists and is accessible
+            const dashboardTab = document.getElementById('dashboard-tab');
+            if (!dashboardTab) {
+                const error = new Error("Dashboard tab not found in DOM. Skipping initialization.");
+                console.warn(error.message);
+                reject(error);
+                return;
             }
-        }, 500);
-    } else {
-        // Elements exist, set up listeners immediately
-        setupDashboardListeners(appState, dependencies);
-        
-        // Initial update
-        handleDashDateRangeChange(appState, dependencies);
-        updateDashboard(appState, dependencies);
-    }
+            
+            // Function to complete initialization
+            const completeInitialization = () => {
+                try {
+                    console.log("Setting up dashboard listeners...");
+                    setupDashboardListeners(appState, dependencies);
+                    
+                    // Initial update
+                    console.log("Performing initial dashboard update...");
+                    handleDashDateRangeChange(appState, dependencies);
+                    updateDashboard(appState, dependencies);
+                    
+                    console.log("Dashboard initialization completed successfully");
+                    resolve();
+                } catch (initError) {
+                    console.error("Error during dashboard initialization:", initError);
+                    reject(initError);
+                }
+            };
+            
+            // Ensure all dashboard elements exist before adding listeners
+            if (!elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
+                console.warn("Dashboard elements not found. Dashboard may not be fully loaded.");
+                
+                // Try again after a short delay to ensure DOM is ready
+                const retryTimeout = setTimeout(() => {
+                    if (elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
+                        console.log("Dashboard elements now available after delay.");
+                        completeInitialization();
+                    } else {
+                        const error = new Error("Dashboard elements still not available after delay.");
+                        console.error(error.message);
+                        reject(error);
+                    }
+                }, 1000); // Longer delay to ensure elements are loaded
+                
+                // Add safety timeout clear in case the promise is resolved/rejected elsewhere
+                setTimeout(() => clearTimeout(retryTimeout), 5000);
+            } else {
+                // Elements exist, complete initialization immediately
+                completeInitialization();
+            }
+        } catch (error) {
+            console.error("Critical error during dashboard initialization:", error);
+            reject(error);
+        }
+    });
 }
 
 // Helper to check if elements exist
@@ -109,8 +137,9 @@ export function updateDashboard(appState, dependencies) {
     const showNotification = dependencies?.showNotification || console.error;
     const formatCurrency = dependencies?.formatCurrency || ((amount, currency) => `$${(amount ?? 0).toFixed(2)}`);
     const formatDate = dependencies?.formatDate || ((d) => d); // Basic fallback
-    const getDateRangeFromOption = dependencies?.getDateRangeFromOption;
-
+    // Get dependencies with fallbacks
+    let getDateRangeFromOption = dependencies?.getDateRangeFromOption;
+    
     if (!Chart) {
         console.error("Chart.js library not available");
         showNotification("Chart.js library not available. Charts can't be displayed.", "error");
@@ -235,18 +264,29 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
 
 // --- Update Charts ---
 function updateDashboardCharts(entries, expenses, startDate, endDate, Chart, settings, formatCurrency, formatDate) {
-    const dailyData = getDailyChartData(entries, startDate, endDate, formatDate);
-    const clientData = getClientChartData(entries);
-    const projectData = getProjectChartData(entries);
-    const weekdayData = getWeekdayChartData(entries);
-    const monthlyData = getMonthlyChartData(entries, formatDate);
+    if (!Chart) {
+        console.error("Chart.js library not available for rendering charts");
+        showNoDataMessage(Chart);
+        return;
+    }
+    
+    try {
+        const dailyData = getDailyChartData(entries, startDate, endDate, formatDate);
+        const clientData = getClientChartData(entries);
+        const projectData = getProjectChartData(entries);
+        const weekdayData = getWeekdayChartData(entries);
+        const monthlyData = getMonthlyChartData(entries, formatDate);
 
-    updateChart('hours', ctx => createBarChart(ctx, Chart, dailyData.dates, 'Hours', dailyData.hours, 'rgba(53, 162, 235, 0.5)', 'rgba(53, 162, 235, 1)', 'Hours'));
-    updateChart('revenue', ctx => createBarChart(ctx, Chart, dailyData.dates, 'Revenue', dailyData.revenue, 'rgba(75, 192, 192, 0.5)', 'rgba(75, 192, 192, 1)', `Revenue (${formatCurrency(0, settings.currency).replace(/[\d.,\s]/g, '')})`));
-    updateChart('client', ctx => createPieChart(ctx, Chart, clientData.clients, 'Revenue', clientData.revenue, settings, formatCurrency));
-    updateChart('project', ctx => createDoughnutChart(ctx, Chart, projectData.projects, 'Hours', projectData.hours));
-    updateChart('weekday', ctx => createBarChart(ctx, Chart, weekdayData.weekdays, 'Hours', weekdayData.hours, 'rgba(153, 102, 255, 0.5)', 'rgba(153, 102, 255, 1)', 'Hours'));
-    updateChart('monthly', ctx => createMonthlyChart(ctx, Chart, monthlyData, settings, formatCurrency));
+        updateChart('hours', ctx => createBarChart(ctx, Chart, dailyData.dates, 'Hours', dailyData.hours, 'rgba(53, 162, 235, 0.5)', 'rgba(53, 162, 235, 1)', 'Hours'));
+        updateChart('revenue', ctx => createBarChart(ctx, Chart, dailyData.dates, 'Revenue', dailyData.revenue, 'rgba(75, 192, 192, 0.5)', 'rgba(75, 192, 192, 1)', `Revenue (${formatCurrency(0, settings.currency).replace(/[\d.,\s]/g, '')})`));
+        updateChart('client', ctx => createPieChart(ctx, Chart, clientData.clients, 'Revenue', clientData.revenue, settings, formatCurrency));
+        updateChart('project', ctx => createDoughnutChart(ctx, Chart, projectData.projects, 'Hours', projectData.hours));
+        updateChart('weekday', ctx => createBarChart(ctx, Chart, weekdayData.weekdays, 'Hours', weekdayData.hours, 'rgba(153, 102, 255, 0.5)', 'rgba(153, 102, 255, 1)', 'Hours'));
+        updateChart('monthly', ctx => createMonthlyChart(ctx, Chart, monthlyData, settings, formatCurrency));
+    } catch (err) {
+        console.error("Error creating dashboard charts:", err);
+        showNoDataMessage(Chart);
+    }
 }
 
 // --- Chart Data Processing ---
@@ -261,13 +301,58 @@ const CHART_COLORS = [ /* ... same ... */ ];
 const CHART_BORDER_COLORS = CHART_COLORS.map(c => c.replace('0.6', '1'));
 
 function updateChart(chartKey, createChartFn) {
-    const canvas = document.getElementById(`${chartKey}-chart`);
-    if (!canvas) { console.warn(`Canvas not found for chart: ${chartKey}`); return; }
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    if (chartInstances[chartKey]) { chartInstances[chartKey].destroy(); chartInstances[chartKey] = null; }
-    try { chartInstances[chartKey] = createChartFn(ctx); }
-    catch (error) { console.error(`Failed to create chart "${chartKey}":`, error); }
+    try {
+        // Get the canvas element
+        const canvas = document.getElementById(`${chartKey}-chart`);
+        if (!canvas) { 
+            console.warn(`Canvas not found for chart: ${chartKey}`); 
+            return; 
+        }
+        
+        // Make sure Canvas API is available
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.warn(`Unable to get 2D context for chart: ${chartKey}`);
+            return;
+        }
+        
+        // Clean up any existing chart instance
+        if (chartInstances[chartKey]) { 
+            try {
+                chartInstances[chartKey].destroy(); 
+            } catch (destroyError) {
+                console.warn(`Error destroying previous chart instance: ${chartKey}`, destroyError);
+            }
+            chartInstances[chartKey] = null; 
+        }
+        
+        // Create new chart
+        chartInstances[chartKey] = createChartFn(ctx);
+        
+        // Check if chart creation was successful
+        if (!chartInstances[chartKey]) {
+            console.warn(`Chart creation function did not return a chart instance: ${chartKey}`);
+        }
+    } catch (error) { 
+        console.error(`Failed to create/update chart "${chartKey}":`, error);
+        
+        // Attempt to show error on canvas
+        try {
+            const canvas = document.getElementById(`${chartKey}-chart`);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = '#ff3b30';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Error loading chart', canvas.width / 2, canvas.height / 2);
+                }
+            }
+        } catch (e) {
+            // Ignore errors in error handling
+        }
+    }
 }
 function createBarChart(ctx, Chart, labels, label, data, bgColor, borderColor, yAxisLabel) { /* ... same ... */ }
 function createPieChart(ctx, Chart, labels, label, data, settings, formatCurrency) { /* ... same ... */ }

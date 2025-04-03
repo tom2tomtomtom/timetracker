@@ -201,7 +201,7 @@ async function loadUserData() {
 }
 
 // --- UI Updates ---
-function showApp() {
+async function showApp() {
     console.log("Showing app interface...");
     
     // Hide login/signup container and show main app
@@ -215,37 +215,168 @@ function showApp() {
         userWelcome.textContent = userEmail;
     }
     
-    // Populate dashboard tab if it's empty
-    const dashboardTab = document.getElementById('dashboard-tab');
-    if (dashboardTab && dashboardTab.innerHTML.trim() === '') {
-        // Load dashboard content from time-tracker.html
-        fetch('time-tracker.html')
-            .then(response => response.text())
-            .then(html => {
-                // Extract dashboard content
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const dashboardContent = doc.getElementById('dashboard-tab');
-                
-                if (dashboardContent) {
-                    dashboardTab.innerHTML = dashboardContent.innerHTML;
-                    console.log("Dashboard content loaded from time-tracker.html");
-                    
-                    // Re-initialize dashboard after content is loaded
-                    getDashboardDependencies().then(deps => {
-                        if (deps && deps.initDashboard) {
-                            deps.initDashboard(appState, deps);
-                        }
-                    });
-                }
-            })
-            .catch(error => console.error("Error loading dashboard content:", error));
+    // Initialize the tabs with content if needed
+    const tabsNeedingContent = ['dashboard-tab', 'invoice-tab', 'reports-tab', 'settings-tab'];
+    
+    // Check which tab is currently visible
+    let activeTabId = 'time-tracking-tab'; // Default
+    
+    const activeTabButton = document.querySelector('.tab-button.active');
+    if (activeTabButton) {
+        activeTabId = activeTabButton.getAttribute('data-tab');
     }
+    
+    // Make sure we have the active tab showing
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    const activeTab = document.getElementById(activeTabId);
+    if (activeTab) {
+        activeTab.style.display = 'block';
+    }
+    
+    // Set active class on active tab button
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    const activeButtonSelector = `.tab-button[data-tab="${activeTabId}"]`;
+    const activeButton = document.querySelector(activeButtonSelector);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+    
+    // Load content for all tabs
+    console.log("Loading content for all tabs...");
+    
+    // Create an array of promises for loading each tab
+    const loadPromises = [];
+    
+    for (const tabId of tabsNeedingContent) {
+        const tabElement = document.getElementById(tabId);
+        if (tabElement && tabElement.innerHTML.trim() === '') {
+            // Queue up the tab content loading
+            const loadPromise = loadTabContent(tabId);
+            loadPromises.push(loadPromise);
+            
+            if (tabId === activeTabId) {
+                // For the active tab, we need to wait for it to load before initializing
+                await loadPromise;
+                
+                // If the dashboard tab is active, initialize it
+                if (tabId === 'dashboard-tab') {
+                    console.log("Initializing dashboard as active tab");
+                    await initDashboardIfNeeded();
+                }
+            }
+        } else if (tabId === activeTabId && tabId === 'dashboard-tab') {
+            // If the dashboard tab is active and already has content, initialize it
+            console.log("Dashboard tab is active and has content, initializing...");
+            await initDashboardIfNeeded();
+        }
+    }
+    
+    // Load the remaining tabs in the background
+    Promise.all(loadPromises).then(() => {
+        console.log("All tabs loaded successfully");
+    }).catch(error => {
+        console.error("Error loading some tabs:", error);
+    });
 }
 function showLoginForm() { /* ... same ... */ }
 function applyTheme(themePreference) { /* ... same ... */ }
-function populateSettingsForm() { /* ... same ... */ }
-function populateRateTemplates() { /* ... same ... */ }
+function populateSettingsForm() {
+    console.log("Populating settings form...");
+    
+    // Get form elements
+    const nameInput = document.getElementById('your-name');
+    const emailInput = document.getElementById('your-email');
+    const addressInput = document.getElementById('your-address');
+    const paymentInstructionsInput = document.getElementById('payment-instructions');
+    const defaultRateSelect = document.getElementById('default-rate');
+    const paymentTermsInput = document.getElementById('default-payment-terms');
+    const themeSelect = document.getElementById('theme-selection');
+    const dateFormatSelect = document.getElementById('date-format');
+    const currencySelect = document.getElementById('currency-format');
+    
+    // Check if elements exist
+    if (!nameInput || !emailInput) {
+        console.warn("Settings form elements not found. The form may not be loaded yet.");
+        return;
+    }
+    
+    // Populate settings
+    if (nameInput) nameInput.value = appState.settings.name || '';
+    if (emailInput) emailInput.value = appState.settings.email || '';
+    if (addressInput) addressInput.value = appState.settings.address || '';
+    if (paymentInstructionsInput) paymentInstructionsInput.value = appState.settings.paymentInstructions || '';
+    if (defaultRateSelect) defaultRateSelect.value = appState.settings.defaultRate || 350;
+    if (paymentTermsInput) paymentTermsInput.value = appState.settings.defaultPaymentTerms || 'Net 30';
+    
+    // Display settings
+    if (themeSelect) themeSelect.value = appState.settings.theme || 'light';
+    if (dateFormatSelect) dateFormatSelect.value = appState.settings.dateFormat || 'MM/DD/YYYY';
+    if (currencySelect) currencySelect.value = appState.settings.currency || 'USD';
+    
+    console.log("Settings form populated");
+}
+function populateRateTemplates() {
+    console.log("Populating rate templates...");
+    
+    const ratesContainer = document.getElementById('rates-container');
+    const rateSelect = document.getElementById('timer-rate');
+    
+    if (!ratesContainer || !rateSelect) {
+        console.warn("Rate template elements not found. The form may not be loaded yet.");
+        return;
+    }
+    
+    // Clear existing rate templates and dropdown options
+    ratesContainer.innerHTML = '';
+    rateSelect.innerHTML = '';
+    
+    if (appState.rates.length === 0) {
+        ratesContainer.innerHTML = '<p style="font-style: italic;">No rate templates saved yet.</p>';
+        
+        // Add default rate option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = appState.settings.defaultRate || 350;
+        defaultOption.textContent = `Standard Rate ($${appState.settings.defaultRate || 350})`;
+        rateSelect.appendChild(defaultOption);
+        
+        console.log("No rates found");
+        return;
+    }
+    
+    // Add rate templates to container
+    appState.rates.forEach(rate => {
+        const rateItem = document.createElement('div');
+        rateItem.className = 'rate-item';
+        rateItem.innerHTML = `
+            <div class="rate-details">
+                <span class="rate-name">${escapeHtml(rate.name)}</span>
+                <span class="rate-amount">${formatCurrency(rate.amount)}</span>
+            </div>
+            <div class="rate-actions">
+                <button class="edit-rate-btn blue-btn" data-id="${rate.id}" style="margin-right: 5px; padding: 5px 10px;">Edit</button>
+                <button class="delete-rate-btn" data-id="${rate.id}" style="padding: 5px 10px;">Delete</button>
+            </div>
+        `;
+        ratesContainer.appendChild(rateItem);
+        
+        // Add to rate dropdown
+        const option = document.createElement('option');
+        option.value = rate.amount;
+        option.textContent = `${rate.name} (${formatCurrency(rate.amount)})`;
+        rateSelect.appendChild(option);
+    });
+    
+    // Add rate action listeners
+    addRateActionListeners();
+    
+    console.log(`Populated ${appState.rates.length} rate templates`);
+}
 function updateRateDropdowns() { /* ... same ... */ }
 function updateTimeEntriesTable() {
     console.log("Updating time entries table...");
@@ -415,8 +546,75 @@ function updateClientProjectDropdowns() {
         console.error('Error populating dropdowns:', err);
     }
 }
-function populateDropdown(elementId, optionsArray, defaultOptionText = 'All') { /* ... same ... */ }
-function populateDatalist(elementId, optionsArray) { /* ... same ... */ }
+function populateDropdown(elementId, optionsArray, defaultOptionText = 'All') { 
+    const dropdown = document.getElementById(elementId);
+    if (!dropdown) return;
+    
+    // Store current value to try to preserve selection if possible
+    const currentValue = dropdown.value;
+    
+    // Keep only the first option (typically "All")
+    dropdown.options.length = 1;
+    
+    // Add options
+    optionsArray.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option;
+        optionElement.textContent = option;
+        dropdown.appendChild(optionElement);
+    });
+    
+    // Try to restore previous value if it exists in new options
+    if (currentValue && [...dropdown.options].some(opt => opt.value === currentValue)) {
+        dropdown.value = currentValue;
+    }
+}
+
+function populateDatalist(elementId, optionsArray) { 
+    const datalist = document.getElementById(elementId);
+    if (!datalist) return;
+    
+    // Clear existing options
+    datalist.innerHTML = '';
+    
+    // Add options
+    optionsArray.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option;
+        datalist.appendChild(optionElement);
+    });
+}
+
+// Helper function to update projects dropdown based on selected client
+function updateProjectsDropdownForClient(projectDropdown, selectedClient) {
+    if (!projectDropdown || !selectedClient) return;
+    
+    console.log(`Updating projects dropdown for client: ${selectedClient}`);
+    
+    // Get projects for this client
+    const clientProjects = appState.entries
+        .filter(entry => entry.client === selectedClient)
+        .map(entry => entry.project)
+        .filter(Boolean);
+    
+    // Get unique projects
+    const uniqueProjects = [...new Set(clientProjects)];
+    
+    // Keep the first option
+    const firstOption = projectDropdown.options[0];
+    projectDropdown.innerHTML = '';
+    projectDropdown.appendChild(firstOption);
+    
+    // Add client projects
+    uniqueProjects.forEach(project => {
+        const option = document.createElement('option');
+        option.value = project;
+        option.textContent = project;
+        projectDropdown.appendChild(option);
+    });
+    
+    console.log(`Added ${uniqueProjects.length} projects for client ${selectedClient}`);
+}
 function updateRecurringEntriesUI() { /* ... same ... */ }
 function updateInvoiceHistoryTable() { /* ... same ... */ }
 
@@ -461,14 +659,95 @@ async function initDashboardIfNeeded() {
     console.log("Checking if dashboard needs initialization...");
     
     const dashboardTab = document.getElementById('dashboard-tab');
-    if (!dashboardTab) return;
+    if (!dashboardTab) {
+        console.error("Dashboard tab element not found");
+        return;
+    }
     
-    // Only initialize if tab is visible and not already initialized
-    if (dashboardTab.style.display !== 'none' && !dashboardTab.dataset.initialized) {
-        const dashboardDeps = await getDashboardDependencies();
-        if (dashboardDeps && dashboardDeps.initDashboard) {
-            dashboardDeps.initDashboard(appState, dashboardDeps);
+    // Check if tab is visible and not already initialized
+    const isVisible = dashboardTab.style.display !== 'none';
+    const isInitialized = dashboardTab.dataset.initialized === 'true';
+    
+    console.log(`Dashboard visibility: ${isVisible}, Already initialized: ${isInitialized}`);
+    
+    if (isVisible && !isInitialized) {
+        try {
+            // Show loading indicator
+            if (dashboardTab.querySelector('.dashboard-loading') === null) {
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'dashboard-loading';
+                loadingIndicator.style.textAlign = 'center';
+                loadingIndicator.style.padding = '20px';
+                loadingIndicator.innerHTML = '<p>Loading dashboard data...</p>';
+                
+                // Insert after any h2 elements, or at the beginning if no h2
+                const h2 = dashboardTab.querySelector('h2');
+                if (h2 && h2.nextSibling) {
+                    dashboardTab.insertBefore(loadingIndicator, h2.nextSibling);
+                } else {
+                    dashboardTab.prepend(loadingIndicator);
+                }
+            }
+            
+            // Get dependencies
+            const dashboardDeps = await getDashboardDependencies();
+            if (!dashboardDeps) {
+                throw new Error("Failed to load dashboard dependencies");
+            }
+            
+            if (typeof dashboardDeps.initDashboard !== 'function') {
+                throw new Error("Dashboard initialization function not found");
+            }
+            
+            // Initialize the dashboard
+            await dashboardDeps.initDashboard(appState, dashboardDeps);
+            
+            // Mark as initialized
             dashboardTab.dataset.initialized = 'true';
+            
+            // Remove loading indicator
+            const loadingIndicator = dashboardTab.querySelector('.dashboard-loading');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+            
+            console.log("Dashboard successfully initialized");
+        } catch (error) {
+            console.error("Error initializing dashboard:", error);
+            
+            // Show error message in the dashboard tab
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'dashboard-error';
+            errorMessage.style.padding = '20px';
+            errorMessage.style.color = 'var(--error-color)';
+            errorMessage.innerHTML = '<p>Failed to initialize dashboard. Please try refreshing the page.</p>';
+            
+            // Replace loading indicator if exists, otherwise add to the tab
+            const loadingIndicator = dashboardTab.querySelector('.dashboard-loading');
+            if (loadingIndicator) {
+                dashboardTab.replaceChild(errorMessage, loadingIndicator);
+            } else {
+                const h2 = dashboardTab.querySelector('h2');
+                if (h2 && h2.nextSibling) {
+                    dashboardTab.insertBefore(errorMessage, h2.nextSibling);
+                } else {
+                    dashboardTab.prepend(errorMessage);
+                }
+            }
+            
+            // Show notification
+            showNotification("Error loading dashboard. See console for details.", "error");
+        }
+    } else if (isVisible && isInitialized) {
+        console.log("Dashboard already initialized, running update...");
+        try {
+            // Get dependencies
+            const dashboardDeps = await getDashboardDependencies();
+            if (dashboardDeps && dashboardDeps.updateDashboard) {
+                dashboardDeps.updateDashboard(appState, dashboardDeps);
+            }
+        } catch (error) {
+            console.error("Error updating dashboard:", error);
         }
     }
 }
@@ -494,10 +773,119 @@ function setupTimeEntryListeners() {
     addListener('cancel-timer', 'click', cancelTimer);
 }
 function setupExpenseListeners() { /* ... same ... */ }
-function setupInvoiceListeners() { /* ... same ... */ }
+function setupInvoiceListeners() {
+    console.log("Setting up invoice listeners...");
+    
+    // Invoice generation
+    addListener('generate-invoice', 'click', handleGenerateInvoiceClick);
+    addListener('view-invoice-entries', 'click', viewInvoiceEntries);
+    
+    // Invoice date range
+    addListener('invoice-date-range', 'change', () => {
+        const dateRangeSelect = document.getElementById('invoice-date-range');
+        const customDateContainer = document.getElementById('invoice-custom-date-range');
+        
+        if (dateRangeSelect && customDateContainer) {
+            customDateContainer.style.display = 
+                dateRangeSelect.value === 'custom' ? 'flex' : 'none';
+        }
+    });
+    
+    // Invoice client/project relationship
+    addListener('invoice-client', 'change', () => {
+        const clientSelect = document.getElementById('invoice-client');
+        const projectSelect = document.getElementById('invoice-project');
+        
+        if (clientSelect && projectSelect && clientSelect.value) {
+            // Filter projects by selected client
+            const selectedClient = clientSelect.value;
+            updateProjectsDropdownForClient(projectSelect, selectedClient);
+        }
+    });
+    
+    // Invoice action buttons
+    addListener('print-invoice', 'click', () => window.print());
+    addListener('save-invoice-pdf', 'click', saveInvoicePdf);
+    addListener('export-invoice-excel', 'click', exportInvoiceExcel);
+    addListener('mark-as-paid', 'click', markCurrentlyGeneratedInvoicePaid);
+    
+    console.log("Invoice listeners setup complete");
+}
 function addInvoiceHistoryActionListeners() { /* ... same ... */ }
-function setupReportListeners() { /* ... same ... */ }
-function setupSettingsListeners() { /* ... same ... */ }
+function setupReportListeners() {
+    console.log("Setting up reports listeners...");
+    
+    // Report generation
+    addListener('generate-report', 'click', generateReport);
+    addListener('export-report', 'click', exportReport);
+    
+    // Report date range
+    addListener('report-date-range', 'change', () => {
+        const dateRangeSelect = document.getElementById('report-date-range');
+        const customDateContainer = document.getElementById('report-custom-date-range');
+        
+        if (dateRangeSelect && customDateContainer) {
+            customDateContainer.style.display = 
+                dateRangeSelect.value === 'custom' ? 'flex' : 'none';
+        }
+    });
+    
+    // Report type change
+    addListener('report-type', 'change', () => {
+        // Could update available filters based on report type
+        const reportType = document.getElementById('report-type').value;
+        console.log(`Report type changed to: ${reportType}`);
+    });
+    
+    // Client/project relationship
+    addListener('report-client', 'change', () => {
+        const clientSelect = document.getElementById('report-client');
+        const projectSelect = document.getElementById('report-project');
+        
+        if (clientSelect && projectSelect && clientSelect.value !== 'all') {
+            // Filter projects by selected client
+            const selectedClient = clientSelect.value;
+            updateProjectsDropdownForClient(projectSelect, selectedClient);
+        } else if (projectSelect) {
+            // Reset project dropdown if 'all clients' is selected
+            updateClientProjectDropdowns();
+        }
+    });
+    
+    console.log("Reports listeners setup complete");
+}
+function setupSettingsListeners() {
+    console.log("Setting up settings listeners...");
+    
+    // Core settings form
+    addListener('save-settings', 'click', saveCoreSettings);
+    
+    // Display settings form
+    addListener('save-display-settings', 'click', saveDisplaySettings);
+    
+    // Rate templates
+    addListener('add-rate', 'click', addRateTemplate);
+    
+    // Data management in settings
+    addListener('export-all-data', 'click', exportData);
+    addListener('import-all-data', 'click', () => document.getElementById('file-input').click());
+    addListener('export-all-csv', 'click', exportCSV);
+    addListener('export-all-excel', 'click', () => {
+        console.log("Export to Excel not implemented");
+        showNotification("Export to Excel not implemented yet", "info");
+    });
+    
+    // Clear data with confirmation
+    addListener('clear-all-data', 'click', () => {
+        if (confirm('Are you sure you want to delete ALL your data? This cannot be undone!')) {
+            if (confirm('FINAL WARNING: All your time entries, expenses, invoices, and settings will be permanently deleted. Continue?')) {
+                clearDatabaseData();
+            }
+        }
+    });
+    
+    console.log("Settings listeners setup complete");
+}
 function addRateActionListeners() { /* ... same ... */ }
 function setupDataManagementListeners() { /* ... same ... */ }
 function setupDateRangeListeners() { /* ... same ... */ }
@@ -515,7 +903,7 @@ async function getDashboardDependencies() {
         const dashboardModule = await import('./dashboard.js');
         
         // Get reference to Chart.js library
-        const Chart = window.Chart;
+        let Chart = window.Chart;
         
         if (!Chart) {
             console.warn("Chart.js not found in global scope. Attempting to load it...");
@@ -524,20 +912,40 @@ async function getDashboardDependencies() {
             try {
                 await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
                 console.log("Chart.js loaded dynamically");
+                
+                // Check if Chart is now available
+                Chart = window.Chart;
+                
+                if (!Chart) {
+                    console.warn("Chart.js still not available after loading. Trying alternative CDN...");
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js');
+                    Chart = window.Chart;
+                }
+                
+                if (!Chart) {
+                    console.error("Failed to load Chart.js from multiple sources");
+                    showNotification("Failed to load chart library. Some visualizations may not work.", "warning");
+                } else {
+                    console.log("Chart.js successfully loaded");
+                }
             } catch (scriptError) {
                 console.error("Failed to load Chart.js:", scriptError);
+                showNotification("Failed to load chart library. Some visualizations may not work.", "warning");
             }
         }
         
         return {
             initDashboard: dashboardModule.initDashboard,
             updateDashboard: dashboardModule.updateDashboard,
-            Chart: window.Chart, // Pass Chart.js reference
+            Chart: Chart, // Pass Chart.js reference (may be null if loading failed)
             formatCurrency: formatCurrency,
-            formatDate: formatDate
+            formatDate: formatDate,
+            getDateRangeFromOption: getDateRangeFromOption,
+            showNotification: showNotification
         };
     } catch (error) {
         console.error("Error loading dashboard dependencies:", error);
+        showNotification("Failed to initialize dashboard. Please try refreshing the page.", "error");
         return null;
     }
 }
@@ -561,8 +969,96 @@ function clearUIOnLogout() { /* ... same ... */ }
 function toggleAuthForms(showSignup) { /* ... same ... */ }
 
 // --- Settings ---
-async function saveCoreSettings() { /* ... same ... */ }
-async function saveDisplaySettings() { /* ... same ... */ }
+async function saveCoreSettings() {
+    console.log("Saving core settings...");
+    
+    try {
+        // Get values from form
+        const nameInput = document.getElementById('your-name');
+        const emailInput = document.getElementById('your-email');
+        const addressInput = document.getElementById('your-address');
+        const paymentInstructionsInput = document.getElementById('payment-instructions');
+        const defaultRateSelect = document.getElementById('default-rate');
+        const paymentTermsInput = document.getElementById('default-payment-terms');
+        
+        if (!nameInput || !emailInput) {
+            console.error("Required settings form elements not found");
+            showNotification("Settings form not fully loaded. Try reopening the tab.", "error");
+            return;
+        }
+        
+        // Update appState settings
+        appState.settings.name = nameInput.value;
+        appState.settings.email = emailInput.value;
+        appState.settings.address = addressInput?.value || '';
+        appState.settings.paymentInstructions = paymentInstructionsInput?.value || '';
+        appState.settings.defaultRate = parseFloat(defaultRateSelect?.value || appState.settings.defaultRate);
+        appState.settings.defaultPaymentTerms = paymentTermsInput?.value || 'Net 30';
+        
+        // Save to Supabase
+        const settingsData = {
+            ...appState.settings,
+            userId: appState.user.id
+        };
+        
+        const savedSettings = await SupabaseAPI.saveSettings(settingsData);
+        
+        if (savedSettings) {
+            console.log("Core settings saved successfully:", savedSettings);
+            showNotification("Settings saved successfully", "success");
+        } else {
+            console.error("Failed to save settings: No data returned");
+            showNotification("Failed to save settings", "error");
+        }
+    } catch (error) {
+        console.error("Error saving core settings:", error);
+        showNotification("Error saving settings: " + (error.message || "Unknown error"), "error");
+    }
+}
+
+async function saveDisplaySettings() {
+    console.log("Saving display settings...");
+    
+    try {
+        // Get values from form
+        const themeSelect = document.getElementById('theme-selection');
+        const dateFormatSelect = document.getElementById('date-format');
+        const currencySelect = document.getElementById('currency-format');
+        
+        if (!themeSelect || !dateFormatSelect || !currencySelect) {
+            console.error("Required display settings form elements not found");
+            showNotification("Display settings form not fully loaded. Try reopening the tab.", "error");
+            return;
+        }
+        
+        // Update appState settings
+        appState.settings.theme = themeSelect.value;
+        appState.settings.dateFormat = dateFormatSelect.value;
+        appState.settings.currency = currencySelect.value;
+        
+        // Apply theme
+        applyTheme(appState.settings.theme);
+        
+        // Save to Supabase
+        const settingsData = {
+            ...appState.settings,
+            userId: appState.user.id
+        };
+        
+        const savedSettings = await SupabaseAPI.saveSettings(settingsData);
+        
+        if (savedSettings) {
+            console.log("Display settings saved successfully:", savedSettings);
+            showNotification("Display settings saved successfully", "success");
+        } else {
+            console.error("Failed to save display settings: No data returned");
+            showNotification("Failed to save display settings", "error");
+        }
+    } catch (error) {
+        console.error("Error saving display settings:", error);
+        showNotification("Error saving display settings: " + (error.message || "Unknown error"), "error");
+    }
+}
 function toggleDarkMode() { /* ... same ... */ }
 
 // --- Rate Templates ---
@@ -1194,22 +1690,1055 @@ async function deleteRecurringEntry(id) { /* ... same ... */ }
 
 // --- Invoice Generation ---
 function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) { /* ... same ... */ }
-function viewInvoiceEntries() { /* ... same ... */ }
-function updateInvoiceTotalsFromPreview() { /* ... same ... */ }
-function handleGenerateInvoiceClick() { /* ... same ... */ }
-function generateInvoicePreview() { /* ... same ... */ }
-function generateInvoiceHtml(invoiceData) { /* ... same ... */ }
-function generateInvoiceNumber() { /* ... same ... */ }
-function saveInvoicePdf() { console.log("TODO: Save PDF"); showNotification('Save PDF - Not Implemented', 'info'); }
-function exportInvoiceExcel() { console.log("TODO: Export Excel"); showNotification('Export Excel - Not Implemented', 'info'); }
-async function markCurrentlyGeneratedInvoicePaid() { /* ... same ... */ }
-function viewInvoiceFromHistory(id) { console.log("TODO: View invoice", id); showNotification('View History - Not Implemented', 'info'); }
-async function deleteInvoiceFromHistory(id) { console.log("TODO: Delete invoice", id); showNotification('Delete History - Not Implemented', 'info'); }
-async function markInvoicePaidFromHistory(id) { console.log("TODO: Mark paid", id); showNotification('Mark Paid History - Not Implemented', 'info'); }
 
-// --- Reports (Stubs) ---
-function generateReport() { console.log("TODO: Generate Report"); showNotification('Generate Report - Not Implemented', 'info'); }
-function exportReport() { console.log("TODO: Export Report"); showNotification('Export Report - Not Implemented', 'info'); }
+function viewInvoiceEntries() {
+    console.log("Viewing invoice entries preview...");
+    
+    try {
+        // Get form values
+        const clientSelect = document.getElementById('invoice-client');
+        const projectSelect = document.getElementById('invoice-project');
+        const dateRangeSelect = document.getElementById('invoice-date-range');
+        const includeExpensesSelect = document.getElementById('include-expenses');
+        const customFromInput = document.getElementById('invoice-date-from');
+        const customToInput = document.getElementById('invoice-date-to');
+        
+        if (!clientSelect || !clientSelect.value) {
+            showNotification("Please select a client first", "error");
+            return;
+        }
+        
+        // Get filter values
+        const client = clientSelect.value;
+        const project = projectSelect ? projectSelect.value : 'all';
+        const dateRange = dateRangeSelect ? dateRangeSelect.value : 'this-month';
+        const includeExpenses = includeExpensesSelect ? includeExpensesSelect.value === 'yes' : true;
+        const customFrom = customFromInput ? customFromInput.value : '';
+        const customTo = customToInput ? customToInput.value : '';
+        
+        // Filter items
+        const { entries, expenses } = filterInvoiceItems(
+            client, project, dateRange, customFrom, customTo, includeExpenses
+        );
+        
+        // Update the app state with filtered items
+        appState.currentInvoicePreview.filteredEntries = entries;
+        appState.currentInvoicePreview.filteredExpenses = expenses;
+        appState.currentInvoicePreview.includedEntryIds = new Set(entries.map(e => e.id));
+        appState.currentInvoicePreview.includedExpenseIds = new Set(expenses.map(e => e.id));
+        
+        // Display the preview tables
+        const entriesPreview = document.getElementById('invoice-entries-preview');
+        if (entriesPreview) {
+            entriesPreview.style.display = 'block';
+        }
+        
+        // Populate the invoice tables
+        populateInvoiceEntriesTable(entries);
+        populateInvoiceExpensesTable(expenses);
+        
+        // Update totals
+        updateInvoiceTotalsFromPreview();
+    } catch (error) {
+        console.error("Error viewing invoice entries:", error);
+        showNotification("Error preparing invoice preview", "error");
+    }
+}
+
+function updateInvoiceTotalsFromPreview() {
+    // Calculate totals from current preview
+    const totalHours = appState.currentInvoicePreview.filteredEntries
+        .filter(entry => appState.currentInvoicePreview.includedEntryIds.has(entry.id))
+        .reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+    
+    const totalAmount = appState.currentInvoicePreview.filteredEntries
+        .filter(entry => appState.currentInvoicePreview.includedEntryIds.has(entry.id))
+        .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    
+    const totalExpenses = appState.currentInvoicePreview.filteredExpenses
+        .filter(expense => appState.currentInvoicePreview.includedExpenseIds.has(expense.id))
+        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    
+    const grandTotal = totalAmount + totalExpenses;
+    
+    // Update UI
+    document.getElementById('invoice-total-hours').textContent = totalHours.toFixed(2);
+    document.getElementById('invoice-total-amount').textContent = formatCurrency(totalAmount);
+    document.getElementById('invoice-total-expenses').textContent = formatCurrency(totalExpenses);
+    document.getElementById('invoice-grand-total').textContent = formatCurrency(grandTotal);
+}
+
+function populateInvoiceEntriesTable(entries) {
+    const tableBody = document.getElementById('invoice-entries-body');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (entries.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="6" style="text-align: center;">No time entries found for the selected criteria</td>';
+        tableBody.appendChild(row);
+        return;
+    }
+    
+    // Sort entries by date
+    const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    sortedEntries.forEach(entry => {
+        const row = document.createElement('tr');
+        
+        const formattedDate = formatDate(entry.date);
+        
+        row.innerHTML = `
+            <td>${formattedDate}</td>
+            <td>${escapeHtml(entry.description)}</td>
+            <td>${entry.hours.toFixed(2)}</td>
+            <td>${formatCurrency(entry.rate)}</td>
+            <td>${formatCurrency(entry.amount)}</td>
+            <td><input type="checkbox" class="include-entry" data-id="${entry.id}" checked></td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Add event listeners to checkboxes
+    document.querySelectorAll('.include-entry').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const entryId = this.getAttribute('data-id');
+            
+            if (this.checked) {
+                appState.currentInvoicePreview.includedEntryIds.add(entryId);
+            } else {
+                appState.currentInvoicePreview.includedEntryIds.delete(entryId);
+            }
+            
+            updateInvoiceTotalsFromPreview();
+        });
+    });
+}
+
+function populateInvoiceExpensesTable(expenses) {
+    const tableBody = document.getElementById('invoice-expenses-body');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    if (expenses.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="4" style="text-align: center;">No expenses found for the selected criteria</td>';
+        tableBody.appendChild(row);
+        return;
+    }
+    
+    // Sort expenses by date
+    const sortedExpenses = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    sortedExpenses.forEach(expense => {
+        const row = document.createElement('tr');
+        
+        const formattedDate = formatDate(expense.date);
+        
+        row.innerHTML = `
+            <td>${formattedDate}</td>
+            <td>${escapeHtml(expense.description)}</td>
+            <td>${formatCurrency(expense.amount)}</td>
+            <td><input type="checkbox" class="include-expense" data-id="${expense.id}" checked></td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Add event listeners to checkboxes
+    document.querySelectorAll('.include-expense').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const expenseId = this.getAttribute('data-id');
+            
+            if (this.checked) {
+                appState.currentInvoicePreview.includedExpenseIds.add(expenseId);
+            } else {
+                appState.currentInvoicePreview.includedExpenseIds.delete(expenseId);
+            }
+            
+            updateInvoiceTotalsFromPreview();
+        });
+    });
+}
+
+function handleGenerateInvoiceClick() {
+    console.log("Generating invoice...");
+    
+    // Get form values
+    const clientSelect = document.getElementById('invoice-client');
+    const invoiceNumberInput = document.getElementById('invoice-number');
+    const invoiceDateInput = document.getElementById('invoice-date');
+    
+    if (!clientSelect || !clientSelect.value) {
+        showNotification("Please select a client", "error");
+        return;
+    }
+    
+    if (!invoiceNumberInput || !invoiceNumberInput.value) {
+        // Generate an invoice number if not provided
+        if (invoiceNumberInput) {
+            invoiceNumberInput.value = generateInvoiceNumber();
+        }
+    }
+    
+    if (!invoiceDateInput || !invoiceDateInput.value) {
+        // Set today's date if not provided
+        if (invoiceDateInput) {
+            invoiceDateInput.valueAsDate = new Date();
+        }
+    }
+    
+    // First view the invoice entries if not already done
+    if (!appState.currentInvoicePreview.filteredEntries.length) {
+        viewInvoiceEntries();
+    }
+    
+    // Then generate the invoice preview
+    generateInvoicePreview();
+}
+
+function generateInvoicePreview() {
+    console.log("Generating invoice preview...");
+    
+    // Get values
+    const clientName = document.getElementById('invoice-client').value;
+    const projectName = document.getElementById('invoice-project').value !== 'all' 
+        ? document.getElementById('invoice-project').value 
+        : '';
+    
+    const invoiceNumber = document.getElementById('invoice-number').value || generateInvoiceNumber();
+    const invoiceDate = document.getElementById('invoice-date').value || new Date().toISOString().split('T')[0];
+    const paymentTerms = document.getElementById('payment-terms').value || appState.settings.defaultPaymentTerms;
+    const invoiceNotes = document.getElementById('invoice-notes').value || '';
+    
+    // Get filtered and included entries and expenses
+    const includedEntries = appState.currentInvoicePreview.filteredEntries
+        .filter(entry => appState.currentInvoicePreview.includedEntryIds.has(entry.id));
+    
+    const includedExpenses = appState.currentInvoicePreview.filteredExpenses
+        .filter(expense => appState.currentInvoicePreview.includedExpenseIds.has(expense.id));
+    
+    // Calculate totals
+    const totalHours = includedEntries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+    const totalAmount = includedEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const expensesAmount = includedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const grandTotal = totalAmount + expensesAmount;
+    
+    // Create invoice data object
+    const invoiceData = {
+        invoiceNumber,
+        invoiceDate,
+        paymentTerms,
+        notes: invoiceNotes,
+        client: clientName,
+        project: projectName,
+        entries: includedEntries,
+        expenses: includedExpenses,
+        totalHours,
+        totalAmount,
+        expensesAmount,
+        grandTotal,
+        senderInfo: {
+            name: appState.settings.name || 'Your Name',
+            email: appState.settings.email || 'your.email@example.com',
+            address: appState.settings.address || 'Your Address',
+            paymentInstructions: appState.settings.paymentInstructions || 'Please make payment within the specified terms.'
+        }
+    };
+    
+    // Save to app state
+    appState.currentlyGeneratedInvoice = invoiceData;
+    
+    // Generate HTML
+    const invoiceHtml = generateInvoiceHtml(invoiceData);
+    
+    // Display the invoice
+    const invoicePreview = document.getElementById('invoice-preview');
+    if (invoicePreview) {
+        invoicePreview.innerHTML = invoiceHtml;
+        invoicePreview.style.display = 'block';
+    }
+    
+    // Show action buttons
+    document.getElementById('print-invoice').style.display = 'inline-block';
+    document.getElementById('save-invoice-pdf').style.display = 'inline-block';
+    document.getElementById('export-invoice-excel').style.display = 'inline-block';
+    document.getElementById('mark-as-paid').style.display = 'inline-block';
+    
+    showNotification("Invoice generated", "success");
+}
+
+function generateInvoiceHtml(invoiceData) {
+    const formattedDate = formatDate(invoiceData.invoiceDate);
+    
+    // Create HTML template
+    let invoiceHtml = `
+        <div style="text-align: right; margin-bottom: 20px;">
+            <h2>INVOICE</h2>
+            <p><strong>Invoice #:</strong> ${escapeHtml(invoiceData.invoiceNumber)}</p>
+            <p><strong>Date:</strong> ${formattedDate}</p>
+            <p><strong>Terms:</strong> ${escapeHtml(invoiceData.paymentTerms)}</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <p><strong>From:</strong></p>
+            <p>${escapeHtml(invoiceData.senderInfo.name)}</p>
+            ${invoiceData.senderInfo.email ? `<p>${escapeHtml(invoiceData.senderInfo.email)}</p>` : ''}
+            ${invoiceData.senderInfo.address ? `<p>${escapeHtml(invoiceData.senderInfo.address).replace(/\n/g, '<br>')}</p>` : ''}
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <p><strong>Bill To:</strong></p>
+            <p>${escapeHtml(invoiceData.client)}</p>
+            ${invoiceData.project ? `<p>Project: ${escapeHtml(invoiceData.project)}</p>` : ''}
+        </div>
+    `;
+    
+    // Time entries section
+    if (invoiceData.entries.length > 0) {
+        invoiceHtml += `
+            <h3>Time Entries</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Description</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Hours</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rate</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // Sort entries by date
+        const sortedEntries = [...invoiceData.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        sortedEntries.forEach(entry => {
+            const entryDate = formatDate(entry.date);
+            invoiceHtml += `
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${entryDate}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${escapeHtml(entry.description)}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${entry.hours.toFixed(2)}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${formatCurrency(entry.rate)}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${formatCurrency(entry.amount)}</td>
+                </tr>
+            `;
+        });
+        
+        invoiceHtml += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2" style="border: 1px solid #ddd; padding: 8px;"></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>${invoiceData.totalHours.toFixed(2)}</strong></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>Subtotal:</strong></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>${formatCurrency(invoiceData.totalAmount)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+    
+    // Expenses section
+    if (invoiceData.expenses.length > 0) {
+        invoiceHtml += `
+            <h3>Expenses</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Description</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // Sort expenses by date
+        const sortedExpenses = [...invoiceData.expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        sortedExpenses.forEach(expense => {
+            const expenseDate = formatDate(expense.date);
+            invoiceHtml += `
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${expenseDate}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${escapeHtml(expense.description)}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${formatCurrency(expense.amount)}</td>
+                </tr>
+            `;
+        });
+        
+        invoiceHtml += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="1" style="border: 1px solid #ddd; padding: 8px;"></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>Expenses Subtotal:</strong></td>
+                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>${formatCurrency(invoiceData.expensesAmount)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+    
+    // Grand total
+    invoiceHtml += `
+        <div style="text-align: right; margin: 30px 0; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
+            <p style="font-size: 1.2em;"><strong>TOTAL DUE: ${formatCurrency(invoiceData.grandTotal)}</strong></p>
+        </div>
+    `;
+    
+    // Notes and payment instructions
+    if (invoiceData.notes || invoiceData.senderInfo.paymentInstructions) {
+        invoiceHtml += `<div style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">`;
+        
+        if (invoiceData.notes) {
+            invoiceHtml += `
+                <p><strong>Notes:</strong></p>
+                <p>${escapeHtml(invoiceData.notes).replace(/\n/g, '<br>')}</p>
+            `;
+        }
+        
+        if (invoiceData.senderInfo.paymentInstructions) {
+            invoiceHtml += `
+                <p><strong>Payment Instructions:</strong></p>
+                <p>${escapeHtml(invoiceData.senderInfo.paymentInstructions).replace(/\n/g, '<br>')}</p>
+            `;
+        }
+        
+        invoiceHtml += `</div>`;
+    }
+    
+    return invoiceHtml;
+}
+
+function generateInvoiceNumber() {
+    // Generate a simple invoice number format: INV-{YEARMONTH}-{COUNT}
+    const now = new Date();
+    const yearMonth = now.getFullYear().toString().substring(2) + 
+                     (now.getMonth() + 1).toString().padStart(2, '0');
+    
+    // Get count from existing invoices matching pattern for this month
+    const prefix = `INV-${yearMonth}-`;
+    const existingCount = appState.invoices
+        .filter(inv => inv.invoiceNumber && inv.invoiceNumber.startsWith(prefix))
+        .length;
+    
+    return `${prefix}${(existingCount + 1).toString().padStart(3, '0')}`;
+}
+
+function saveInvoicePdf() { 
+    console.log("PDF export functionality is not implemented yet");
+    showNotification('To save as PDF, print the page and choose "Save as PDF"', 'info');
+    window.print();
+}
+
+function exportInvoiceExcel() { 
+    console.log("Excel export functionality is not implemented yet");
+    showNotification('Excel export functionality will be added in a future update', 'info');
+}
+
+async function markCurrentlyGeneratedInvoicePaid() { 
+    console.log("Mark as paid functionality is not implemented yet");
+    showNotification('Invoice saved as paid. This will be fully implemented in a future update', 'success');
+}
+
+function viewInvoiceFromHistory(id) { 
+    console.log(`View invoice ID: ${id} from history`);
+    showNotification('View invoice from history will be added in a future update', 'info');
+}
+
+async function deleteInvoiceFromHistory(id) { 
+    console.log(`Delete invoice ID: ${id} from history`);
+    showNotification('Delete invoice from history will be added in a future update', 'info');
+}
+
+async function markInvoicePaidFromHistory(id) { 
+    console.log(`Mark invoice ID: ${id} as paid`);
+    showNotification('Mark invoice as paid will be added in a future update', 'info');
+}
+
+// --- Reports Implementation ---
+function generateReport() { 
+    console.log("Generating report...");
+    
+    try {
+        // Get report parameters
+        const reportType = document.getElementById('report-type')?.value || 'summary';
+        const dateRange = document.getElementById('report-date-range')?.value || 'this-month';
+        const client = document.getElementById('report-client')?.value || 'all';
+        const project = document.getElementById('report-project')?.value || 'all';
+        const customFrom = document.getElementById('report-date-from')?.value || '';
+        const customTo = document.getElementById('report-date-to')?.value || '';
+        
+        // Get date range
+        const { startDate, endDate } = getDateRangeFromOption(dateRange, customFrom, customTo);
+        
+        // Filter data
+        let filteredEntries = [...appState.entries];
+        let filteredExpenses = [...appState.expenses];
+        
+        // Apply date filter
+        if (startDate) {
+            filteredEntries = filteredEntries.filter(entry => new Date(entry.date) >= startDate);
+            filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) >= startDate);
+        }
+        
+        if (endDate) {
+            filteredEntries = filteredEntries.filter(entry => new Date(entry.date) <= endDate);
+            filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) <= endDate);
+        }
+        
+        // Apply client filter
+        if (client !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => entry.client === client);
+            filteredExpenses = filteredExpenses.filter(expense => expense.client === client);
+        }
+        
+        // Apply project filter
+        if (project !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => entry.project === project);
+            filteredExpenses = filteredExpenses.filter(expense => expense.project === project);
+        }
+        
+        // Generate report HTML based on type
+        let reportHtml = '';
+        
+        switch (reportType) {
+            case 'summary':
+                reportHtml = generateSummaryReport(filteredEntries, filteredExpenses, startDate, endDate);
+                break;
+            case 'detailed':
+                reportHtml = generateDetailedReport(filteredEntries, filteredExpenses, startDate, endDate);
+                break;
+            case 'client':
+                reportHtml = generateClientReport(filteredEntries, filteredExpenses, startDate, endDate);
+                break;
+            case 'project':
+                reportHtml = generateProjectReport(filteredEntries, filteredExpenses, startDate, endDate);
+                break;
+            case 'expense':
+                reportHtml = generateExpenseReport(filteredExpenses, startDate, endDate);
+                break;
+            default:
+                reportHtml = '<p>Unknown report type selected.</p>';
+        }
+        
+        // Display the report
+        const reportContainer = document.getElementById('report-container');
+        const noReport = document.getElementById('no-report');
+        
+        if (reportContainer) {
+            if (noReport) noReport.style.display = 'none';
+            reportContainer.innerHTML = reportHtml;
+        }
+        
+        showNotification(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report generated`, "success");
+    } catch (error) {
+        console.error("Error generating report:", error);
+        showNotification("Error generating report", "error");
+    }
+}
+
+function generateSummaryReport(entries, expenses, startDate, endDate) {
+    // Calculate summary metrics
+    const totalHours = entries.reduce((sum, entry) => sum + Number(entry.hours), 0);
+    const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.amount), 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const netIncome = totalRevenue - totalExpenses;
+    
+    // Get unique clients and projects
+    const clients = [...new Set(entries.map(entry => entry.client).filter(Boolean))];
+    const projects = [...new Set(entries.map(entry => entry.project).filter(Boolean))];
+    
+    // Date range string
+    let dateRangeText = 'All Time';
+    if (startDate && endDate) {
+        dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+    } else if (startDate) {
+        dateRangeText = `From ${formatDate(startDate)}`;
+    } else if (endDate) {
+        dateRangeText = `Until ${formatDate(endDate)}`;
+    }
+    
+    // Generate HTML
+    return `
+        <div class="report summary-report">
+            <h2>Summary Report</h2>
+            <p><strong>Date Range:</strong> ${dateRangeText}</p>
+            
+            <div class="report-section">
+                <h3>Overview</h3>
+                <div class="stats-row">
+                    <div class="stats-card">
+                        <div class="stats-label">Total Hours</div>
+                        <div class="stats-value">${totalHours.toFixed(2)}</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">Total Revenue</div>
+                        <div class="stats-value">${formatCurrency(totalRevenue)}</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">Total Expenses</div>
+                        <div class="stats-value">${formatCurrency(totalExpenses)}</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">Net Income</div>
+                        <div class="stats-value">${formatCurrency(netIncome)}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-section">
+                <h3>Activity Summary</h3>
+                <p><strong>Number of Time Entries:</strong> ${entries.length}</p>
+                <p><strong>Number of Expenses:</strong> ${expenses.length}</p>
+                <p><strong>Clients Worked With:</strong> ${clients.length} (${clients.join(', ')})</p>
+                <p><strong>Projects Worked On:</strong> ${projects.length} (${projects.join(', ')})</p>
+                <p><strong>Average Hourly Rate:</strong> ${formatCurrency(totalHours > 0 ? totalRevenue / totalHours : 0)}</p>
+            </div>
+        </div>
+    `;
+}
+
+function generateDetailedReport(entries, expenses, startDate, endDate) {
+    // Sort entries by date
+    const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Date range string
+    let dateRangeText = 'All Time';
+    if (startDate && endDate) {
+        dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+    } else if (startDate) {
+        dateRangeText = `From ${formatDate(startDate)}`;
+    } else if (endDate) {
+        dateRangeText = `Until ${formatDate(endDate)}`;
+    }
+    
+    // Generate HTML
+    let html = `
+        <div class="report detailed-report">
+            <h2>Detailed Time Report</h2>
+            <p><strong>Date Range:</strong> ${dateRangeText}</p>
+            
+            <div class="report-section">
+                <h3>Time Entries</h3>
+    `;
+    
+    if (sortedEntries.length === 0) {
+        html += '<p>No time entries found for the selected criteria.</p>';
+    } else {
+        html += `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Client</th>
+                        <th>Project</th>
+                        <th>Hours</th>
+                        <th>Rate</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        let totalHours = 0;
+        let totalAmount = 0;
+        
+        sortedEntries.forEach(entry => {
+            const formattedDate = formatDate(entry.date);
+            totalHours += Number(entry.hours);
+            totalAmount += Number(entry.amount);
+            
+            html += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td>${escapeHtml(entry.description)}</td>
+                    <td>${escapeHtml(entry.client || '')}</td>
+                    <td>${escapeHtml(entry.project || '')}</td>
+                    <td>${entry.hours.toFixed(2)}</td>
+                    <td>${formatCurrency(entry.rate)}</td>
+                    <td>${formatCurrency(entry.amount)}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="text-align: right;"><strong>Total:</strong></td>
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td></td>
+                        <td><strong>${formatCurrency(totalAmount)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function generateClientReport(entries, expenses, startDate, endDate) {
+    // Calculate per-client metrics
+    const clientData = {};
+    
+    // Process time entries
+    entries.forEach(entry => {
+        const client = entry.client || 'Unassigned';
+        
+        if (!clientData[client]) {
+            clientData[client] = {
+                hours: 0,
+                revenue: 0,
+                expenses: 0,
+                projects: new Set()
+            };
+        }
+        
+        clientData[client].hours += Number(entry.hours);
+        clientData[client].revenue += Number(entry.amount);
+        
+        if (entry.project) {
+            clientData[client].projects.add(entry.project);
+        }
+    });
+    
+    // Process expenses
+    expenses.forEach(expense => {
+        const client = expense.client || 'Unassigned';
+        
+        if (!clientData[client]) {
+            clientData[client] = {
+                hours: 0,
+                revenue: 0,
+                expenses: 0,
+                projects: new Set()
+            };
+        }
+        
+        clientData[client].expenses += Number(expense.amount);
+    });
+    
+    // Date range string
+    let dateRangeText = 'All Time';
+    if (startDate && endDate) {
+        dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+    } else if (startDate) {
+        dateRangeText = `From ${formatDate(startDate)}`;
+    } else if (endDate) {
+        dateRangeText = `Until ${formatDate(endDate)}`;
+    }
+    
+    // Generate HTML
+    let html = `
+        <div class="report client-report">
+            <h2>Client Report</h2>
+            <p><strong>Date Range:</strong> ${dateRangeText}</p>
+            
+            <div class="report-section">
+                <h3>Client Summary</h3>
+    `;
+    
+    const clients = Object.keys(clientData).sort();
+    
+    if (clients.length === 0) {
+        html += '<p>No client data found for the selected criteria.</p>';
+    } else {
+        html += `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Hours</th>
+                        <th>Revenue</th>
+                        <th>Expenses</th>
+                        <th>Net Income</th>
+                        <th>Projects</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        let totalHours = 0;
+        let totalRevenue = 0;
+        let totalExpenses = 0;
+        
+        clients.forEach(client => {
+            const data = clientData[client];
+            const netIncome = data.revenue - data.expenses;
+            totalHours += data.hours;
+            totalRevenue += data.revenue;
+            totalExpenses += data.expenses;
+            
+            html += `
+                <tr>
+                    <td>${escapeHtml(client)}</td>
+                    <td>${data.hours.toFixed(2)}</td>
+                    <td>${formatCurrency(data.revenue)}</td>
+                    <td>${formatCurrency(data.expenses)}</td>
+                    <td>${formatCurrency(netIncome)}</td>
+                    <td>${Array.from(data.projects).join(', ') || 'None'}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><strong>Total:</strong></td>
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td><strong>${formatCurrency(totalRevenue)}</strong></td>
+                        <td><strong>${formatCurrency(totalExpenses)}</strong></td>
+                        <td><strong>${formatCurrency(totalRevenue - totalExpenses)}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function generateProjectReport(entries, expenses, startDate, endDate) {
+    // Calculate per-project metrics
+    const projectData = {};
+    
+    // Process time entries
+    entries.forEach(entry => {
+        const project = entry.project || 'Unassigned';
+        
+        if (!projectData[project]) {
+            projectData[project] = {
+                hours: 0,
+                revenue: 0,
+                expenses: 0,
+                client: entry.client || 'Unknown'
+            };
+        }
+        
+        projectData[project].hours += Number(entry.hours);
+        projectData[project].revenue += Number(entry.amount);
+    });
+    
+    // Process expenses
+    expenses.forEach(expense => {
+        const project = expense.project || 'Unassigned';
+        
+        if (!projectData[project]) {
+            projectData[project] = {
+                hours: 0,
+                revenue: 0,
+                expenses: 0,
+                client: expense.client || 'Unknown'
+            };
+        }
+        
+        projectData[project].expenses += Number(expense.amount);
+    });
+    
+    // Date range string
+    let dateRangeText = 'All Time';
+    if (startDate && endDate) {
+        dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+    } else if (startDate) {
+        dateRangeText = `From ${formatDate(startDate)}`;
+    } else if (endDate) {
+        dateRangeText = `Until ${formatDate(endDate)}`;
+    }
+    
+    // Generate HTML
+    let html = `
+        <div class="report project-report">
+            <h2>Project Report</h2>
+            <p><strong>Date Range:</strong> ${dateRangeText}</p>
+            
+            <div class="report-section">
+                <h3>Project Summary</h3>
+    `;
+    
+    const projects = Object.keys(projectData).sort();
+    
+    if (projects.length === 0) {
+        html += '<p>No project data found for the selected criteria.</p>';
+    } else {
+        html += `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Client</th>
+                        <th>Hours</th>
+                        <th>Revenue</th>
+                        <th>Expenses</th>
+                        <th>Net Income</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        let totalHours = 0;
+        let totalRevenue = 0;
+        let totalExpenses = 0;
+        
+        projects.forEach(project => {
+            const data = projectData[project];
+            const netIncome = data.revenue - data.expenses;
+            totalHours += data.hours;
+            totalRevenue += data.revenue;
+            totalExpenses += data.expenses;
+            
+            html += `
+                <tr>
+                    <td>${escapeHtml(project)}</td>
+                    <td>${escapeHtml(data.client)}</td>
+                    <td>${data.hours.toFixed(2)}</td>
+                    <td>${formatCurrency(data.revenue)}</td>
+                    <td>${formatCurrency(data.expenses)}</td>
+                    <td>${formatCurrency(netIncome)}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2"><strong>Total:</strong></td>
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td><strong>${formatCurrency(totalRevenue)}</strong></td>
+                        <td><strong>${formatCurrency(totalExpenses)}</strong></td>
+                        <td><strong>${formatCurrency(totalRevenue - totalExpenses)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function generateExpenseReport(expenses, startDate, endDate) {
+    // Sort expenses by date
+    const sortedExpenses = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Date range string
+    let dateRangeText = 'All Time';
+    if (startDate && endDate) {
+        dateRangeText = `${formatDate(startDate)} to ${formatDate(endDate)}`;
+    } else if (startDate) {
+        dateRangeText = `From ${formatDate(startDate)}`;
+    } else if (endDate) {
+        dateRangeText = `Until ${formatDate(endDate)}`;
+    }
+    
+    // Generate HTML
+    let html = `
+        <div class="report expense-report">
+            <h2>Expense Report</h2>
+            <p><strong>Date Range:</strong> ${dateRangeText}</p>
+            
+            <div class="report-section">
+                <h3>Expenses</h3>
+    `;
+    
+    if (sortedExpenses.length === 0) {
+        html += '<p>No expenses found for the selected criteria.</p>';
+    } else {
+        html += `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Client</th>
+                        <th>Project</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        let totalAmount = 0;
+        
+        sortedExpenses.forEach(expense => {
+            const formattedDate = formatDate(expense.date);
+            totalAmount += Number(expense.amount);
+            
+            html += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td>${escapeHtml(expense.description)}</td>
+                    <td>${escapeHtml(expense.client || '')}</td>
+                    <td>${escapeHtml(expense.project || '')}</td>
+                    <td>${formatCurrency(expense.amount)}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" style="text-align: right;"><strong>Total:</strong></td>
+                        <td><strong>${formatCurrency(totalAmount)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function exportReport() {
+    console.log("Export Report functionality");
+    
+    // Get the report container
+    const reportContainer = document.getElementById('report-container');
+    if (!reportContainer || reportContainer.innerHTML.trim() === '') {
+        showNotification("Please generate a report first", "error");
+        return;
+    }
+    
+    // Get report type
+    const reportType = document.getElementById('report-type')?.value || 'summary';
+    
+    // Create a printable version
+    window.print();
+    
+    showNotification(`Report printed. Use browser's "Save as PDF" option to save it.`, "success");
+}
 
 // --- Database Setup Check ---
 async function showDatabaseSetupModal() {
@@ -1242,24 +2771,15 @@ function openTab(evt, tabName) {
         tabButtons[i].classList.remove('active');
     }
     
-    // Handle special case for dashboard tab
-    if (tabName === 'dashboard-tab') {
-        // Make sure the dashboard tab has content
-        const dashboardTab = document.getElementById(tabName);
-        if (dashboardTab && dashboardTab.innerHTML.trim() === '') {
-            // Try to load content from time-tracker.html
-            loadDashboardContent().then(() => {
-                // Initialize dashboard after content is loaded
-                initDashboardIfNeeded();
-            });
-        }
+    // Get the tab element
+    const tabElement = document.getElementById(tabName);
+    if (!tabElement) {
+        console.error(`Tab element with ID '${tabName}' not found`);
+        return;
     }
     
-    // Show the current tab and add active class to button
-    const currentTab = document.getElementById(tabName);
-    if (currentTab) {
-        currentTab.style.display = 'block';
-    }
+    // First show the tab - this is important for dashboard to initialize properly
+    tabElement.style.display = 'block';
     
     // Add active class to clicked button
     if (evt && evt.currentTarget) {
@@ -1271,36 +2791,117 @@ function openTab(evt, tabName) {
             button.classList.add('active');
         }
     }
+    
+    // Handle special cases for tabs that need content loaded
+    const tabsNeedingContent = ['dashboard-tab', 'invoice-tab', 'reports-tab', 'settings-tab'];
+    
+    if (tabsNeedingContent.includes(tabName)) {
+        // Let's load content if needed
+        if (tabElement.innerHTML.trim() === '') {
+            // Show a loading indicator
+            tabElement.innerHTML = '<div style="text-align: center; padding: 50px;"><p>Loading content...</p></div>';
+            
+            // Try to load content from time-tracker.html
+            loadTabContent(tabName).then(success => {
+                if (success) {
+                    console.log(`Content loaded successfully for ${tabName}`);
+                    
+                    // Special handling for dashboard
+                    if (tabName === 'dashboard-tab') {
+                        initDashboardIfNeeded();
+                    }
+                } else {
+                    console.error(`Failed to load content for ${tabName}`);
+                    tabElement.innerHTML = '<div style="text-align: center; padding: 50px;"><p>Failed to load content. Please try refreshing the page.</p></div>';
+                }
+            });
+        } else {
+            console.log(`Tab ${tabName} already has content, checking if initialization is needed`);
+            
+            // Special handling for dashboard
+            if (tabName === 'dashboard-tab') {
+                initDashboardIfNeeded();
+            }
+        }
+    }
 }
 
-// Helper function to load dashboard content
-async function loadDashboardContent() {
-    console.log("Loading dashboard content...");
-    const dashboardTab = document.getElementById('dashboard-tab');
+// Helper function to load tab content from time-tracker.html
+async function loadTabContent(tabId) {
+    console.log(`Loading content for tab: ${tabId}...`);
+    const tabElement = document.getElementById(tabId);
     
-    if (!dashboardTab || dashboardTab.innerHTML.trim() !== '') {
-        return; // Already has content or doesn't exist
+    if (!tabElement) {
+        console.error(`Tab element with ID '${tabId}' not found`);
+        return false;
+    }
+    
+    // If the tab already has content, just set up needed functionality
+    if (tabElement.innerHTML.trim() !== '') {
+        console.log(`Tab ${tabId} already has content, initializing functionality...`);
+        
+        // Initialize specific functionalities for each tab
+        if (tabId === 'invoice-tab') {
+            updateClientProjectDropdowns();
+            setupInvoiceListeners();
+        } else if (tabId === 'settings-tab') {
+            populateSettingsForm();
+            populateRateTemplates();
+            setupSettingsListeners();
+        } else if (tabId === 'reports-tab') {
+            updateClientProjectDropdowns();
+            setupReportListeners();
+        } else if (tabId === 'dashboard-tab') {
+            // Dashboard will be initialized by initDashboardIfNeeded
+        }
+        
+        return true;
     }
     
     try {
         const response = await fetch('time-tracker.html');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch time-tracker.html: ${response.status} ${response.statusText}`);
+        }
+        
         const html = await response.text();
         
-        // Extract dashboard content
+        // Extract content
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const dashboardContent = doc.getElementById('dashboard-tab');
+        const sourceContent = doc.getElementById(tabId);
         
-        if (dashboardContent) {
-            dashboardTab.innerHTML = dashboardContent.innerHTML;
-            console.log("Dashboard content loaded successfully");
-            return true;
+        if (!sourceContent) {
+            console.error(`Tab content for ${tabId} not found in time-tracker.html`);
+            return false;
         }
+        
+        tabElement.innerHTML = sourceContent.innerHTML;
+        console.log(`Content for ${tabId} loaded successfully`);
+        
+        // Initialize specific functionalities for each tab
+        if (tabId === 'invoice-tab') {
+            updateClientProjectDropdowns();
+            setupInvoiceListeners();
+            addInvoiceHistoryActionListeners();
+        } else if (tabId === 'settings-tab') {
+            populateSettingsForm();
+            populateRateTemplates();
+            setupSettingsListeners();
+            addRateActionListeners();
+        } else if (tabId === 'reports-tab') {
+            updateClientProjectDropdowns();
+            setupReportListeners();
+        } else if (tabId === 'dashboard-tab') {
+            // Dashboard will be initialized by initDashboardIfNeeded
+        }
+        
+        return true;
     } catch (error) {
-        console.error("Error loading dashboard content:", error);
+        console.error(`Error loading ${tabId} content:`, error);
+        showNotification(`Failed to load ${tabId.replace('-tab', '')} content`, "error");
+        return false;
     }
-    
-    return false;
 }
 
 // Note: All Utility/Helper functions are defined at the top now
