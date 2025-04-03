@@ -8,7 +8,18 @@ import { runSetupChecks } from './setup-check.js';
 // --- Application State ---
 const appState = {
     entries: [], expenses: [], recurringEntries: [], invoices: [], rates: [],
-    settings: { defaultRate: 350, defaultPaymentTerms: 'Net 30', name: '', email: '', address: '', paymentInstructions: '', theme: 'auto', dateFormat: 'MM/DD/YYYY', currency: 'USD' },
+    settings: { 
+        defaultRate: 350, 
+        defaultPaymentTerms: 'Net 30', 
+        name: '', 
+        email: '', 
+        address: '', 
+        paymentInstructions: '', 
+        bankingDetails: '', 
+        theme: 'auto', 
+        dateFormat: 'MM/DD/YYYY', 
+        currency: 'USD' 
+    },
     user: null,
     currentTimer: { intervalId: null, startTime: null, pausedTime: 0, isPaused: false },
     currentFormData: null,
@@ -438,6 +449,7 @@ function populateSettingsForm() {
     const emailInput = document.getElementById('your-email');
     const addressInput = document.getElementById('your-address');
     const paymentInstructionsInput = document.getElementById('payment-instructions');
+    const bankingDetailsInput = document.getElementById('banking-details');
     const defaultRateSelect = document.getElementById('default-rate');
     const paymentTermsInput = document.getElementById('default-payment-terms');
     const themeSelect = document.getElementById('theme-selection');
@@ -455,6 +467,7 @@ function populateSettingsForm() {
     if (emailInput) emailInput.value = appState.settings.email || '';
     if (addressInput) addressInput.value = appState.settings.address || '';
     if (paymentInstructionsInput) paymentInstructionsInput.value = appState.settings.paymentInstructions || '';
+    if (bankingDetailsInput) bankingDetailsInput.value = appState.settings.bankingDetails || '';
     if (defaultRateSelect) defaultRateSelect.value = appState.settings.defaultRate || 350;
     if (paymentTermsInput) paymentTermsInput.value = appState.settings.defaultPaymentTerms || 'Net 30';
     
@@ -1122,6 +1135,7 @@ async function saveCoreSettings() {
         const emailInput = document.getElementById('your-email');
         const addressInput = document.getElementById('your-address');
         const paymentInstructionsInput = document.getElementById('payment-instructions');
+        const bankingDetailsInput = document.getElementById('banking-details');
         const defaultRateSelect = document.getElementById('default-rate');
         const paymentTermsInput = document.getElementById('default-payment-terms');
         
@@ -1136,6 +1150,7 @@ async function saveCoreSettings() {
         appState.settings.email = emailInput.value;
         appState.settings.address = addressInput?.value || '';
         appState.settings.paymentInstructions = paymentInstructionsInput?.value || '';
+        appState.settings.bankingDetails = bankingDetailsInput?.value || '';
         appState.settings.defaultRate = parseFloat(defaultRateSelect?.value || appState.settings.defaultRate);
         appState.settings.defaultPaymentTerms = paymentTermsInput?.value || 'Net 30';
         
@@ -2191,7 +2206,8 @@ function generateInvoicePreview() {
             name: appState.settings.name || 'Your Name',
             email: appState.settings.email || 'your.email@example.com',
             address: appState.settings.address || 'Your Address',
-            paymentInstructions: appState.settings.paymentInstructions || 'Please make payment within the specified terms.'
+            paymentInstructions: appState.settings.paymentInstructions || 'Please make payment within the specified terms.',
+            bankingDetails: appState.settings.bankingDetails || ''
         }
     };
     
@@ -2339,8 +2355,8 @@ function generateInvoiceHtml(invoiceData) {
         </div>
     `;
     
-    // Notes and payment instructions
-    if (invoiceData.notes || invoiceData.senderInfo.paymentInstructions) {
+    // Notes, payment instructions, and banking details
+    if (invoiceData.notes || invoiceData.senderInfo.paymentInstructions || invoiceData.senderInfo.bankingDetails) {
         invoiceHtml += `<div style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">`;
         
         if (invoiceData.notes) {
@@ -2354,6 +2370,13 @@ function generateInvoiceHtml(invoiceData) {
             invoiceHtml += `
                 <p><strong>Payment Instructions:</strong></p>
                 <p>${escapeHtml(invoiceData.senderInfo.paymentInstructions).replace(/\n/g, '<br>')}</p>
+            `;
+        }
+        
+        if (invoiceData.senderInfo.bankingDetails) {
+            invoiceHtml += `
+                <p><strong>Banking Details:</strong></p>
+                <p>${escapeHtml(invoiceData.senderInfo.bankingDetails).replace(/\n/g, '<br>')}</p>
             `;
         }
         
