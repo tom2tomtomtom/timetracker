@@ -6,26 +6,36 @@ let chartInstances = {
     project: null, weekday: null, monthly: null
 };
 
+// --- Helper function for listeners ---
+function addDashboardListener(id, event, handler) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.addEventListener(event, handler);
+    } else {
+        console.warn(`Dashboard listener warning: Element ID "${id}" not found.`);
+    }
+}
+
 // --- Initialization ---
 export function initDashboard(appState, dependencies) {
     console.log("Initializing dashboard module...");
-    addListener('refresh-dashboard', 'click', () => {
+    addDashboardListener('refresh-dashboard', 'click', () => {
         console.log("Dashboard refresh requested...");
         // Pass current state and dependencies to update function
         updateDashboard(appState, dependencies);
     });
-    addListener('dash-date-range', 'change', handleDashDateRangeChange);
-    addListener('dash-client', 'change', () => updateDashboard(appState, dependencies)); // Update on filter change
-    addListener('dash-project', 'change', () => updateDashboard(appState, dependencies)); // Update on filter change
+    addDashboardListener('dash-date-range', 'change', () => handleDashDateRangeChange(appState, dependencies));
+    addDashboardListener('dash-client', 'change', () => updateDashboard(appState, dependencies)); // Update on filter change
+    addDashboardListener('dash-project', 'change', () => updateDashboard(appState, dependencies)); // Update on filter change
     // Custom date range requires refresh button or listeners on date inputs + debounce
-    addListener('dash-date-from', 'change', () => updateDashboard(appState, dependencies));
-    addListener('dash-date-to', 'change', () => updateDashboard(appState, dependencies));
+    addDashboardListener('dash-date-from', 'change', () => updateDashboard(appState, dependencies));
+    addDashboardListener('dash-date-to', 'change', () => updateDashboard(appState, dependencies));
 
-    handleDashDateRangeChange(); // Apply initial filter visibility
+    handleDashDateRangeChange(appState, dependencies); // Apply initial filter visibility
     // updateDashboard(appState, dependencies); // Initial update if needed
 }
 
-function handleDashDateRangeChange() {
+function handleDashDateRangeChange(appState, dependencies) {
     const dateRangeSelect = document.getElementById('dash-date-range');
     const customDateContainer = document.getElementById('dash-custom-date-range');
     if (dateRangeSelect && customDateContainer) {

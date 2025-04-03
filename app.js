@@ -110,8 +110,10 @@ async function initApp() {
             showApp();
             
             // Initialize dashboard if necessary
-            const { initDashboard } = await getDashboardDependencies();
-            if (initDashboard) initDashboard(appState);
+            const dashboardDeps = await getDashboardDependencies();
+            if (dashboardDeps && dashboardDeps.initDashboard) {
+                dashboardDeps.initDashboard(appState, dashboardDeps);
+            }
         } else {
             console.log("No active session found. Showing login form.");
             showLoginForm();
@@ -366,7 +368,20 @@ function setupDatabaseCheckListener() {
     addListener('check-setup', 'click', showDatabaseSetupModal);
 }
 function addRecurringEntryActionListeners() { /* ... same ... */ }
-function getDashboardDependencies() { /* ... same ... */ }
+async function getDashboardDependencies() {
+    console.log("Getting dashboard dependencies...");
+    try {
+        // Import dashboard module dynamically
+        const dashboardModule = await import('./dashboard.js');
+        return {
+            initDashboard: dashboardModule.initDashboard,
+            updateDashboard: dashboardModule.updateDashboard
+        };
+    } catch (error) {
+        console.error("Error loading dashboard dependencies:", error);
+        return null;
+    }
+}
 
 // --- Authentication ---
 async function handleLogin(e) { /* ... same ... */ }
