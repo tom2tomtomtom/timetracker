@@ -19,20 +19,57 @@ function addDashboardListener(id, event, handler) {
 // --- Initialization ---
 export function initDashboard(appState, dependencies) {
     console.log("Initializing dashboard module...");
+    
+    // Check if dashboard tab exists and is accessible
+    const dashboardTab = document.getElementById('dashboard-tab');
+    if (!dashboardTab) {
+        console.warn("Dashboard tab not found in DOM. Skipping initialization.");
+        return;
+    }
+    
+    // Ensure all dashboard elements exist before adding listeners
+    if (!elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
+        console.warn("Dashboard elements not found. Dashboard may not be fully loaded.");
+        
+        // Try again after a short delay to ensure DOM is ready
+        setTimeout(() => {
+            if (elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
+                console.log("Dashboard elements now available. Setting up listeners...");
+                setupDashboardListeners(appState, dependencies);
+                updateDashboard(appState, dependencies); // Initial update
+            } else {
+                console.error("Dashboard elements still not available after delay.");
+            }
+        }, 500);
+    } else {
+        // Elements exist, set up listeners immediately
+        setupDashboardListeners(appState, dependencies);
+        
+        // Initial update
+        handleDashDateRangeChange(appState, dependencies);
+        updateDashboard(appState, dependencies);
+    }
+}
+
+// Helper to check if elements exist
+function elementsExist(elementIds) {
+    return elementIds.every(id => document.getElementById(id) !== null);
+}
+
+// Setup dashboard listeners
+function setupDashboardListeners(appState, dependencies) {
     addDashboardListener('refresh-dashboard', 'click', () => {
         console.log("Dashboard refresh requested...");
-        // Pass current state and dependencies to update function
         updateDashboard(appState, dependencies);
     });
+    
     addDashboardListener('dash-date-range', 'change', () => handleDashDateRangeChange(appState, dependencies));
-    addDashboardListener('dash-client', 'change', () => updateDashboard(appState, dependencies)); // Update on filter change
-    addDashboardListener('dash-project', 'change', () => updateDashboard(appState, dependencies)); // Update on filter change
-    // Custom date range requires refresh button or listeners on date inputs + debounce
+    addDashboardListener('dash-client', 'change', () => updateDashboard(appState, dependencies));
+    addDashboardListener('dash-project', 'change', () => updateDashboard(appState, dependencies));
+    
+    // Custom date range inputs
     addDashboardListener('dash-date-from', 'change', () => updateDashboard(appState, dependencies));
     addDashboardListener('dash-date-to', 'change', () => updateDashboard(appState, dependencies));
-
-    handleDashDateRangeChange(appState, dependencies); // Apply initial filter visibility
-    // updateDashboard(appState, dependencies); // Initial update if needed
 }
 
 function handleDashDateRangeChange(appState, dependencies) {

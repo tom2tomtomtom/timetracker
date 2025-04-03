@@ -109,11 +109,7 @@ async function initApp() {
             // Show application
             showApp();
             
-            // Initialize dashboard if necessary
-            const dashboardDeps = await getDashboardDependencies();
-            if (dashboardDeps && dashboardDeps.initDashboard) {
-                dashboardDeps.initDashboard(appState, dashboardDeps);
-            }
+            // Dashboard will be initialized when the user clicks on the dashboard tab
         } else {
             console.log("No active session found. Showing login form.");
             showLoginForm();
@@ -205,7 +201,47 @@ async function loadUserData() {
 }
 
 // --- UI Updates ---
-function showApp() { /* ... same ... */ }
+function showApp() {
+    console.log("Showing app interface...");
+    
+    // Hide login/signup container and show main app
+    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    
+    // Show welcome message with user email
+    const userEmail = appState.user ? appState.user.email : 'User';
+    const userWelcome = document.getElementById('user-welcome');
+    if (userWelcome) {
+        userWelcome.textContent = userEmail;
+    }
+    
+    // Populate dashboard tab if it's empty
+    const dashboardTab = document.getElementById('dashboard-tab');
+    if (dashboardTab && dashboardTab.innerHTML.trim() === '') {
+        // Load dashboard content from time-tracker.html
+        fetch('time-tracker.html')
+            .then(response => response.text())
+            .then(html => {
+                // Extract dashboard content
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const dashboardContent = doc.getElementById('dashboard-tab');
+                
+                if (dashboardContent) {
+                    dashboardTab.innerHTML = dashboardContent.innerHTML;
+                    console.log("Dashboard content loaded from time-tracker.html");
+                    
+                    // Re-initialize dashboard after content is loaded
+                    getDashboardDependencies().then(deps => {
+                        if (deps && deps.initDashboard) {
+                            deps.initDashboard(appState, deps);
+                        }
+                    });
+                }
+            })
+            .catch(error => console.error("Error loading dashboard content:", error));
+    }
+}
 function showLoginForm() { /* ... same ... */ }
 function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() { /* ... same ... */ }
@@ -331,7 +367,38 @@ function setupEventListeners() {
 // addListener defined above
 // addDelegatedListener defined above
 function setupAuthListeners() { /* ... same ... */ }
-function setupNavigationListeners() { /* ... same ... */ }
+function setupNavigationListeners() {
+    // Tab navigation buttons
+    const tabButtons = document.querySelectorAll('[data-tab]');
+    tabButtons.forEach(button => {
+        const tabId = button.getAttribute('data-tab');
+        button.addEventListener('click', (e) => {
+            openTab(e, tabId);
+            
+            // If dashboard tab is opened, make sure it's initialized
+            if (tabId === 'dashboard-tab') {
+                initDashboardIfNeeded();
+            }
+        });
+    });
+}
+
+// Helper function to initialize dashboard when needed
+async function initDashboardIfNeeded() {
+    console.log("Checking if dashboard needs initialization...");
+    
+    const dashboardTab = document.getElementById('dashboard-tab');
+    if (!dashboardTab) return;
+    
+    // Only initialize if tab is visible and not already initialized
+    if (dashboardTab.style.display !== 'none' && !dashboardTab.dataset.initialized) {
+        const dashboardDeps = await getDashboardDependencies();
+        if (dashboardDeps && dashboardDeps.initDashboard) {
+            dashboardDeps.initDashboard(appState, dashboardDeps);
+            dashboardTab.dataset.initialized = 'true';
+        }
+    }
+}
 function setupTimeEntryListeners() {
     // Time entry form
     addListener('add-entry', 'click', addTimeEntry);
@@ -802,7 +869,81 @@ async function showDatabaseSetupModal() {
 }
 
 // --- Tab Navigation ---
-function openTab(evt, tabName) { /* ... same ... */ }
+function openTab(evt, tabName) {
+    console.log(`Opening tab: ${tabName}`);
+    
+    // Hide all tab contents
+    const tabContents = document.getElementsByClassName('tab-content');
+    for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].style.display = 'none';
+    }
+    
+    // Remove active class from all tab buttons
+    const tabButtons = document.getElementsByClassName('tab-button');
+    for (let i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].classList.remove('active');
+    }
+    
+    // Handle special case for dashboard tab
+    if (tabName === 'dashboard-tab') {
+        // Make sure the dashboard tab has content
+        const dashboardTab = document.getElementById(tabName);
+        if (dashboardTab && dashboardTab.innerHTML.trim() === '') {
+            // Try to load content from time-tracker.html
+            loadDashboardContent().then(() => {
+                // Initialize dashboard after content is loaded
+                initDashboardIfNeeded();
+            });
+        }
+    }
+    
+    // Show the current tab and add active class to button
+    const currentTab = document.getElementById(tabName);
+    if (currentTab) {
+        currentTab.style.display = 'block';
+    }
+    
+    // Add active class to clicked button
+    if (evt && evt.currentTarget) {
+        evt.currentTarget.classList.add('active');
+    } else {
+        // If called programmatically, find the button by data-tab attribute
+        const button = document.querySelector(`[data-tab="${tabName}"]`);
+        if (button) {
+            button.classList.add('active');
+        }
+    }
+}
+
+// Helper function to load dashboard content
+async function loadDashboardContent() {
+    console.log("Loading dashboard content...");
+    const dashboardTab = document.getElementById('dashboard-tab');
+    
+    if (!dashboardTab || dashboardTab.innerHTML.trim() !== '') {
+        return; // Already has content or doesn't exist
+    }
+    
+    try {
+        const response = await fetch('time-tracker.html');
+        const html = await response.text();
+        
+        // Extract dashboard content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const dashboardContent = doc.getElementById('dashboard-tab');
+        
+        if (dashboardContent) {
+            dashboardTab.innerHTML = dashboardContent.innerHTML;
+            console.log("Dashboard content loaded successfully");
+            return true;
+        }
+    } catch (error) {
+        console.error("Error loading dashboard content:", error);
+    }
+    
+    return false;
+}
 
 // Note: All Utility/Helper functions are defined at the top now
 
