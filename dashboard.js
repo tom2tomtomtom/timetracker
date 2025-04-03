@@ -322,17 +322,69 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
     const netIncome = totalRevenue - totalExpenses;
     let avgWeeklyHours = 0; 
     let avgWeeklyRevenue = 0;
-    let daysDiff = 1;
     
-    // Handle case when startDate or endDate might be null
-    if (startDate && endDate) {
-        const timeDiff = endDate.getTime() - startDate.getTime();
-        daysDiff = timeDiff >= 0 ? Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24))) : 1; // Ensure at least 1 day
+    // Group entries by week to get actual weeks worked
+    if (entries.length > 0) {
+        // Map entries to weeks using ISO week numbering
+        const weekMap = {};
+        
+        entries.forEach(entry => {
+            if (!entry.date) return;
+            
+            try {
+                const entryDate = new Date(entry.date);
+                if (isNaN(entryDate.getTime())) return;
+                
+                // Get ISO year and week number
+                // Create a date string in YYYY-Www format for week identification
+                const year = entryDate.getFullYear();
+                
+                // Get week of year (ISO weeks)
+                // Get first day of year
+                const firstDayOfYear = new Date(year, 0, 1);
+                // Get day of year (1-indexed)
+                const dayOfYear = Math.floor((entryDate - firstDayOfYear) / (24 * 60 * 60 * 1000)) + 1;
+                // Calculate ISO week number
+                const weekNum = Math.ceil((dayOfYear + firstDayOfYear.getDay()) / 7);
+                
+                // Create week key
+                const weekKey = `${year}-W${weekNum}`;
+                
+                if (!weekMap[weekKey]) {
+                    weekMap[weekKey] = {
+                        hours: 0,
+                        revenue: 0
+                    };
+                }
+                
+                weekMap[weekKey].hours += (entry.hours || 0);
+                weekMap[weekKey].revenue += (entry.amount || 0);
+            } catch (err) {
+                console.warn("Error processing entry date for weekly stats:", err);
+            }
+        });
+        
+        // Count the number of weeks with tracked time
+        const trackedWeeks = Object.keys(weekMap);
+        const numTrackedWeeks = Math.max(1, trackedWeeks.length);
+        
+        console.log(`Found ${numTrackedWeeks} weeks with tracked hours`);
+        
+        // Calculate weekly averages based on actual working weeks
+        avgWeeklyHours = totalHours / numTrackedWeeks;
+        avgWeeklyRevenue = totalRevenue / numTrackedWeeks;
+        
+        // Log distribution of hours and revenue by week for debugging
+        console.log("Hours and revenue by week:");
+        trackedWeeks.forEach(week => {
+            console.log(`  ${week}: ${weekMap[week].hours.toFixed(2)} hours, $${weekMap[week].revenue.toFixed(2)}`);
+        });
+    } else {
+        // Fallback to zero if no entries
+        avgWeeklyHours = 0;
+        avgWeeklyRevenue = 0;
     }
     
-    const weeksCount = Math.max(1, daysDiff / 7);
-    avgWeeklyHours = totalHours / weeksCount; 
-    avgWeeklyRevenue = totalRevenue / weeksCount;
     const avgRate = totalHours > 0 ? totalRevenue / totalHours : 0;
     const trackedDays = new Set(entries.map(entry => entry.date)).size;
 
