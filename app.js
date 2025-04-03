@@ -61,9 +61,153 @@ function formatDate(dateString, format = appState.settings.dateFormat) {
          return new Intl.DateTimeFormat(locale, options).format(date);
      } catch (e) { console.warn("Error formatting date:", dateString, e); return dateString; }
 }
-function calculateDueDate(invoiceDateStr, paymentTerms) { /* ... same ... */ }
-function getDateRangeFromOption(option, fromDateStr, toDateStr) { /* ... same ... */ }
-function triggerDownload(content, filename, contentType) { /* ... same ... */ }
+function calculateDueDate(invoiceDateStr, paymentTerms) {
+    if (!invoiceDateStr) return '';
+    
+    try {
+        const invoiceDate = new Date(invoiceDateStr);
+        if (isNaN(invoiceDate)) return '';
+        
+        // Extract days from payment terms (e.g., "Net 30" -> 30)
+        let days = 30; // Default is 30 days
+        
+        if (paymentTerms) {
+            const match = paymentTerms.match(/\d+/);
+            if (match) {
+                days = parseInt(match[0], 10);
+            }
+        }
+        
+        // Calculate due date
+        const dueDate = new Date(invoiceDate);
+        dueDate.setDate(dueDate.getDate() + days);
+        
+        return dueDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    } catch (e) {
+        console.error("Error calculating due date:", e);
+        return '';
+    }
+}
+
+function getDateRangeFromOption(option, fromDateStr, toDateStr) {
+    console.log("Getting date range for:", { option, fromDateStr, toDateStr });
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+    
+    let startDate = null;
+    let endDate = null;
+    
+    switch (option) {
+        case 'today':
+            startDate = today;
+            endDate = new Date(today);
+            endDate.setDate(endDate.getDate() + 1);
+            break;
+            
+        case 'yesterday':
+            startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 1);
+            endDate = today;
+            break;
+            
+        case 'this-week':
+            // Get the first day of the current week (Sunday)
+            startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - startDate.getDay());
+            // Get the last day of the current week (Saturday)
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 7);
+            break;
+            
+        case 'last-week':
+            // Get the first day of the last week
+            startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - startDate.getDay() - 7);
+            // Get the last day of the last week
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 7);
+            break;
+            
+        case 'this-month':
+            // Get the first day of the current month
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            // Get the first day of the next month
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            break;
+            
+        case 'last-month':
+            // Get the first day of the last month
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            // Get the first day of the current month
+            endDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            break;
+            
+        case 'this-year':
+            // Get the first day of the current year
+            startDate = new Date(today.getFullYear(), 0, 1);
+            // Get the first day of the next year
+            endDate = new Date(today.getFullYear() + 1, 0, 1);
+            break;
+            
+        case 'last-year':
+            // Get the first day of the last year
+            startDate = new Date(today.getFullYear() - 1, 0, 1);
+            // Get the first day of the current year
+            endDate = new Date(today.getFullYear(), 0, 1);
+            break;
+            
+        case 'custom':
+            if (fromDateStr) {
+                startDate = new Date(fromDateStr);
+                if (isNaN(startDate.getTime())) startDate = null;
+            }
+            
+            if (toDateStr) {
+                endDate = new Date(toDateStr);
+                if (isNaN(endDate.getTime())) endDate = null;
+                else {
+                    // For inclusive end date, set to start of next day
+                    endDate = new Date(endDate);
+                    endDate.setDate(endDate.getDate() + 1);
+                }
+            }
+            break;
+            
+        case 'all':
+        default:
+            // All dates, no filtering needed
+            break;
+    }
+    
+    console.log("Date range:", {
+        option,
+        startDate: startDate ? startDate.toISOString() : null,
+        endDate: endDate ? endDate.toISOString() : null
+    });
+    
+    return { startDate, endDate };
+}
+
+function triggerDownload(content, filename, contentType) {
+    // Create a Blob with the content
+    const blob = new Blob([content], { type: contentType });
+    
+    // Create a download link
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    
+    // Append to document, click, and remove
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    }, 100);
+}
 function readFileAsText(file) { /* ... same ... */ }
 function showLoadingIndicator(show) { console.log(`Loading: ${show}`); /* TODO: Visual indicator */ }
 function getFormDataFromLocalStorage() { /* ... same ... */ }
@@ -1689,7 +1833,43 @@ function useRecurringEntry(id) { /* ... same ... */ }
 async function deleteRecurringEntry(id) { /* ... same ... */ }
 
 // --- Invoice Generation ---
-function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) { /* ... same ... */ }
+function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) { 
+    console.log("Filtering invoice items:", { client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses });
+    
+    // Get date range
+    const { startDate, endDate } = getDateRangeFromOption(dateRangeOption, customFrom, customTo);
+    
+    // Clone arrays to avoid modifying the originals
+    let filteredEntries = [...appState.entries];
+    let filteredExpenses = includeExpenses ? [...appState.expenses] : [];
+    
+    // Filter by client
+    if (client) {
+        filteredEntries = filteredEntries.filter(entry => entry.client === client);
+        filteredExpenses = filteredExpenses.filter(expense => expense.client === client);
+    }
+    
+    // Filter by project if not "all"
+    if (projectOption && projectOption !== 'all') {
+        filteredEntries = filteredEntries.filter(entry => entry.project === projectOption);
+        filteredExpenses = filteredExpenses.filter(expense => expense.project === projectOption);
+    }
+    
+    // Filter by date range
+    if (startDate) {
+        filteredEntries = filteredEntries.filter(entry => new Date(entry.date) >= startDate);
+        filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) >= startDate);
+    }
+    
+    if (endDate) {
+        filteredEntries = filteredEntries.filter(entry => new Date(entry.date) <= endDate);
+        filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) <= endDate);
+    }
+    
+    console.log(`Filtered to ${filteredEntries.length} entries and ${filteredExpenses.length} expenses`);
+    
+    return { entries: filteredEntries, expenses: filteredExpenses };
+}
 
 function viewInvoiceEntries() {
     console.log("Viewing invoice entries preview...");
@@ -2133,9 +2313,52 @@ function generateInvoiceNumber() {
 }
 
 function saveInvoicePdf() { 
-    console.log("PDF export functionality is not implemented yet");
-    showNotification('To save as PDF, print the page and choose "Save as PDF"', 'info');
+    console.log("PDF export functionality");
+    
+    const invoicePreview = document.getElementById('invoice-preview');
+    if (!invoicePreview || invoicePreview.style.display === 'none') {
+        showNotification('Please generate an invoice first', 'error');
+        return;
+    }
+    
+    // A safer approach is to use print CSS to hide everything except the invoice
+    showNotification('To save as PDF, choose "Save as PDF" in the print dialog', 'info');
+    
+    // Add a temporary class to body for print styling
+    document.body.classList.add('printing-invoice');
+    
+    // Create a style element for print-only
+    const printStyle = document.createElement('style');
+    printStyle.id = 'invoice-print-style';
+    printStyle.innerHTML = `
+        @media print {
+            body.printing-invoice * {
+                visibility: hidden;
+            }
+            body.printing-invoice #invoice-preview,
+            body.printing-invoice #invoice-preview * {
+                visibility: visible;
+            }
+            body.printing-invoice #invoice-preview {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+            }
+        }
+    `;
+    document.head.appendChild(printStyle);
+    
+    // Print
     window.print();
+    
+    // Clean up
+    document.body.classList.remove('printing-invoice');
+    const styleToRemove = document.getElementById('invoice-print-style');
+    if (styleToRemove) {
+        styleToRemove.remove();
+    }
 }
 
 function exportInvoiceExcel() { 
