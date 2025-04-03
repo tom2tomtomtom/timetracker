@@ -948,7 +948,7 @@ function setupInvoiceListeners() {
     });
     
     // Invoice action buttons
-    addListener('print-invoice', 'click', () => window.print());
+    addListener('print-invoice', 'click', printInvoice);
     addListener('save-invoice-pdf', 'click', saveInvoicePdf);
     addListener('export-invoice-excel', 'click', exportInvoiceExcel);
     addListener('mark-as-paid', 'click', markCurrentlyGeneratedInvoicePaid);
@@ -1175,10 +1175,15 @@ async function saveDisplaySettings() {
             return;
         }
         
+        // Check if currency has changed
+        const oldCurrency = appState.settings.currency;
+        const newCurrency = currencySelect.value;
+        const currencyChanged = oldCurrency !== newCurrency;
+        
         // Update appState settings
         appState.settings.theme = themeSelect.value;
         appState.settings.dateFormat = dateFormatSelect.value;
-        appState.settings.currency = currencySelect.value;
+        appState.settings.currency = newCurrency;
         
         // Apply theme
         applyTheme(appState.settings.theme);
@@ -1193,6 +1198,16 @@ async function saveDisplaySettings() {
         
         if (savedSettings) {
             console.log("Display settings saved successfully:", savedSettings);
+            
+            // If currency changed, ask if user wants to update existing entries
+            if (currencyChanged && appState.entries.length > 0) {
+                const shouldUpdate = confirm(`Currency changed from ${oldCurrency} to ${newCurrency}. Would you like to update the currency for existing time entries? This won't change their value, only how they're displayed.`);
+                
+                if (shouldUpdate) {
+                    await updateCurrencyForExistingEntries(oldCurrency, newCurrency);
+                }
+            }
+            
             showNotification("Display settings saved successfully", "success");
         } else {
             console.error("Failed to save display settings: No data returned");
@@ -1201,6 +1216,57 @@ async function saveDisplaySettings() {
     } catch (error) {
         console.error("Error saving display settings:", error);
         showNotification("Error saving display settings: " + (error.message || "Unknown error"), "error");
+    }
+}
+
+// Function to update currency for existing time entries
+async function updateCurrencyForExistingEntries(oldCurrency, newCurrency) {
+    console.log(`Updating currency for existing entries from ${oldCurrency} to ${newCurrency}...`);
+    
+    try {
+        // Show loading indicator
+        showNotification("Updating currency for existing entries...", "info");
+        
+        // Count of entries to update (entries with amounts)
+        const entriesToUpdate = appState.entries.filter(entry => entry.amount !== undefined && entry.amount !== null);
+        
+        if (entriesToUpdate.length === 0) {
+            console.log("No entries with amount values to update");
+            return;
+        }
+        
+        console.log(`Found ${entriesToUpdate.length} entries with amounts to update`);
+        
+        // We won't actually convert values, just set the currency code
+        // You could add actual exchange rate conversion here
+        
+        // Get updated entries
+        const updateResults = await Promise.all(
+            entriesToUpdate.map(entry => {
+                // Here we're just updating the currency code, not converting the value
+                // In a real app, you might apply exchange rates
+                return SupabaseAPI.updateTimeEntry(entry.id, { 
+                    currency: newCurrency
+                });
+            })
+        );
+        
+        // Check results
+        const updatedCount = updateResults.filter(result => result !== null).length;
+        
+        // Refresh entries to get the updated data
+        const updatedEntries = await SupabaseAPI.getTimeEntries();
+        if (updatedEntries) {
+            appState.entries = updatedEntries;
+            updateTimeEntriesTable();
+            updateSummary();
+        }
+        
+        console.log(`Successfully updated ${updatedCount} entries to ${newCurrency}`);
+        showNotification(`Updated ${updatedCount} entries to ${newCurrency}`, "success");
+    } catch (error) {
+        console.error("Error updating currency for existing entries:", error);
+        showNotification("Error updating entries with new currency", "error");
     }
 }
 function toggleDarkMode() { /* ... same ... */ }
@@ -1502,7 +1568,7 @@ async function updateTimeEntry() {
         };
         
         // Update in Supabase
-        const updatedEntry = await SupabaseAPI.updateTimeEntry(entryData);
+        const updatedEntry = await SupabaseAPI.updateTimeEntryFull(entryData);
         
         if (updatedEntry) {
             console.log("Entry updated successfully:", updatedEntry);
@@ -2324,71 +2390,254 @@ function saveInvoicePdf() {
     // A safer approach is to use print CSS to hide everything except the invoice
     showNotification('To save as PDF, choose "Save as PDF" in the print dialog', 'info');
     
-    // Add a temporary class to body for print styling
-    document.body.classList.add('printing-invoice');
+    // Create a standalone copy of the invoice for printing
+    const invoiceContent = invoicePreview.innerHTML;
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // Create a style element for print-only
-    const printStyle = document.createElement('style');
-    printStyle.id = 'invoice-print-style';
-    printStyle.innerHTML = `
-        @media print {
-            /* Hide everything by default */
-            body.printing-invoice * {
-                visibility: hidden !important;
-                display: none !important;
-            }
-            
-            /* Only show the invoice preview */
-            body.printing-invoice #invoice-preview,
-            body.printing-invoice #invoice-preview * {
-                visibility: visible !important;
-                display: block !important;
-            }
-            
-            /* Tables need table display */
-            body.printing-invoice #invoice-preview table {
-                display: table !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 10px 0 !important;
-            }
-            
-            body.printing-invoice #invoice-preview tr {
-                display: table-row !important;
-            }
-            
-            body.printing-invoice #invoice-preview th,
-            body.printing-invoice #invoice-preview td {
-                display: table-cell !important;
-            }
-            
-            /* Position it properly */
-            body.printing-invoice #invoice-preview {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 92% !important; /* Reduce width slightly to prevent text cutoff */
-                padding: 20px !important;
-                margin: 0 auto !important;
-            }
-        }
-    `;
-    document.head.appendChild(printStyle);
-    
-    // Print
-    window.print();
-    
-    // Clean up
-    document.body.classList.remove('printing-invoice');
-    const styleToRemove = document.getElementById('invoice-print-style');
-    if (styleToRemove) {
-        styleToRemove.remove();
+    if (!printWindow) {
+        showNotification('Please allow pop-ups to print or save as PDF', 'error');
+        return;
     }
+    
+    // Build a complete HTML document for the new window
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Invoice ${appState.currentlyGeneratedInvoice?.invoiceNumber || ''}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                    line-height: 1.5;
+                    max-width: 800px;
+                    margin: 20px auto;
+                    padding: 20px;
+                    color: #1d1d1f;
+                }
+                
+                h1, h2, h3 {
+                    margin-top: 16px;
+                    margin-bottom: 8px;
+                }
+                
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }
+                
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 8px 12px;
+                    text-align: left;
+                }
+                
+                th {
+                    background-color: #f5f5f7;
+                }
+                
+                strong {
+                    font-weight: 600;
+                }
+                
+                .invoice-header {
+                    text-align: right;
+                    margin-bottom: 20px;
+                }
+                
+                .invoice-footer {
+                    margin-top: 40px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 20px;
+                }
+                
+                .to-from-section {
+                    display: flex;
+                    justify-content: space-between;
+                }
+                
+                .from-section, .to-section {
+                    flex: 1;
+                    max-width: 48%;
+                }
+                
+                .totals-section {
+                    text-align: right;
+                    margin-top: 20px;
+                }
+                
+                .totals-section p {
+                    margin: 5px 0;
+                }
+                
+                .grand-total {
+                    font-size: 1.2em;
+                    font-weight: bold;
+                }
+                
+                /* Print specific styles */
+                @media print {
+                    body {
+                        padding: 0;
+                        margin: 0;
+                    }
+                    
+                    @page {
+                        margin: 20px;
+                    }
+                }
+            </style>
+        </head>
+        <body class="invoice">
+            ${invoiceContent}
+            <script>
+                // Auto-print when loaded
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        // Optional: close after printing
+                        // setTimeout(function() { window.close(); }, 500);
+                    }, 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
 }
 
 function exportInvoiceExcel() { 
     console.log("Excel export functionality is not implemented yet");
     showNotification('Excel export functionality will be added in a future update', 'info');
+}
+
+function printInvoice() {
+    console.log("Print invoice functionality");
+    
+    const invoicePreview = document.getElementById('invoice-preview');
+    if (!invoicePreview || invoicePreview.style.display === 'none') {
+        showNotification('Please generate an invoice first', 'error');
+        return;
+    }
+    
+    // Use the same approach as saveInvoicePdf but auto-print
+    const invoiceContent = invoicePreview.innerHTML;
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+        showNotification('Please allow pop-ups to print invoices', 'error');
+        return;
+    }
+    
+    // Build a complete HTML document for the new window with the same styles
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Invoice ${appState.currentlyGeneratedInvoice?.invoiceNumber || ''}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                    line-height: 1.5;
+                    max-width: 800px;
+                    margin: 20px auto;
+                    padding: 20px;
+                    color: #1d1d1f;
+                }
+                
+                h1, h2, h3 {
+                    margin-top: 16px;
+                    margin-bottom: 8px;
+                }
+                
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }
+                
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 8px 12px;
+                    text-align: left;
+                }
+                
+                th {
+                    background-color: #f5f5f7;
+                }
+                
+                strong {
+                    font-weight: 600;
+                }
+                
+                .invoice-header {
+                    text-align: right;
+                    margin-bottom: 20px;
+                }
+                
+                .invoice-footer {
+                    margin-top: 40px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 20px;
+                }
+                
+                .to-from-section {
+                    display: flex;
+                    justify-content: space-between;
+                }
+                
+                .from-section, .to-section {
+                    flex: 1;
+                    max-width: 48%;
+                }
+                
+                .totals-section {
+                    text-align: right;
+                    margin-top: 20px;
+                }
+                
+                .totals-section p {
+                    margin: 5px 0;
+                }
+                
+                .grand-total {
+                    font-size: 1.2em;
+                    font-weight: bold;
+                }
+                
+                /* Print specific styles */
+                @media print {
+                    body {
+                        padding: 0;
+                        margin: 0;
+                    }
+                    
+                    @page {
+                        margin: 20px;
+                    }
+                }
+            </style>
+        </head>
+        <body class="invoice">
+            ${invoiceContent}
+            <script>
+                // Auto-print when loaded
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
 }
 
 async function markCurrentlyGeneratedInvoicePaid() { 

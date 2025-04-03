@@ -59,16 +59,75 @@ export async function addTimeEntry(entryDataCamel) {
         console.log('Successfully added entry.'); return mapToCamelCase(data);
     } catch (err) { console.error('Error in addTimeEntry API:', err); throw new Error(`Failed to add time entry: ${err.message}`); }
 }
-export async function updateTimeEntry(entryDataCamel) {
-    console.log('Updating time entry (camelCase):', entryDataCamel);
-    if (!entryDataCamel.id) throw new Error("Missing ID for updateTimeEntry.");
+export async function updateTimeEntry(id, fieldsToUpdateCamel) {
+    console.log(`Updating time entry ${id} with fields:`, fieldsToUpdateCamel);
+    
+    if (!id) throw new Error("Missing ID for updateTimeEntry.");
+    
     try {
-        const entryDataSnake = mapToSnakeCase({ ...entryDataCamel, hours: Number(entryDataCamel.hours), rate: Number(entryDataCamel.rate), amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate) });
+        // Convert fields to snake case
+        const fieldsToUpdateSnake = mapToSnakeCase(fieldsToUpdateCamel);
+        
+        // If hours or rate are being updated, recalculate amount
+        if (fieldsToUpdateCamel.hours !== undefined || fieldsToUpdateCamel.rate !== undefined) {
+            // First get the current entry to get any missing values
+            const { data: currentEntry, error: fetchError } = await supabase
+                .from('time_entries')
+                .select('*')
+                .eq('id', id)
+                .single();
+                
+            if (fetchError) throw fetchError;
+            if (!currentEntry) throw new Error("Entry not found");
+            
+            // Get the hours and rate values (either from update or from current entry)
+            const hours = fieldsToUpdateCamel.hours !== undefined 
+                ? Number(fieldsToUpdateCamel.hours) 
+                : Number(currentEntry.hours);
+                
+            const rate = fieldsToUpdateCamel.rate !== undefined 
+                ? Number(fieldsToUpdateCamel.rate) 
+                : Number(currentEntry.rate);
+            
+            // Calculate new amount
+            fieldsToUpdateSnake.amount = hours * rate;
+        }
+        
+        // Update the entry
+        const { data, error } = await supabase
+            .from('time_entries')
+            .update(fieldsToUpdateSnake)
+            .eq('id', id)
+            .select()
+            .single();
+            
+        if (error) throw error;
+        if (!data) throw new Error("No data returned after update.");
+        
+        console.log('Successfully updated entry.');
+        return mapToCamelCase(data);
+    } catch (err) {
+        console.error('Error in updateTimeEntry API:', err);
+        throw new Error(`Failed to update time entry: ${err.message}`);
+    }
+}
+
+// Keep the original function for backward compatibility
+export async function updateTimeEntryFull(entryDataCamel) {
+    console.log('Updating full time entry (camelCase):', entryDataCamel);
+    if (!entryDataCamel.id) throw new Error("Missing ID for updateTimeEntryFull.");
+    try {
+        const entryDataSnake = mapToSnakeCase({ 
+            ...entryDataCamel, 
+            hours: Number(entryDataCamel.hours), 
+            rate: Number(entryDataCamel.rate), 
+            amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate) 
+        });
         const { id, userId, createdAt, updatedAt, ...updateData } = entryDataSnake;
         const { data, error } = await supabase.from('time_entries').update(updateData).eq('id', id).select().single();
         if (error) throw error; if (!data) throw new Error("No data returned after update.");
         console.log('Successfully updated entry.'); return mapToCamelCase(data);
-    } catch (err) { console.error('Error in updateTimeEntry API:', err); throw new Error(`Failed to update time entry: ${err.message}`); }
+    } catch (err) { console.error('Error in updateTimeEntryFull API:', err); throw new Error(`Failed to update time entry: ${err.message}`); }
 }
 export async function deleteTimeEntry(id) {
     console.log(`Deleting time entry with id: ${id}`);

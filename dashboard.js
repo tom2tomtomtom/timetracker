@@ -836,6 +836,9 @@ function createBarChart(ctx, Chart, labels, label, data, bgColor, borderColor, y
     
     console.log(`Creating bar chart with ${labels.length} labels and ${data.length} data points`);
     
+    // For bar charts with many labels (like dates), we may need to adjust display
+    const hasLotsOfLabels = labels.length > 10;
+    
     // Create the chart
     return new Chart(ctx, {
         type: 'bar',
@@ -867,6 +870,19 @@ function createBarChart(ctx, Chart, labels, label, data, bgColor, borderColor, y
                 }
             },
             scales: {
+                x: {
+                    ticks: {
+                        // For many labels (like dates), show fewer labels to avoid crowding
+                        maxRotation: 45,
+                        minRotation: hasLotsOfLabels ? 45 : 0,
+                        autoSkip: true,
+                        autoSkipPadding: 10,
+                        maxTicksLimit: hasLotsOfLabels ? 15 : undefined,
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
                 y: {
                     beginAtZero: true,
                     title: {
@@ -898,11 +914,19 @@ function createPieChart(ctx, Chart, labels, label, data, settings, formatCurrenc
         borderColors.push(CHART_BORDER_COLORS[colorIndex]);
     }
     
+    // Truncate long labels if needed
+    const truncatedLabels = labels.map(label => {
+        if (label && label.length > 15) {
+            return label.substring(0, 12) + '...';
+        }
+        return label;
+    });
+    
     // Create the chart
     return new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: labels,
+            labels: truncatedLabels,
             datasets: [{
                 label: label,
                 data: data,
@@ -917,12 +941,24 @@ function createPieChart(ctx, Chart, labels, label, data, settings, formatCurrenc
             plugins: {
                 legend: {
                     display: true,
-                    position: 'right'
+                    position: 'right',
+                    labels: {
+                        boxWidth: 15,
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             return pieTooltipLabel(context, formatCurrency, settings?.currency);
+                        },
+                        // Show full label in tooltip even if truncated in legend
+                        title: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex;
+                            return labels[index] || '';
                         }
                     }
                 }
@@ -950,11 +986,19 @@ function createDoughnutChart(ctx, Chart, labels, label, data) {
         borderColors.push(CHART_BORDER_COLORS[colorIndex]);
     }
     
+    // Truncate long labels if needed
+    const truncatedLabels = labels.map(label => {
+        if (label && label.length > 15) {
+            return label.substring(0, 12) + '...';
+        }
+        return label;
+    });
+    
     // Create the chart
     return new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: labels,
+            labels: truncatedLabels,
             datasets: [{
                 label: label,
                 data: data,
@@ -969,11 +1013,23 @@ function createDoughnutChart(ctx, Chart, labels, label, data) {
             plugins: {
                 legend: {
                     display: true,
-                    position: 'right'
+                    position: 'right',
+                    labels: {
+                        boxWidth: 15,
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
                 },
                 tooltip: {
                     callbacks: {
-                        label: doughnutTooltipLabel
+                        label: doughnutTooltipLabel,
+                        // Show full label in tooltip even if truncated in legend
+                        title: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex;
+                            return labels[index] || '';
+                        }
                     }
                 }
             }
@@ -988,6 +1044,9 @@ function createMonthlyChart(ctx, Chart, data, settings, formatCurrency) {
     }
     
     console.log(`Creating monthly chart with ${data.months.length} months`);
+    
+    // For monthly charts with many labels, we may need to adjust display
+    const hasLotsOfMonths = data.months.length > 6;
     
     return new Chart(ctx, {
         type: 'bar',
@@ -1033,6 +1092,18 @@ function createMonthlyChart(ctx, Chart, data, settings, formatCurrency) {
                 }
             },
             scales: {
+                x: {
+                    ticks: {
+                        // For many labels, rotate and show fewer to avoid crowding
+                        maxRotation: 45,
+                        minRotation: hasLotsOfMonths ? 45 : 0,
+                        autoSkip: true,
+                        autoSkipPadding: 8,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
                 y: {
                     beginAtZero: true,
                     position: 'left',
