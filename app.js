@@ -247,9 +247,82 @@ function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() { /* ... same ... */ }
 function populateRateTemplates() { /* ... same ... */ }
 function updateRateDropdowns() { /* ... same ... */ }
-function updateTimeEntriesTable() { /* ... same V8 with debug logs ... */ }
-function updateExpensesTable() { /* ... same ... */ }
-function updateSummary() { /* ... same ... */ }
+function updateTimeEntriesTable() {
+    console.log("Updating time entries table...");
+    console.log("Number of entries:", appState.entries.length);
+    
+    // Update table with all entries
+    updateTimeEntriesTableWithData(appState.entries);
+}
+function updateExpensesTable() {
+    console.log("Updating expenses table...");
+    console.log("Number of expenses:", appState.expenses.length);
+    
+    const tableBody = document.getElementById('expenses-body');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '';
+    
+    // Sort expenses by date (newest first)
+    const sortedExpenses = [...appState.expenses].sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+    );
+    
+    let totalExpenses = 0;
+    
+    sortedExpenses.forEach(expense => {
+        totalExpenses += Number(expense.amount || 0);
+        
+        const row = document.createElement('tr');
+        
+        const formattedDate = formatDate(expense.date);
+        
+        row.innerHTML = `
+            <td>${formattedDate}</td>
+            <td>${escapeHtml(expense.description)}</td>
+            <td>${formatCurrency(expense.amount)}</td>
+            <td>${escapeHtml(expense.client || '')}</td>
+            <td>${escapeHtml(expense.project || '')}</td>
+            <td>
+                <button class="edit-expense-btn blue-btn" data-id="${expense.id}" style="margin-right: 5px; padding: 5px 10px;">Edit</button>
+                <button class="delete-expense-btn" data-id="${expense.id}" style="padding: 5px 10px;">Delete</button>
+            </td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Update total expenses
+    document.getElementById('total-expenses').textContent = formatCurrency(totalExpenses);
+    
+    // Add edit and delete event listeners
+    document.querySelectorAll('.edit-expense-btn').forEach(button => {
+        button.addEventListener('click', () => editExpense(button.getAttribute('data-id')));
+    });
+    
+    document.querySelectorAll('.delete-expense-btn').forEach(button => {
+        button.addEventListener('click', () => deleteExpense(button.getAttribute('data-id')));
+    });
+    
+    console.log(`Expenses updated: ${sortedExpenses.length} expenses, ${formatCurrency(totalExpenses)}`);
+}
+function updateSummary() {
+    console.log("Updating summary...");
+    
+    // Calculate totals
+    const totalHours = appState.entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+    const totalAmount = appState.entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    
+    // Update UI
+    document.getElementById('total-hours').textContent = totalHours.toFixed(2);
+    document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
+    
+    // Initially set filtered values to match totals (until filters are applied)
+    document.getElementById('filtered-hours').textContent = totalHours.toFixed(2);
+    document.getElementById('filtered-amount').textContent = formatCurrency(totalAmount);
+    
+    console.log(`Summary updated: ${totalHours.toFixed(2)} hours, ${formatCurrency(totalAmount)}`);
+}
 function updateClientProjectDropdowns() {
     try {
         // Get unique clients
@@ -670,13 +743,267 @@ async function clearSavedFormData() { /* ... same ... */ }
 function showAutoSaveIndicator() { /* ... same ... */ }
 
 // --- Time Entry CRUD ---
-async function addTimeEntry() { /* ... same ... */ }
-async function updateTimeEntry() { /* ... same ... */ }
-function editTimeEntry(id) { /* ... same ... */ }
-async function deleteTimeEntry(id) { /* ... same ... */ }
-function cancelEdit() { /* ... same ... */ }
-function resetTimeEntryForm() { /* ... same ... */ }
-function setEditModeUI(isEditing) { /* ... same ... */ }
+async function addTimeEntry() {
+    console.log("Adding time entry...");
+    
+    // Get values from form
+    const dateInput = document.getElementById('date');
+    const descriptionInput = document.getElementById('description');
+    const clientInput = document.getElementById('client');
+    const projectInput = document.getElementById('project');
+    const hoursInput = document.getElementById('hours');
+    const rateInput = document.getElementById('rate');
+    
+    // Validate required fields
+    if (!dateInput?.value || !descriptionInput?.value || !hoursInput?.value || !rateInput?.value) {
+        showNotification("Please fill in all required fields", "error");
+        console.error("Form validation failed: Missing required fields");
+        return;
+    }
+    
+    // Get values
+    const date = dateInput.value;
+    const description = descriptionInput.value;
+    const client = clientInput?.value || '';
+    const project = projectInput?.value || '';
+    const hours = parseFloat(hoursInput.value);
+    const rate = parseFloat(rateInput.value);
+    const amount = hours * rate;
+    
+    console.log("New entry data:", { date, description, client, project, hours, rate, amount });
+    
+    try {
+        // Create entry object
+        const entryData = {
+            date,
+            description,
+            client,
+            project,
+            hours,
+            rate,
+            amount,
+            user_id: appState.user.id,
+            created_at: new Date().toISOString()
+        };
+        
+        // Add to Supabase
+        const newEntry = await SupabaseAPI.addTimeEntry(entryData);
+        
+        if (newEntry) {
+            console.log("Entry added successfully:", newEntry);
+            
+            // Add to local state
+            appState.entries.push(newEntry);
+            
+            // Update UI
+            updateTimeEntriesTable();
+            updateSummary();
+            updateClientProjectDropdowns();
+            
+            // Clear form
+            descriptionInput.value = '';
+            hoursInput.value = '';
+            clientInput.value = '';
+            projectInput.value = '';
+            
+            showNotification("Time entry added successfully", "success");
+        } else {
+            console.error("Failed to add entry: No data returned");
+            showNotification("Failed to add time entry", "error");
+        }
+    } catch (error) {
+        console.error("Error adding time entry:", error);
+        showNotification("Error adding time entry: " + (error.message || "Unknown error"), "error");
+    }
+}
+async function updateTimeEntry() {
+    console.log("Updating time entry...");
+    
+    // Get values from form
+    const dateInput = document.getElementById('date');
+    const descriptionInput = document.getElementById('description');
+    const clientInput = document.getElementById('client');
+    const projectInput = document.getElementById('project');
+    const hoursInput = document.getElementById('hours');
+    const rateInput = document.getElementById('rate');
+    const editId = document.getElementById('edit-id').value;
+    
+    // Validate required fields
+    if (!dateInput?.value || !descriptionInput?.value || !hoursInput?.value || !rateInput?.value || !editId) {
+        showNotification("Please fill in all required fields", "error");
+        console.error("Form validation failed: Missing required fields");
+        return;
+    }
+    
+    // Get values
+    const date = dateInput.value;
+    const description = descriptionInput.value;
+    const client = clientInput?.value || '';
+    const project = projectInput?.value || '';
+    const hours = parseFloat(hoursInput.value);
+    const rate = parseFloat(rateInput.value);
+    const amount = hours * rate;
+    
+    console.log("Updating entry:", editId, { date, description, client, project, hours, rate, amount });
+    
+    try {
+        // Create update object
+        const entryData = {
+            id: editId,
+            date,
+            description,
+            client,
+            project,
+            hours,
+            rate,
+            amount,
+            updated_at: new Date().toISOString()
+        };
+        
+        // Update in Supabase
+        const updatedEntry = await SupabaseAPI.updateTimeEntry(entryData);
+        
+        if (updatedEntry) {
+            console.log("Entry updated successfully:", updatedEntry);
+            
+            // Update in local state
+            const entryIndex = appState.entries.findIndex(entry => entry.id === updatedEntry.id);
+            if (entryIndex !== -1) {
+                appState.entries[entryIndex] = updatedEntry;
+            }
+            
+            // Update UI
+            updateTimeEntriesTable();
+            updateSummary();
+            updateClientProjectDropdowns();
+            
+            // Clear form and exit edit mode
+            cancelEdit();
+            
+            showNotification("Time entry updated successfully", "success");
+        } else {
+            console.error("Failed to update entry: No data returned");
+            showNotification("Failed to update time entry", "error");
+        }
+    } catch (error) {
+        console.error("Error updating time entry:", error);
+        showNotification("Error updating time entry: " + (error.message || "Unknown error"), "error");
+    }
+}
+function editTimeEntry(id) {
+    console.log("Editing time entry:", id);
+    
+    // Find entry in appState
+    const entry = appState.entries.find(entry => entry.id === id);
+    
+    if (!entry) {
+        console.error("Entry not found:", id);
+        showNotification("Entry not found", "error");
+        return;
+    }
+    
+    console.log("Found entry to edit:", entry);
+    
+    // Populate form fields
+    document.getElementById('date').value = entry.date;
+    document.getElementById('description').value = entry.description;
+    document.getElementById('client').value = entry.client || '';
+    document.getElementById('project').value = entry.project || '';
+    document.getElementById('hours').value = entry.hours;
+    document.getElementById('rate').value = entry.rate;
+    document.getElementById('edit-id').value = entry.id;
+    
+    // Switch to edit mode
+    setEditModeUI(true);
+    
+    // Scroll to form
+    document.querySelector('.time-entry').scrollIntoView({ behavior: 'smooth' });
+}
+async function deleteTimeEntry(id) {
+    console.log("Deleting time entry:", id);
+    
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this entry?')) {
+        return;
+    }
+    
+    try {
+        // Delete from Supabase
+        const success = await SupabaseAPI.deleteTimeEntry(id);
+        
+        if (success) {
+            console.log("Entry deleted successfully");
+            
+            // Remove from local state
+            appState.entries = appState.entries.filter(entry => entry.id !== id);
+            
+            // Update UI
+            updateTimeEntriesTable();
+            updateSummary();
+            updateClientProjectDropdowns();
+            
+            showNotification("Time entry deleted successfully", "success");
+        } else {
+            console.error("Failed to delete entry");
+            showNotification("Failed to delete time entry", "error");
+        }
+    } catch (error) {
+        console.error("Error deleting time entry:", error);
+        showNotification("Error deleting time entry: " + (error.message || "Unknown error"), "error");
+    }
+}
+function cancelEdit() {
+    console.log("Canceling edit mode");
+    
+    // Clear form
+    resetTimeEntryForm();
+    
+    // Switch to add mode
+    setEditModeUI(false);
+}
+
+function resetTimeEntryForm() {
+    console.log("Resetting form");
+    
+    // Reset date to today
+    document.getElementById('date').valueAsDate = new Date();
+    
+    // Clear other fields
+    document.getElementById('description').value = '';
+    document.getElementById('client').value = '';
+    document.getElementById('project').value = '';
+    document.getElementById('hours').value = '';
+    document.getElementById('edit-id').value = '';
+    
+    // Keep the rate field as is (for convenience)
+}
+
+function setEditModeUI(isEditing) {
+    console.log("Setting edit mode UI:", isEditing);
+    
+    const addButton = document.getElementById('add-entry');
+    const updateButton = document.getElementById('update-entry');
+    const cancelButton = document.getElementById('cancel-edit');
+    const formTitle = document.getElementById('form-title');
+    
+    if (isEditing) {
+        // Show update and cancel buttons, hide add button
+        if (addButton) addButton.style.display = 'none';
+        if (updateButton) updateButton.style.display = 'inline-block';
+        if (cancelButton) cancelButton.style.display = 'inline-block';
+        
+        // Change form title
+        if (formTitle) formTitle.textContent = 'Edit Time Entry';
+    } else {
+        // Show add button, hide update and cancel buttons
+        if (addButton) addButton.style.display = 'inline-block';
+        if (updateButton) updateButton.style.display = 'none';
+        if (cancelButton) cancelButton.style.display = 'none';
+        
+        // Reset form title
+        if (formTitle) formTitle.textContent = 'Record Time Manually';
+    }
+}
 
 // --- Timer Functions ---
 function initTimer() {
