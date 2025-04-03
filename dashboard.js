@@ -18,8 +18,13 @@ function addDashboardListener(id, event, handler) {
 
 // Helper to get input value
 function getInputValue(id) {
-    const element = document.getElementById(id);
-    return element ? element.value : '';
+    try {
+        const element = document.getElementById(id);
+        return element ? element.value : '';
+    } catch (error) {
+        console.warn(`Error getting value from element ${id}:`, error);
+        return '';
+    }
 }
 
 // Simple notification function
@@ -190,7 +195,7 @@ export function updateDashboard(appState, dependencies) {
                     break;
             }
             
-            return { from, to };
+            return { startDate: from, endDate: to };
         };
     }
 
@@ -207,11 +212,49 @@ export function updateDashboard(appState, dependencies) {
         const customFrom = getInputValue('dash-date-from');
         const customTo = getInputValue('dash-date-to');
 
-        const { from: startDate, to: endDate } = getDateRangeFromOption(dateRange, customFrom, customTo);
+        // Get date range
+        const dateRangeResult = getDateRangeFromOption(dateRange, customFrom, customTo);
+        
+        // Handle different return structures (backward compatibility)
+        let startDate, endDate;
+        if (dateRangeResult.from !== undefined && dateRangeResult.to !== undefined) {
+            startDate = dateRangeResult.from;
+            endDate = dateRangeResult.to;
+        } else if (dateRangeResult.startDate !== undefined && dateRangeResult.endDate !== undefined) {
+            startDate = dateRangeResult.startDate;
+            endDate = dateRangeResult.endDate;
+        } else {
+            console.log("Date range function returned unexpected format, using defaults");
+            startDate = null;
+            endDate = null;
+        }
 
         // Filter data
-        const filteredEntries = entries.filter(entry => { /* ... same filter logic ... */ });
-        const filteredExpenses = expenses.filter(expense => { /* ... same filter logic ... */ });
+        let filteredEntries = [...entries];
+        let filteredExpenses = [...expenses];
+        
+        // Filter by client if not "all"
+        if (client && client !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => entry.client === client);
+            filteredExpenses = filteredExpenses.filter(expense => expense.client === client);
+        }
+        
+        // Filter by project if not "all"
+        if (project && project !== 'all') {
+            filteredEntries = filteredEntries.filter(entry => entry.project === project);
+            filteredExpenses = filteredExpenses.filter(expense => expense.project === project);
+        }
+        
+        // Filter by date range
+        if (startDate) {
+            filteredEntries = filteredEntries.filter(entry => new Date(entry.date) >= startDate);
+            filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) >= startDate);
+        }
+        
+        if (endDate) {
+            filteredEntries = filteredEntries.filter(entry => new Date(entry.date) <= endDate);
+            filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) <= endDate);
+        }
 
         if (filteredEntries.length === 0 && filteredExpenses.length === 0 && dateRange !== 'all') {
             console.log("Dashboard: No data found for selected filters.");
@@ -244,11 +287,19 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
     const totalRevenue = entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
     const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
     const netIncome = totalRevenue - totalExpenses;
-    let avgWeeklyHours = 0; let avgWeeklyRevenue = 0;
-    const timeDiff = endDate.getTime() - startDate.getTime();
-    const daysDiff = timeDiff >= 0 ? Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24))) : 1; // Ensure at least 1 day
+    let avgWeeklyHours = 0; 
+    let avgWeeklyRevenue = 0;
+    let daysDiff = 1;
+    
+    // Handle case when startDate or endDate might be null
+    if (startDate && endDate) {
+        const timeDiff = endDate.getTime() - startDate.getTime();
+        daysDiff = timeDiff >= 0 ? Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24))) : 1; // Ensure at least 1 day
+    }
+    
     const weeksCount = Math.max(1, daysDiff / 7);
-    avgWeeklyHours = totalHours / weeksCount; avgWeeklyRevenue = totalRevenue / weeksCount;
+    avgWeeklyHours = totalHours / weeksCount; 
+    avgWeeklyRevenue = totalRevenue / weeksCount;
     const avgRate = totalHours > 0 ? totalRevenue / totalHours : 0;
     const trackedDays = new Set(entries.map(entry => entry.date)).size;
 
@@ -290,11 +341,177 @@ function updateDashboardCharts(entries, expenses, startDate, endDate, Chart, set
 }
 
 // --- Chart Data Processing ---
-function getDailyChartData(entries, startDate, endDate, formatDate) { /* ... same as V8 ... */ }
-function getClientChartData(entries) { /* ... same as V8 ... */ }
-function getProjectChartData(entries) { /* ... same as V8 ... */ }
-function getWeekdayChartData(entries) { /* ... same as V8 ... */ }
-function getMonthlyChartData(entries, formatDate) { /* ... same as V8 ... */ }
+function getDailyChartData(entries, startDate, endDate, formatDate) {
+    console.log("Getting daily chart data for", entries.length, "entries");
+    
+    // Default to last 30 days if no date range specified
+    if (!startDate) {
+        const today = new Date();
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 30);
+    }
+    
+    if (!endDate) {
+        endDate = new Date();
+    }
+    
+    // Get all dates in the range
+    const dates = [];
+    const hours = [];
+    const revenue = [];
+    
+    // Fill with zeros for all dates in range
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        dates.push(formatDate ? formatDate(dateStr) : dateStr);
+        hours.push(0);
+        revenue.push(0);
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Sum hours and revenue for each day
+    entries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        
+        // Skip entries outside the range
+        if (entryDate < startDate || entryDate > endDate) return;
+        
+        // Format date to match our array index
+        const dateStr = entryDate.toISOString().split('T')[0];
+        const formattedDate = formatDate ? formatDate(dateStr) : dateStr;
+        
+        // Find index in our arrays
+        const index = dates.indexOf(formattedDate);
+        if (index !== -1) {
+            hours[index] += Number(entry.hours || 0);
+            revenue[index] += Number(entry.amount || 0);
+        }
+    });
+    
+    return { dates, hours, revenue };
+}
+
+function getClientChartData(entries) {
+    console.log("Getting client chart data for", entries.length, "entries");
+    
+    // Group by client
+    const clientMap = {};
+    
+    entries.forEach(entry => {
+        const client = entry.client || 'Unassigned';
+        
+        if (!clientMap[client]) {
+            clientMap[client] = { hours: 0, revenue: 0 };
+        }
+        
+        clientMap[client].hours += Number(entry.hours || 0);
+        clientMap[client].revenue += Number(entry.amount || 0);
+    });
+    
+    // Extract data for charts
+    const clients = Object.keys(clientMap);
+    const hours = clients.map(client => clientMap[client].hours);
+    const revenue = clients.map(client => clientMap[client].revenue);
+    
+    return { clients, hours, revenue };
+}
+
+function getProjectChartData(entries) {
+    console.log("Getting project chart data for", entries.length, "entries");
+    
+    // Group by project
+    const projectMap = {};
+    
+    entries.forEach(entry => {
+        const project = entry.project || 'Unassigned';
+        
+        if (!projectMap[project]) {
+            projectMap[project] = { hours: 0, revenue: 0 };
+        }
+        
+        projectMap[project].hours += Number(entry.hours || 0);
+        projectMap[project].revenue += Number(entry.amount || 0);
+    });
+    
+    // Extract data for charts
+    const projects = Object.keys(projectMap);
+    const hours = projects.map(project => projectMap[project].hours);
+    const revenue = projects.map(project => projectMap[project].revenue);
+    
+    return { projects, hours, revenue };
+}
+
+function getWeekdayChartData(entries) {
+    console.log("Getting weekday chart data for", entries.length, "entries");
+    
+    // Initialize weekday data
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const hours = [0, 0, 0, 0, 0, 0, 0];
+    const revenue = [0, 0, 0, 0, 0, 0, 0];
+    
+    entries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        const weekdayIndex = entryDate.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        hours[weekdayIndex] += Number(entry.hours || 0);
+        revenue[weekdayIndex] += Number(entry.amount || 0);
+    });
+    
+    return { weekdays, hours, revenue };
+}
+
+function getMonthlyChartData(entries, formatDate) {
+    console.log("Getting monthly chart data for", entries.length, "entries");
+    
+    // Group by month
+    const monthMap = {};
+    
+    entries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        const monthKey = `${entryDate.getFullYear()}-${entryDate.getMonth() + 1}`;
+        
+        if (!monthMap[monthKey]) {
+            monthMap[monthKey] = { 
+                hours: 0, 
+                revenue: 0,
+                // For sorting
+                year: entryDate.getFullYear(),
+                month: entryDate.getMonth() + 1
+            };
+        }
+        
+        monthMap[monthKey].hours += Number(entry.hours || 0);
+        monthMap[monthKey].revenue += Number(entry.amount || 0);
+    });
+    
+    // Sort by date
+    const sortedMonths = Object.keys(monthMap).sort((a, b) => {
+        const aData = monthMap[a];
+        const bData = monthMap[b];
+        
+        if (aData.year !== bData.year) {
+            return aData.year - bData.year;
+        }
+        
+        return aData.month - bData.month;
+    });
+    
+    // Format month labels
+    const months = sortedMonths.map(key => {
+        const data = monthMap[key];
+        const date = new Date(data.year, data.month - 1, 1);
+        
+        // Format: "Jan 2023"
+        return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    });
+    
+    const hours = sortedMonths.map(key => monthMap[key].hours);
+    const revenue = sortedMonths.map(key => monthMap[key].revenue);
+    
+    return { months, hours, revenue };
+}
 
 // --- Chart Rendering Helpers ---
 const CHART_COLORS = [ /* ... same ... */ ];
