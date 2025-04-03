@@ -2332,19 +2332,44 @@ function saveInvoicePdf() {
     printStyle.id = 'invoice-print-style';
     printStyle.innerHTML = `
         @media print {
+            /* Hide everything by default */
             body.printing-invoice * {
-                visibility: hidden;
+                visibility: hidden !important;
+                display: none !important;
             }
+            
+            /* Only show the invoice preview */
             body.printing-invoice #invoice-preview,
             body.printing-invoice #invoice-preview * {
-                visibility: visible;
+                visibility: visible !important;
+                display: block !important;
             }
+            
+            /* Tables need table display */
+            body.printing-invoice #invoice-preview table {
+                display: table !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 10px 0 !important;
+            }
+            
+            body.printing-invoice #invoice-preview tr {
+                display: table-row !important;
+            }
+            
+            body.printing-invoice #invoice-preview th,
+            body.printing-invoice #invoice-preview td {
+                display: table-cell !important;
+            }
+            
+            /* Position it properly */
             body.printing-invoice #invoice-preview {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 20px;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 92% !important; /* Reduce width slightly to prevent text cutoff */
+                padding: 20px !important;
+                margin: 0 auto !important;
             }
         }
     `;

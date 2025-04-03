@@ -59,38 +59,70 @@ export function initDashboard(appState, dependencies) {
                 return;
             }
             
+            // Verify Chart.js is available
+            const Chart = dependencies?.Chart;
+            if (!Chart) {
+                console.warn("Chart.js not available. Charts will not be displayed.");
+                // Continue initialization since we'll show fallback messages
+            } else {
+                console.log("Chart.js is available for dashboard charts");
+            }
+            
             // Function to complete initialization
             const completeInitialization = () => {
                 try {
                     console.log("Setting up dashboard listeners...");
                     setupDashboardListeners(appState, dependencies);
                     
+                    // Check if there is data to display
+                    const hasTimeEntries = appState?.entries && appState.entries.length > 0;
+                    console.log(`Dashboard data check: ${hasTimeEntries ? appState.entries.length + ' entries found' : 'No entries found'}`);
+                    
                     // Initial update
                     console.log("Performing initial dashboard update...");
                     handleDashDateRangeChange(appState, dependencies);
                     updateDashboard(appState, dependencies);
                     
+                    // Log which dashboard components were initialized
+                    const dashComponents = {
+                        'dash-total-hours': !!document.getElementById('dash-total-hours'),
+                        'dash-total-revenue': !!document.getElementById('dash-total-revenue'), 
+                        'hours-chart': !!document.getElementById('hours-chart'),
+                        'revenue-chart': !!document.getElementById('revenue-chart'),
+                        'client-chart': !!document.getElementById('client-chart'),
+                        'project-chart': !!document.getElementById('project-chart'),
+                        'weekday-chart': !!document.getElementById('weekday-chart'),
+                        'monthly-chart': !!document.getElementById('monthly-chart')
+                    };
+                    
+                    console.log("Dashboard components status:", dashComponents);
                     console.log("Dashboard initialization completed successfully");
                     resolve();
                 } catch (initError) {
                     console.error("Error during dashboard initialization:", initError);
+                    console.error("Error details:", initError.message, initError.stack);
                     reject(initError);
                 }
             };
             
-            // Ensure all dashboard elements exist before adding listeners
-            if (!elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
-                console.warn("Dashboard elements not found. Dashboard may not be fully loaded.");
+            // Get required dashboard elements for initialization
+            const requiredElements = ['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'];
+            
+            // Check if all dashboard elements are available and log missing ones
+            const missingElements = requiredElements.filter(id => !document.getElementById(id));
+            if (missingElements.length > 0) {
+                console.warn(`Dashboard is missing elements: ${missingElements.join(', ')}`);
                 
                 // Try again after a short delay to ensure DOM is ready
                 const retryTimeout = setTimeout(() => {
-                    if (elementsExist(['refresh-dashboard', 'dash-date-range', 'dash-client', 'dash-project'])) {
+                    const stillMissingElements = requiredElements.filter(id => !document.getElementById(id));
+                    if (stillMissingElements.length === 0) {
                         console.log("Dashboard elements now available after delay.");
                         completeInitialization();
                     } else {
-                        const error = new Error("Dashboard elements still not available after delay.");
-                        console.error(error.message);
-                        reject(error);
+                        console.error(`Dashboard elements still missing after delay: ${stillMissingElements.join(', ')}`);
+                        // Continue anyway to show what we can
+                        completeInitialization();
                     }
                 }, 1000); // Longer delay to ensure elements are loaded
                 
@@ -102,6 +134,7 @@ export function initDashboard(appState, dependencies) {
             }
         } catch (error) {
             console.error("Critical error during dashboard initialization:", error);
+            console.error("Error details:", error.message, error.stack);
             reject(error);
         }
     });
@@ -322,20 +355,70 @@ function updateDashboardCharts(entries, expenses, startDate, endDate, Chart, set
     }
     
     try {
+        console.log("Creating chart data for", entries.length, "entries");
+        console.log("Date range:", startDate, "to", endDate);
+        
+        // Process data for each chart type
         const dailyData = getDailyChartData(entries, startDate, endDate, formatDate);
         const clientData = getClientChartData(entries);
         const projectData = getProjectChartData(entries);
         const weekdayData = getWeekdayChartData(entries);
         const monthlyData = getMonthlyChartData(entries, formatDate);
-
+        
+        // Enhanced logging for troubleshooting
+        console.log("Daily data:", {
+            dates: dailyData.dates,
+            datesLength: dailyData.dates.length,
+            hours: dailyData.hours,
+            revenue: dailyData.revenue
+        });
+        
+        console.log("Client data:", {
+            clients: clientData.clients,
+            clientsLength: clientData.clients.length,
+            revenue: clientData.revenue
+        });
+        
+        console.log("Project data:", {
+            projects: projectData.projects,
+            projectsLength: projectData.projects.length,
+            hours: projectData.hours
+        });
+        
+        console.log("Weekday data:", {
+            weekdays: weekdayData.weekdays,
+            hours: weekdayData.hours
+        });
+        
+        console.log("Monthly data:", {
+            months: monthlyData.months,
+            hours: monthlyData.hours,
+            revenue: monthlyData.revenue
+        });
+        
+        // Create/update all charts
+        console.log("Creating Hours by Day chart");
         updateChart('hours', ctx => createBarChart(ctx, Chart, dailyData.dates, 'Hours', dailyData.hours, 'rgba(53, 162, 235, 0.5)', 'rgba(53, 162, 235, 1)', 'Hours'));
+        
+        console.log("Creating Revenue by Day chart");
         updateChart('revenue', ctx => createBarChart(ctx, Chart, dailyData.dates, 'Revenue', dailyData.revenue, 'rgba(75, 192, 192, 0.5)', 'rgba(75, 192, 192, 1)', `Revenue (${formatCurrency(0, settings.currency).replace(/[\d.,\s]/g, '')})`));
+        
+        console.log("Creating Client Distribution chart");
         updateChart('client', ctx => createPieChart(ctx, Chart, clientData.clients, 'Revenue', clientData.revenue, settings, formatCurrency));
+        
+        console.log("Creating Project Distribution chart");
         updateChart('project', ctx => createDoughnutChart(ctx, Chart, projectData.projects, 'Hours', projectData.hours));
+        
+        console.log("Creating Weekday chart");
         updateChart('weekday', ctx => createBarChart(ctx, Chart, weekdayData.weekdays, 'Hours', weekdayData.hours, 'rgba(153, 102, 255, 0.5)', 'rgba(153, 102, 255, 1)', 'Hours'));
+        
+        console.log("Creating Monthly chart");
         updateChart('monthly', ctx => createMonthlyChart(ctx, Chart, monthlyData, settings, formatCurrency));
+        
+        console.log("All charts created successfully");
     } catch (err) {
         console.error("Error creating dashboard charts:", err);
+        console.error("Error details:", err.message, err.stack);
         showNoDataMessage(Chart);
     }
 }
@@ -343,16 +426,19 @@ function updateDashboardCharts(entries, expenses, startDate, endDate, Chart, set
 // --- Chart Data Processing ---
 function getDailyChartData(entries, startDate, endDate, formatDate) {
     console.log("Getting daily chart data for", entries.length, "entries");
+    console.log("Date range:", startDate ? startDate.toISOString() : 'null', "to", endDate ? endDate.toISOString() : 'null');
     
     // Default to last 30 days if no date range specified
     if (!startDate) {
         const today = new Date();
         startDate = new Date(today);
         startDate.setDate(today.getDate() - 30);
+        console.log("Using default start date:", startDate.toISOString());
     }
     
     if (!endDate) {
         endDate = new Date();
+        console.log("Using default end date:", endDate.toISOString());
     }
     
     // Get all dates in the range
@@ -371,12 +457,42 @@ function getDailyChartData(entries, startDate, endDate, formatDate) {
         currentDate.setDate(currentDate.getDate() + 1);
     }
     
+    console.log(`Created ${dates.length} date entries in range`);
+    
+    // Track how many entries match the date range
+    let matchingEntries = 0;
+    let invalidDateEntries = 0;
+    let outOfRangeEntries = 0;
+    
     // Sum hours and revenue for each day
     entries.forEach(entry => {
-        const entryDate = new Date(entry.date);
+        if (!entry.date) {
+            console.warn("Entry missing date:", entry);
+            invalidDateEntries++;
+            return;
+        }
+        
+        let entryDate;
+        try {
+            entryDate = new Date(entry.date);
+            if (isNaN(entryDate.getTime())) {
+                console.warn("Invalid date format:", entry.date);
+                invalidDateEntries++;
+                return;
+            }
+        } catch (err) {
+            console.warn("Error parsing date:", entry.date, err);
+            invalidDateEntries++;
+            return;
+        }
         
         // Skip entries outside the range
-        if (entryDate < startDate || entryDate > endDate) return;
+        if (entryDate < startDate || entryDate > endDate) {
+            outOfRangeEntries++;
+            return;
+        }
+        
+        matchingEntries++;
         
         // Format date to match our array index
         const dateStr = entryDate.toISOString().split('T')[0];
@@ -387,8 +503,18 @@ function getDailyChartData(entries, startDate, endDate, formatDate) {
         if (index !== -1) {
             hours[index] += Number(entry.hours || 0);
             revenue[index] += Number(entry.amount || 0);
+        } else {
+            console.warn(`Date not found in range: ${formattedDate} (original: ${entry.date})`);
         }
     });
+    
+    console.log(`Matched ${matchingEntries} entries in date range`);
+    console.log(`Skipped ${invalidDateEntries} entries with invalid dates`);
+    console.log(`Skipped ${outOfRangeEntries} entries outside date range`);
+    
+    // Check if we have any non-zero data
+    const hasData = hours.some(h => h > 0) || revenue.some(r => r > 0);
+    console.log(`Chart has data: ${hasData}`);
     
     return { dates, hours, revenue };
 }
@@ -398,22 +524,50 @@ function getClientChartData(entries) {
     
     // Group by client
     const clientMap = {};
+    let missingClientCount = 0;
+    let missingAmountCount = 0;
+    let missingHoursCount = 0;
     
     entries.forEach(entry => {
         const client = entry.client || 'Unassigned';
+        if (!entry.client) missingClientCount++;
         
         if (!clientMap[client]) {
             clientMap[client] = { hours: 0, revenue: 0 };
         }
         
-        clientMap[client].hours += Number(entry.hours || 0);
-        clientMap[client].revenue += Number(entry.amount || 0);
+        // Handle missing or invalid hours/amounts
+        if (entry.hours === undefined || entry.hours === null) {
+            missingHoursCount++;
+        } else {
+            clientMap[client].hours += Number(entry.hours || 0);
+        }
+        
+        if (entry.amount === undefined || entry.amount === null) {
+            missingAmountCount++;
+        } else {
+            clientMap[client].revenue += Number(entry.amount || 0);
+        }
     });
     
     // Extract data for charts
     const clients = Object.keys(clientMap);
     const hours = clients.map(client => clientMap[client].hours);
     const revenue = clients.map(client => clientMap[client].revenue);
+    
+    console.log(`Found ${clients.length} unique clients`);
+    console.log(`Missing client entries: ${missingClientCount}`);
+    console.log(`Missing amount entries: ${missingAmountCount}`);
+    console.log(`Missing hours entries: ${missingHoursCount}`);
+    
+    // Log the distribution
+    clients.forEach((client, index) => {
+        console.log(`  - ${client}: ${hours[index].toFixed(2)} hours, $${revenue[index].toFixed(2)}`);
+    });
+    
+    // Check if we have any non-zero data
+    const hasData = hours.some(h => h > 0) || revenue.some(r => r > 0);
+    console.log(`Client chart has data: ${hasData}`);
     
     return { clients, hours, revenue };
 }
@@ -423,22 +577,50 @@ function getProjectChartData(entries) {
     
     // Group by project
     const projectMap = {};
+    let missingProjectCount = 0;
+    let missingAmountCount = 0;
+    let missingHoursCount = 0;
     
     entries.forEach(entry => {
         const project = entry.project || 'Unassigned';
+        if (!entry.project) missingProjectCount++;
         
         if (!projectMap[project]) {
             projectMap[project] = { hours: 0, revenue: 0 };
         }
         
-        projectMap[project].hours += Number(entry.hours || 0);
-        projectMap[project].revenue += Number(entry.amount || 0);
+        // Handle missing or invalid hours/amounts
+        if (entry.hours === undefined || entry.hours === null) {
+            missingHoursCount++;
+        } else {
+            projectMap[project].hours += Number(entry.hours || 0);
+        }
+        
+        if (entry.amount === undefined || entry.amount === null) {
+            missingAmountCount++;
+        } else {
+            projectMap[project].revenue += Number(entry.amount || 0);
+        }
     });
     
     // Extract data for charts
     const projects = Object.keys(projectMap);
     const hours = projects.map(project => projectMap[project].hours);
     const revenue = projects.map(project => projectMap[project].revenue);
+    
+    console.log(`Found ${projects.length} unique projects`);
+    console.log(`Missing project entries: ${missingProjectCount}`);
+    console.log(`Missing amount entries: ${missingAmountCount}`);
+    console.log(`Missing hours entries: ${missingHoursCount}`);
+    
+    // Log the distribution
+    projects.forEach((project, index) => {
+        console.log(`  - ${project}: ${hours[index].toFixed(2)} hours, $${revenue[index].toFixed(2)}`);
+    });
+    
+    // Check if we have any non-zero data
+    const hasData = hours.some(h => h > 0) || revenue.some(r => r > 0);
+    console.log(`Project chart has data: ${hasData}`);
     
     return { projects, hours, revenue };
 }
@@ -451,13 +633,44 @@ function getWeekdayChartData(entries) {
     const hours = [0, 0, 0, 0, 0, 0, 0];
     const revenue = [0, 0, 0, 0, 0, 0, 0];
     
+    let invalidDateCount = 0;
+    let processedEntries = 0;
+    
     entries.forEach(entry => {
-        const entryDate = new Date(entry.date);
-        const weekdayIndex = entryDate.getDay(); // 0 = Sunday, 6 = Saturday
+        if (!entry.date) {
+            invalidDateCount++;
+            return;
+        }
         
+        let entryDate;
+        try {
+            entryDate = new Date(entry.date);
+            if (isNaN(entryDate.getTime())) {
+                invalidDateCount++;
+                return;
+            }
+        } catch (err) {
+            invalidDateCount++;
+            return;
+        }
+        
+        const weekdayIndex = entryDate.getDay(); // 0 = Sunday, 6 = Saturday
         hours[weekdayIndex] += Number(entry.hours || 0);
         revenue[weekdayIndex] += Number(entry.amount || 0);
+        processedEntries++;
     });
+    
+    console.log(`Processed ${processedEntries} entries for weekday chart`);
+    console.log(`Skipped ${invalidDateCount} entries with invalid dates`);
+    
+    // Log the distribution by day of week
+    weekdays.forEach((day, index) => {
+        console.log(`  - ${day}: ${hours[index].toFixed(2)} hours, $${revenue[index].toFixed(2)}`);
+    });
+    
+    // Check if we have any non-zero data
+    const hasData = hours.some(h => h > 0) || revenue.some(r => r > 0);
+    console.log(`Weekday chart has data: ${hasData}`);
     
     return { weekdays, hours, revenue };
 }
@@ -467,9 +680,27 @@ function getMonthlyChartData(entries, formatDate) {
     
     // Group by month
     const monthMap = {};
+    let invalidDateCount = 0;
+    let processedEntries = 0;
     
     entries.forEach(entry => {
-        const entryDate = new Date(entry.date);
+        if (!entry.date) {
+            invalidDateCount++;
+            return;
+        }
+        
+        let entryDate;
+        try {
+            entryDate = new Date(entry.date);
+            if (isNaN(entryDate.getTime())) {
+                invalidDateCount++;
+                return;
+            }
+        } catch (err) {
+            invalidDateCount++;
+            return;
+        }
+        
         const monthKey = `${entryDate.getFullYear()}-${entryDate.getMonth() + 1}`;
         
         if (!monthMap[monthKey]) {
@@ -484,7 +715,12 @@ function getMonthlyChartData(entries, formatDate) {
         
         monthMap[monthKey].hours += Number(entry.hours || 0);
         monthMap[monthKey].revenue += Number(entry.amount || 0);
+        processedEntries++;
     });
+    
+    console.log(`Processed ${processedEntries} entries for monthly chart`);
+    console.log(`Skipped ${invalidDateCount} entries with invalid dates`);
+    console.log(`Found ${Object.keys(monthMap).length} unique months`);
     
     // Sort by date
     const sortedMonths = Object.keys(monthMap).sort((a, b) => {
@@ -510,11 +746,31 @@ function getMonthlyChartData(entries, formatDate) {
     const hours = sortedMonths.map(key => monthMap[key].hours);
     const revenue = sortedMonths.map(key => monthMap[key].revenue);
     
+    // Log the monthly distribution
+    months.forEach((month, index) => {
+        console.log(`  - ${month}: ${hours[index].toFixed(2)} hours, $${revenue[index].toFixed(2)}`);
+    });
+    
+    // Check if we have any non-zero data
+    const hasData = hours.some(h => h > 0) || revenue.some(r => r > 0);
+    console.log(`Monthly chart has data: ${hasData}`);
+    
     return { months, hours, revenue };
 }
 
 // --- Chart Rendering Helpers ---
-const CHART_COLORS = [ /* ... same ... */ ];
+const CHART_COLORS = [
+    'rgba(255, 99, 132, 0.6)',
+    'rgba(54, 162, 235, 0.6)',
+    'rgba(255, 206, 86, 0.6)',
+    'rgba(75, 192, 192, 0.6)',
+    'rgba(153, 102, 255, 0.6)',
+    'rgba(255, 159, 64, 0.6)',
+    'rgba(199, 199, 199, 0.6)',
+    'rgba(83, 102, 255, 0.6)',
+    'rgba(40, 159, 159, 0.6)',
+    'rgba(210, 105, 30, 0.6)'
+];
 const CHART_BORDER_COLORS = CHART_COLORS.map(c => c.replace('0.6', '1'));
 
 function updateChart(chartKey, createChartFn) {
@@ -571,14 +827,258 @@ function updateChart(chartKey, createChartFn) {
         }
     }
 }
-function createBarChart(ctx, Chart, labels, label, data, bgColor, borderColor, yAxisLabel) { /* ... same ... */ }
-function createPieChart(ctx, Chart, labels, label, data, settings, formatCurrency) { /* ... same ... */ }
-function createDoughnutChart(ctx, Chart, labels, label, data) { /* ... same ... */ }
-function createMonthlyChart(ctx, Chart, data, settings, formatCurrency) { /* ... same ... */ }
+function createBarChart(ctx, Chart, labels, label, data, bgColor, borderColor, yAxisLabel) {
+    // Handle empty data case
+    if (!labels || !data || labels.length === 0 || data.length === 0) {
+        console.warn("Empty data provided for bar chart");
+        return null;
+    }
+    
+    console.log(`Creating bar chart with ${labels.length} labels and ${data.length} data points`);
+    
+    // Create the chart
+    return new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: bgColor,
+                borderColor: borderColor,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw || 0;
+                            return `${context.dataset.label}: ${value.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: yAxisLabel || ''
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createPieChart(ctx, Chart, labels, label, data, settings, formatCurrency) {
+    // Handle empty data case
+    if (!labels || !data || labels.length === 0 || data.length === 0) {
+        console.warn("Empty data provided for pie chart");
+        return null;
+    }
+    
+    console.log(`Creating pie chart with ${labels.length} labels and ${data.length} data points`);
+    
+    // Generate colors for each slice
+    const backgroundColors = [];
+    const borderColors = [];
+    
+    for (let i = 0; i < labels.length; i++) {
+        const colorIndex = i % CHART_COLORS.length;
+        backgroundColors.push(CHART_COLORS[colorIndex]);
+        borderColors.push(CHART_BORDER_COLORS[colorIndex]);
+    }
+    
+    // Create the chart
+    return new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return pieTooltipLabel(context, formatCurrency, settings?.currency);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createDoughnutChart(ctx, Chart, labels, label, data) {
+    // Handle empty data case
+    if (!labels || !data || labels.length === 0 || data.length === 0) {
+        console.warn("Empty data provided for doughnut chart");
+        return null;
+    }
+    
+    console.log(`Creating doughnut chart with ${labels.length} labels and ${data.length} data points`);
+    
+    // Generate colors for each slice
+    const backgroundColors = [];
+    const borderColors = [];
+    
+    for (let i = 0; i < labels.length; i++) {
+        const colorIndex = i % CHART_COLORS.length;
+        backgroundColors.push(CHART_COLORS[colorIndex]);
+        borderColors.push(CHART_BORDER_COLORS[colorIndex]);
+    }
+    
+    // Create the chart
+    return new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: doughnutTooltipLabel
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createMonthlyChart(ctx, Chart, data, settings, formatCurrency) {
+    if (!data || !data.months || data.months.length === 0) {
+        console.warn("Empty data provided for monthly chart");
+        return null;
+    }
+    
+    console.log(`Creating monthly chart with ${data.months.length} months`);
+    
+    return new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.months,
+            datasets: [
+                {
+                    label: 'Hours',
+                    data: data.hours,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Revenue',
+                    data: data.revenue,
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw || 0;
+                            if (context.dataset.label === 'Revenue') {
+                                return `${context.dataset.label}: ${formatCurrency(value, settings?.currency)}`;
+                            }
+                            return `${context.dataset.label}: ${value.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Hours'
+                    }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Revenue'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
 
 // --- Tooltip Callbacks ---
-function pieTooltipLabel(context, formatCurrency, currencyCode) { /* ... same ... */ }
-function doughnutTooltipLabel(context) { /* ... same ... */ }
+function pieTooltipLabel(context, formatCurrency, currencyCode) {
+    const value = context.raw || 0;
+    const label = context.label || '';
+    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+    
+    if (typeof formatCurrency === 'function') {
+        return `${label}: ${formatCurrency(value, currencyCode)} (${percentage}%)`;
+    }
+    
+    return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+}
+
+function doughnutTooltipLabel(context) {
+    const value = context.raw || 0;
+    const label = context.label || '';
+    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+    
+    return `${label}: ${value.toFixed(2)} hours (${percentage}%)`;
+}
 
 // --- No Data Message ---
 function showNoDataMessage(Chart) {
