@@ -440,14 +440,44 @@ async function getDashboardDependencies() {
     try {
         // Import dashboard module dynamically
         const dashboardModule = await import('./dashboard.js');
+        
+        // Get reference to Chart.js library
+        const Chart = window.Chart;
+        
+        if (!Chart) {
+            console.warn("Chart.js not found in global scope. Attempting to load it...");
+            
+            // Try to load Chart.js dynamically if not available
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+                console.log("Chart.js loaded dynamically");
+            } catch (scriptError) {
+                console.error("Failed to load Chart.js:", scriptError);
+            }
+        }
+        
         return {
             initDashboard: dashboardModule.initDashboard,
-            updateDashboard: dashboardModule.updateDashboard
+            updateDashboard: dashboardModule.updateDashboard,
+            Chart: window.Chart, // Pass Chart.js reference
+            formatCurrency: formatCurrency,
+            formatDate: formatDate
         };
     } catch (error) {
         console.error("Error loading dashboard dependencies:", error);
         return null;
     }
+}
+
+// Helper function to load a script dynamically
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = (e) => reject(new Error(`Failed to load script: ${src}`));
+        document.head.appendChild(script);
+    });
 }
 
 // --- Authentication ---

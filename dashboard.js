@@ -6,7 +6,7 @@ let chartInstances = {
     project: null, weekday: null, monthly: null
 };
 
-// --- Helper function for listeners ---
+// --- Helper functions ---
 function addDashboardListener(id, event, handler) {
     const element = document.getElementById(id);
     if (element) {
@@ -14,6 +14,29 @@ function addDashboardListener(id, event, handler) {
     } else {
         console.warn(`Dashboard listener warning: Element ID "${id}" not found.`);
     }
+}
+
+// Helper to get input value
+function getInputValue(id) {
+    const element = document.getElementById(id);
+    return element ? element.value : '';
+}
+
+// Simple notification function
+function showNotification(message, type = 'info') {
+    console.log(`[DASHBOARD-${type.toUpperCase()}]: ${message}`);
+    
+    // Create a notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Remove after a delay
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 500);
+    }, 3500);
 }
 
 // --- Initialization ---
@@ -88,8 +111,59 @@ export function updateDashboard(appState, dependencies) {
     const formatDate = dependencies?.formatDate || ((d) => d); // Basic fallback
     const getDateRangeFromOption = dependencies?.getDateRangeFromOption;
 
-    if (!Chart) return showNotification("Chart.js library not available.", "error");
-    if (!getDateRangeFromOption) return showNotification("Date range helper not available.", "error");
+    if (!Chart) {
+        console.error("Chart.js library not available");
+        showNotification("Chart.js library not available. Charts can't be displayed.", "error");
+        // Continue execution to at least update the statistics
+    }
+    
+    // Define a fallback getDateRangeFromOption if not provided
+    if (!getDateRangeFromOption) {
+        console.warn("Date range helper not provided, using simple implementation");
+        getDateRangeFromOption = function(option, fromDate, toDate) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+            
+            let from = null;
+            let to = null;
+            
+            switch (option) {
+                case 'today':
+                    from = today;
+                    to = new Date(today);
+                    to.setDate(to.getDate() + 1);
+                    break;
+                case 'this-week':
+                    from = new Date(today);
+                    from.setDate(from.getDate() - from.getDay()); // Start of week (Sunday)
+                    to = new Date(from);
+                    to.setDate(to.getDate() + 7);
+                    break;
+                case 'this-month':
+                    from = new Date(today.getFullYear(), today.getMonth(), 1);
+                    to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    break;
+                case 'last-month':
+                    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    to = new Date(today.getFullYear(), today.getMonth(), 0);
+                    break;
+                case 'this-year':
+                    from = new Date(today.getFullYear(), 0, 1);
+                    to = new Date(today.getFullYear(), 11, 31);
+                    break;
+                case 'custom':
+                    if (fromDate) from = new Date(fromDate);
+                    if (toDate) to = new Date(toDate);
+                    break;
+                case 'all':
+                default:
+                    // No date filtering
+                    break;
+            }
+            
+            return { from, to };
+        };
+    }
 
     console.log("Updating dashboard...");
     try {
@@ -205,15 +279,82 @@ function pieTooltipLabel(context, formatCurrency, currencyCode) { /* ... same ..
 function doughnutTooltipLabel(context) { /* ... same ... */ }
 
 // --- No Data Message ---
-function showNoDataMessage(Chart) { /* ... same ... */ }
+function showNoDataMessage(Chart) {
+    // Clear any existing charts
+    const chartCanvases = ['hours-chart', 'revenue-chart', 'client-chart', 'project-chart', 'weekday-chart', 'monthly-chart'];
+    
+    chartCanvases.forEach(canvasId => {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        
+        // Clear out existing chart
+        if (chartInstances[canvasId.replace('-chart', '')]) {
+            chartInstances[canvasId.replace('-chart', '')].destroy();
+            chartInstances[canvasId.replace('-chart', '')] = null;
+        }
+        
+        // If Chart.js is not available, just add a text message
+        if (!Chart) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.fillText('Chart.js not available', canvas.width / 2, canvas.height / 2);
+            }
+            return;
+        }
+        
+        // Create a simple "no data" message chart
+        try {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            
+            chartInstances[canvasId.replace('-chart', '')] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['No Data'],
+                    datasets: [{
+                        label: 'No data available for the selected filters',
+                        data: [0],
+                        backgroundColor: 'rgba(200, 200, 200, 0.2)',
+                        borderColor: 'rgba(200, 200, 200, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error(`Error creating no-data chart for ${canvasId}:`, error);
+        }
+    });
+}
 
 // --- Helper Functions ---
-function getInputValue(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-function setTextContent(id, text) { const el = document.getElementById(id); if (el) el.textContent = text ?? ''; }
-function addListener(id, event, handler) { // Local version for dashboard listeners
-    const element = document.getElementById(id);
-    if (element) element.addEventListener(event, handler);
-    else console.warn(`Dashboard: Element ID "${id}" not found for listener.`);
+function setTextContent(id, text) { 
+    const el = document.getElementById(id); 
+    if (el) el.textContent = text ?? ''; 
 }
 
 console.log("dashboard.js FINAL refactored loaded.");
