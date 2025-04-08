@@ -219,7 +219,15 @@ function triggerDownload(content, filename, contentType) {
         URL.revokeObjectURL(a.href);
     }, 100);
 }
-function readFileAsText(file) { /* ... same ... */ }
+
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsText(file);
+    });
+}
 function showLoadingIndicator(show) { console.log(`Loading: ${show}`); /* TODO: Visual indicator */ }
 function getFormDataFromLocalStorage() { /* ... same ... */ }
 // *** addListener DEFINED ONCE HERE ***
@@ -439,7 +447,24 @@ async function showApp() {
         console.error("Error loading some tabs:", error);
     });
 }
-function showLoginForm() { /* ... same ... */ }
+function showLoginForm() {
+    console.log("Showing login form...");
+    
+    // Show login container
+    const loginContainer = document.getElementById('login-container');
+    const appContainer = document.getElementById('app-container');
+    
+    if (loginContainer) {
+        loginContainer.style.display = 'flex';
+    }
+    
+    if (appContainer) {
+        appContainer.style.display = 'none';
+    }
+    
+    // Set up login and signup forms if not already done
+    setupAuthFormsListeners();
+}
 function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() {
     console.log("Populating settings form...");
@@ -775,6 +800,161 @@ function updateProjectsDropdownForClient(projectDropdown, selectedClient) {
 function updateRecurringEntriesUI() { /* ... same ... */ }
 function updateInvoiceHistoryTable() { /* ... same ... */ }
 
+// Export and import functions
+function exportData() {
+    console.log("Exporting data...");
+    try {
+        // Gather data to export
+        const exportData = {
+            entries: appState.entries,
+            expenses: appState.expenses,
+            recurringEntries: appState.recurringEntries,
+            rates: appState.rates,
+            settings: appState.settings,
+            exportDate: new Date().toISOString(),
+            version: '1.0'
+        };
+        
+        // Convert to JSON
+        const jsonData = JSON.stringify(exportData, null, 2);
+        
+        // Generate filename with current date
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `timetracker_export_${dateStr}.json`;
+        
+        // Trigger download
+        triggerDownload(jsonData, filename, 'application/json');
+        
+        showNotification("Data exported successfully", "success");
+    } catch (error) {
+        console.error("Error exporting data:", error);
+        showNotification("Failed to export data. See console for details.", "error");
+    }
+}
+
+async function importData(file) {
+    console.log("Importing data...");
+    try {
+        // Read file content
+        const content = await readFileAsText(file);
+        
+        // Parse JSON
+        const importData = JSON.parse(content);
+        
+        // Validate data structure
+        if (!importData.entries || !importData.expenses) {
+            throw new Error("Invalid data format");
+        }
+        
+        // Confirm import
+        if (!confirm("Are you sure you want to import this data? It will replace your current data.")) {
+            return;
+        }
+        
+        // Replace app state data
+        appState.entries = importData.entries;
+        appState.expenses = importData.expenses;
+        if (importData.recurringEntries) appState.recurringEntries = importData.recurringEntries;
+        if (importData.rates) appState.rates = importData.rates;
+        if (importData.settings) appState.settings = importData.settings;
+        
+        // Update UI
+        updateTimeEntriesTable();
+        updateExpensesTable();
+        updateSummary();
+        updateClientProjectDropdowns();
+        updateRecurringEntriesUI();
+        populateRateTemplates();
+        populateSettingsForm();
+        
+        // Save to database
+        await Promise.all([
+            SupabaseAPI.replaceTimeEntries(appState.entries),
+            SupabaseAPI.replaceExpenses(appState.expenses),
+            SupabaseAPI.replaceRecurringEntries(appState.recurringEntries),
+            SupabaseAPI.replaceRates(appState.rates),
+            SupabaseAPI.updateSettings(appState.settings)
+        ]);
+        
+        showNotification("Data imported successfully", "success");
+    } catch (error) {
+        console.error("Error importing data:", error);
+        showNotification("Failed to import data. See console for details.", "error");
+    }
+}
+
+function exportCSV() {
+    console.log("Exporting CSV...");
+    try {
+        // Prepare entries data
+        const headers = ['Date', 'Description', 'Client', 'Project', 'Hours', 'Rate', 'Amount'];
+        
+        // Apply current filters to get filtered entries
+        const { startDate, endDate } = getDateRangeFromOption(
+            document.getElementById('date-range').value,
+            document.getElementById('date-from').value,
+            document.getElementById('date-to').value
+        );
+        
+        const clientFilter = document.getElementById('filter-client').value;
+        const projectFilter = document.getElementById('filter-project').value;
+        
+        // Filter entries based on criteria
+        const filteredEntries = appState.entries.filter(entry => {
+            // Apply date filter if specified
+            if (startDate && endDate) {
+                const entryDate = new Date(entry.date);
+                if (entryDate < startDate || entryDate >= endDate) {
+                    return false;
+                }
+            }
+            
+            // Apply client filter if specified
+            if (clientFilter !== 'all' && entry.client !== clientFilter) {
+                return false;
+            }
+            
+            // Apply project filter if specified
+            if (projectFilter !== 'all' && entry.project !== projectFilter) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Create CSV content
+        let csvContent = headers.join(',') + '\n';
+        
+        // Add entry rows
+        filteredEntries.forEach(entry => {
+            const row = [
+                entry.date,
+                `"${(entry.description || '').replace(/"/g, '""')}"`, // Escape quotes
+                `"${(entry.client || '').replace(/"/g, '""')}"`,
+                `"${(entry.project || '').replace(/"/g, '""')}"`,
+                entry.hours,
+                entry.rate,
+                entry.amount
+            ];
+            csvContent += row.join(',') + '\n';
+        });
+        
+        // Generate filename with current date
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `timetracker_export_${dateStr}.csv`;
+        
+        // Trigger download
+        triggerDownload(csvContent, filename, 'text/csv');
+        
+        showNotification("CSV exported successfully", "success");
+    } catch (error) {
+        console.error("Error exporting CSV:", error);
+        showNotification("Failed to export CSV. See console for details.", "error");
+    }
+}
+
 // --- Event Listeners Setup ---
 function setupEventListeners() {
     // Set up all event listeners
@@ -794,7 +974,122 @@ function setupEventListeners() {
 // --- Specific Listener Setup Function DEFINITIONS ---
 // addListener defined above
 // addDelegatedListener defined above
-function setupAuthListeners() { /* ... same ... */ }
+function setupAuthListeners() {
+    console.log("Setting up authentication listeners...");
+    
+    // Handle signup form toggle
+    addListener('show-signup-link', 'click', () => {
+        document.getElementById('login-form-container').style.display = 'none';
+        document.getElementById('signup-form-container').style.display = 'block';
+    });
+    
+    // Handle login form toggle
+    addListener('show-login-link', 'click', () => {
+        document.getElementById('signup-form-container').style.display = 'none';
+        document.getElementById('login-form-container').style.display = 'block';
+    });
+    
+    // Handle login form submission
+    addListener('login-form', 'submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        
+        if (!email || !password) {
+            showNotification("Please enter email and password", "error");
+            return;
+        }
+        
+        try {
+            showLoadingIndicator(true);
+            
+            const result = await SupabaseAPI.signIn(email, password);
+            
+            if (result.success) {
+                // Set user state
+                appState.user = result.user;
+                
+                // Load user data
+                await loadUserData();
+                
+                // Show application
+                showApp();
+                
+                showNotification("Login successful!", "success");
+            } else {
+                showNotification("Login failed: " + (result.error?.message || "Unknown error"), "error");
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            showNotification("Login failed: " + error.message, "error");
+        } finally {
+            showLoadingIndicator(false);
+        }
+    });
+    
+    // Handle signup form submission
+    addListener('signup-form', 'submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const confirmPassword = document.getElementById('signup-confirm-password').value;
+        
+        if (!email || !password || !confirmPassword) {
+            showNotification("Please fill all fields", "error");
+            return;
+        }
+        
+        if (password !== confirmPassword) {
+            showNotification("Passwords do not match", "error");
+            return;
+        }
+        
+        try {
+            showLoadingIndicator(true);
+            
+            const result = await SupabaseAPI.signUp(email, password);
+            
+            if (result.success) {
+                showNotification("Signup successful! Please check your email for verification.", "success");
+                
+                // Switch to login form
+                document.getElementById('signup-form-container').style.display = 'none';
+                document.getElementById('login-form-container').style.display = 'block';
+            } else {
+                showNotification("Signup failed: " + (result.error?.message || "Unknown error"), "error");
+            }
+        } catch (error) {
+            console.error("Signup error:", error);
+            showNotification("Signup failed: " + error.message, "error");
+        } finally {
+            showLoadingIndicator(false);
+        }
+    });
+    
+    // Logout button
+    addListener('logout-button', 'click', async () => {
+        try {
+            await SupabaseAPI.signOut();
+            
+            // Reset app state
+            appState.user = null;
+            appState.entries = [];
+            appState.expenses = [];
+            appState.recurringEntries = [];
+            appState.invoices = [];
+            
+            // Show login form
+            showLoginForm();
+            
+            showNotification("Logged out successfully", "success");
+        } catch (error) {
+            console.error("Logout error:", error);
+            showNotification("Logout failed: " + error.message, "error");
+        }
+    });
+}
 function setupNavigationListeners() {
     // Tab navigation buttons
     const tabButtons = document.querySelectorAll('[data-tab]');
@@ -1044,7 +1339,28 @@ function setupSettingsListeners() {
     console.log("Settings listeners setup complete");
 }
 function addRateActionListeners() { /* ... same ... */ }
-function setupDataManagementListeners() { /* ... same ... */ }
+function setupDataManagementListeners() {
+    console.log("Setting up data management listeners...");
+    
+    // Export data file
+    addListener('export-data', 'click', exportData);
+    
+    // Import data file
+    addListener('import-data', 'click', () => {
+        document.getElementById('file-input').click();
+    });
+    
+    // Handle file selection for import
+    addListener('file-input', 'change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            importData(file);
+        }
+    });
+    
+    // Export CSV
+    addListener('export-csv', 'click', exportCSV);
+}
 function setupDateRangeListeners() { /* ... same ... */ }
 function setupAutoSave() { /* ... same ... */ }
 function setupDarkModeToggle() { /* ... same ... */ }
@@ -3275,9 +3591,190 @@ async function showDatabaseSetupModal() {
     }
 }
 
+// --- For debugging purposes ---
+function debugButtons() {
+    console.log("Debugging data export buttons...");
+    
+    // Check if buttons exist
+    const exportDataBtn = document.getElementById('export-data');
+    const importDataBtn = document.getElementById('import-data');
+    const exportCsvBtn = document.getElementById('export-csv');
+    const fileInput = document.getElementById('file-input');
+    
+    console.log("Export Data button:", exportDataBtn);
+    console.log("Import Data button:", importDataBtn);
+    console.log("Export CSV button:", exportCsvBtn);
+    console.log("File input:", fileInput);
+    
+    // Log listeners attached to buttons
+    console.log("Adding direct event listeners for debugging");
+    
+    // Add direct click listeners
+    if (exportDataBtn) {
+        exportDataBtn.onclick = function() {
+            console.log("Export Data button clicked directly");
+            exportData();
+        };
+    }
+    
+    if (importDataBtn) {
+        importDataBtn.onclick = function() {
+            console.log("Import Data button clicked directly");
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                console.error("File input element not found!");
+            }
+        };
+    }
+    
+    if (exportCsvBtn) {
+        exportCsvBtn.onclick = function() {
+            console.log("Export CSV button clicked directly");
+            exportCSV();
+        };
+    }
+    
+    if (fileInput) {
+        fileInput.onchange = function(e) {
+            console.log("File input changed:", e.target.files);
+            if (e.target.files.length > 0) {
+                importData(e.target.files[0]);
+            }
+        };
+    }
+}
+
+// Add a helper function to set up auth form listeners
+function setupAuthFormsListeners() {
+    console.log("Setting up auth forms listeners");
+    
+    // Login form display
+    const loginFormContainer = document.getElementById('login-form-container');
+    const signupFormContainer = document.getElementById('signup-form-container');
+    
+    if (loginFormContainer) {
+        loginFormContainer.style.display = 'block';
+    }
+    
+    if (signupFormContainer) {
+        signupFormContainer.style.display = 'none';
+    }
+    
+    // Handle signup form toggle
+    const showSignupLink = document.getElementById('show-signup-link');
+    if (showSignupLink) {
+        showSignupLink.onclick = function() {
+            if (loginFormContainer) loginFormContainer.style.display = 'none';
+            if (signupFormContainer) signupFormContainer.style.display = 'block';
+        };
+    }
+    
+    // Handle login form toggle
+    const showLoginLink = document.getElementById('show-login-link');
+    if (showLoginLink) {
+        showLoginLink.onclick = function() {
+            if (signupFormContainer) signupFormContainer.style.display = 'none';
+            if (loginFormContainer) loginFormContainer.style.display = 'block';
+        };
+    }
+    
+    // Handle login form submission
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!email || !password) {
+                showNotification("Please enter email and password", "error");
+                return;
+            }
+            
+            try {
+                showLoadingIndicator(true);
+                
+                const result = await SupabaseAPI.signIn(email, password);
+                
+                if (result.success) {
+                    // Set user state
+                    appState.user = result.user;
+                    
+                    // Load user data
+                    await loadUserData();
+                    
+                    // Show application
+                    showApp();
+                    
+                    showNotification("Login successful!", "success");
+                } else {
+                    showNotification("Login failed: " + (result.error?.message || "Unknown error"), "error");
+                }
+            } catch (error) {
+                console.error("Login error:", error);
+                showNotification("Login failed: " + error.message, "error");
+            } finally {
+                showLoadingIndicator(false);
+            }
+        };
+    }
+    
+    // Handle signup form submission
+    const signupForm = document.getElementById('signup-form');
+    if (signupForm) {
+        signupForm.onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+            
+            if (!email || !password || !confirmPassword) {
+                showNotification("Please fill all fields", "error");
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showNotification("Passwords do not match", "error");
+                return;
+            }
+            
+            try {
+                showLoadingIndicator(true);
+                
+                const result = await SupabaseAPI.signUp(email, password);
+                
+                if (result.success) {
+                    showNotification("Signup successful! Please check your email for verification.", "success");
+                    
+                    // Switch to login form
+                    if (signupFormContainer) signupFormContainer.style.display = 'none';
+                    if (loginFormContainer) loginFormContainer.style.display = 'block';
+                } else {
+                    showNotification("Signup failed: " + (result.error?.message || "Unknown error"), "error");
+                }
+            } catch (error) {
+                console.error("Signup error:", error);
+                showNotification("Signup failed: " + error.message, "error");
+            } finally {
+                showLoadingIndicator(false);
+            }
+        };
+    }
+    
+    console.log("Auth forms listeners set up");
+}
+
 // --- Tab Navigation ---
 function openTab(evt, tabName) {
     console.log(`Opening tab: ${tabName}`);
+    
+    // Debug data buttons when time tracking tab is opened
+    if (tabName === 'time-tracking-tab') {
+        debugButtons();
+    }
     
     // Hide all tab contents
     const tabContents = document.getElementsByClassName('tab-content');

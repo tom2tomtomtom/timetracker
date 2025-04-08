@@ -280,6 +280,180 @@ export async function getInvoices() {
 // TODO: export async function deleteInvoice(invoiceId) { ... }
 
 // --- Danger Zone ---
+// Bulk data operations for import/export functionality
+export async function replaceTimeEntries(entries) {
+    console.log("Replacing all time entries...");
+    
+    // Get user ID from first entry (assuming all entries belong to same user)
+    const userId = entries.length > 0 ? entries[0].userId : null;
+    if (!userId) throw new Error("No user ID found in entries");
+    
+    try {
+        // Start a transaction to delete and re-add all entries
+        const { data, error } = await supabase.rpc('replace_time_entries', {
+            p_user_id: userId,
+            p_entries: mapToSnakeCase(entries.map(entry => ({
+                ...entry,
+                hours: Number(entry.hours || 0),
+                rate: Number(entry.rate || 0),
+                amount: Number(entry.amount || 0)
+            })))
+        });
+        
+        if (error) throw error;
+        
+        console.log("Successfully replaced all time entries");
+        return true;
+    } catch (error) {
+        console.error("Error replacing time entries:", error);
+        throw new Error(`Failed to replace time entries: ${error.message}`);
+    }
+}
+
+export async function replaceExpenses(expenses) {
+    console.log("Replacing all expenses...");
+    
+    // Get user ID from first expense (assuming all expenses belong to same user)
+    const userId = expenses.length > 0 ? expenses[0].userId : null;
+    if (!userId) throw new Error("No user ID found in expenses");
+    
+    try {
+        // Delete all existing expenses for this user
+        const { error: deleteError } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('user_id', userId);
+        
+        if (deleteError) throw deleteError;
+        
+        // If there are expenses to add, add them
+        if (expenses.length > 0) {
+            // Format expenses data
+            const expensesData = expenses.map(expense => mapToSnakeCase({
+                ...expense,
+                amount: Number(expense.amount || 0)
+            }));
+            
+            // Insert new expenses
+            const { error: insertError } = await supabase
+                .from('expenses')
+                .insert(expensesData);
+            
+            if (insertError) throw insertError;
+        }
+        
+        console.log("Successfully replaced all expenses");
+        return true;
+    } catch (error) {
+        console.error("Error replacing expenses:", error);
+        throw new Error(`Failed to replace expenses: ${error.message}`);
+    }
+}
+
+export async function replaceRecurringEntries(entries) {
+    console.log("Replacing all recurring entries...");
+    
+    // Get user ID from first entry (assuming all entries belong to same user)
+    const userId = entries.length > 0 ? entries[0].userId : null;
+    if (!userId) throw new Error("No user ID found in recurring entries");
+    
+    try {
+        // Delete all existing recurring entries for this user
+        const { error: deleteError } = await supabase
+            .from('recurring_entries')
+            .delete()
+            .eq('user_id', userId);
+        
+        if (deleteError) throw deleteError;
+        
+        // If there are entries to add, add them
+        if (entries.length > 0) {
+            // Format entries data
+            const entriesData = entries.map(entry => mapToSnakeCase({
+                ...entry,
+                hours: Number(entry.hours || 0),
+                rate: Number(entry.rate || 0)
+            }));
+            
+            // Insert new entries
+            const { error: insertError } = await supabase
+                .from('recurring_entries')
+                .insert(entriesData);
+            
+            if (insertError) throw insertError;
+        }
+        
+        console.log("Successfully replaced all recurring entries");
+        return true;
+    } catch (error) {
+        console.error("Error replacing recurring entries:", error);
+        throw new Error(`Failed to replace recurring entries: ${error.message}`);
+    }
+}
+
+export async function replaceRates(rates) {
+    console.log("Replacing all rate templates...");
+    
+    // Get user ID from first rate (assuming all rates belong to same user)
+    const userId = rates.length > 0 ? rates[0].userId : null;
+    if (!userId) throw new Error("No user ID found in rates");
+    
+    try {
+        // Delete all existing rates for this user
+        const { error: deleteError } = await supabase
+            .from('rates')
+            .delete()
+            .eq('user_id', userId);
+        
+        if (deleteError) throw deleteError;
+        
+        // If there are rates to add, add them
+        if (rates.length > 0) {
+            // Format rates data
+            const ratesData = rates.map(rate => mapToSnakeCase({
+                ...rate,
+                amount: Number(rate.amount || 0)
+            }));
+            
+            // Insert new rates
+            const { error: insertError } = await supabase
+                .from('rates')
+                .insert(ratesData);
+            
+            if (insertError) throw insertError;
+        }
+        
+        console.log("Successfully replaced all rates");
+        return true;
+    } catch (error) {
+        console.error("Error replacing rates:", error);
+        throw new Error(`Failed to replace rates: ${error.message}`);
+    }
+}
+
+export async function updateSettings(settings) {
+    console.log("Updating settings...");
+    
+    if (!settings.userId) throw new Error("No user ID found in settings");
+    
+    try {
+        const settingsSnake = mapToSnakeCase(settings);
+        
+        // Upsert settings
+        const { error } = await supabase
+            .from('settings')
+            .upsert(settingsSnake, { onConflict: 'user_id' });
+        
+        if (error) throw error;
+        
+        console.log("Successfully updated settings");
+        return true;
+    } catch (error) {
+        console.error("Error updating settings:", error);
+        throw new Error(`Failed to update settings: ${error.message}`);
+    }
+}
+
 // TODO: export async function deleteAllUserData(userId) { ... }
 
 // Export the initialized client
