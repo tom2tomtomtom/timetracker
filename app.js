@@ -201,12 +201,15 @@ function getDateRangeFromOption(option, fromDateStr, toDateStr) {
 }
 
 function triggerDownload(content, filename, contentType) {
+    console.log("Triggering download:", filename, contentType);
+    
     // Create a Blob with the content
     const blob = new Blob([content], { type: contentType });
     
     // Create a download link
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = filename;
     
     // Append to document, click, and remove
@@ -216,7 +219,8 @@ function triggerDownload(content, filename, contentType) {
     // Clean up
     setTimeout(() => {
         document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
+        URL.revokeObjectURL(url);
+        console.log("Download cleanup complete");
     }, 100);
 }
 
@@ -1342,6 +1346,16 @@ function addRateActionListeners() { /* ... same ... */ }
 function setupDataManagementListeners() {
     console.log("Setting up data management listeners...");
     
+    // Get direct references to buttons for debugging
+    const exportDataBtn = document.getElementById('export-data');
+    const importDataBtn = document.getElementById('import-data');
+    const exportCsvBtn = document.getElementById('export-csv');
+    
+    console.log("Buttons found:", 
+        exportDataBtn ? "Export Data ✓" : "Export Data ✗", 
+        importDataBtn ? "Import Data ✓" : "Import Data ✗",
+        exportCsvBtn ? "Export CSV ✓" : "Export CSV ✗");
+    
     // Export data file
     addListener('export-data', 'click', exportData);
     
@@ -1349,6 +1363,9 @@ function setupDataManagementListeners() {
     addListener('import-data', 'click', () => {
         document.getElementById('file-input').click();
     });
+    
+    // Export CSV
+    addListener('export-csv', 'click', exportCSV);
     
     // Handle file selection for import
     addListener('file-input', 'change', (e) => {
@@ -1358,8 +1375,7 @@ function setupDataManagementListeners() {
         }
     });
     
-    // Export CSV
-    addListener('export-csv', 'click', exportCSV);
+    console.log("Data management listeners setup complete");
 }
 function setupDateRangeListeners() { /* ... same ... */ }
 function setupAutoSave() { /* ... same ... */ }
@@ -1608,40 +1624,7 @@ function editRateTemplate(id) { /* ... same ... */ }
 async function deleteRateTemplate(id) { /* ... same ... */ }
 
 // --- Data Management ---
-function exportData() { /* ... same ... */ }
 async function importData(e) { /* ... same ... */ }
-function exportCSV() {
-    console.log("Exporting CSV...");
-    
-    // Get filtered entries
-    const entries = appState.entries; // Use filteredEntries instead if you implement filtering
-    
-    if (entries.length === 0) {
-        showNotification("No entries to export", "error");
-        return;
-    }
-    
-    // Create CSV header
-    let csv = "Date,Description,Client,Project,Hours,Rate,Amount\n";
-    
-    // Add rows for each entry
-    entries.forEach(entry => {
-        const rowData = [
-            formatDate(entry.date, 'YYYY-MM-DD'),
-            `"${entry.description.replace(/"/g, '""')}"`, // Escape quotes
-            `"${entry.client || ''}".replace(/"/g, '""')`,
-            `"${entry.project || ''}".replace(/"/g, '""')`,
-            entry.hours,
-            entry.rate,
-            entry.amount
-        ];
-        csv += rowData.join(',') + "\n";
-    });
-    
-    // Trigger download
-    triggerDownload(csv, `time-entries-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv');
-    showNotification("CSV exported successfully", "success");
-}
 
 function applyFilters() {
     console.log("Applying filters...");
