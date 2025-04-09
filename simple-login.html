@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeTracker - Simple Login</title>
+    <!-- Load Supabase from CDN -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0077ed;
+        }
+        .error {
+            color: #ff3b30;
+            margin-top: 16px;
+            text-align: center;
+        }
+        .success {
+            color: #34c759;
+            margin-top: 16px;
+            text-align: center;
+        }
+        .data-display {
+            margin-top: 20px;
+            border-top: 1px solid #d2d2d7;
+            padding-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #d2d2d7;
+        }
+        th {
+            background-color: #f5f5f7;
+            font-weight: 500;
+        }
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f7;
+            border-radius: 4px;
+            font-size: 14px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TimeTracker Login</h1>
+        <div id="login-form">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="Your email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Your password">
+            </div>
+            <button id="login-button">Login</button>
+            <div id="error-message" class="error"></div>
+            <div id="success-message" class="success"></div>
+        </div>
+
+        <div id="user-data" style="display:none;">
+            <h2>Your Data</h2>
+            <div id="user-info"></div>
+            <div style="margin-top: 10px; margin-bottom: 20px; text-align: center;">
+                <a href="reset-password.html" style="display: inline-block; margin-bottom: 10px;">Reset Password for tomh@redbaez.com</a><br> 
+                <span style="color: #666; font-size: 14px;">Note: Showing data for user ID: c35bc00f-0c63-4cc5-a5d6-aafeff68d911 (tomh@redbaez.com)</span>
+            </div>
+            
+            <!-- Add New Time Entry Form -->
+            <div class="form-group" style="background-color: #f8f8fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3>Add New Time Entry</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label for="time-date">Date</label>
+                        <input type="date" id="time-date" value="" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="time-project">Project</label>
+                        <input type="text" id="time-project" placeholder="Project name">
+                    </div>
+                    <div class="form-group">
+                        <label for="time-hours">Hours</label>
+                        <input type="number" id="time-hours" placeholder="Hours" min="0" step="0.25" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="time-description">Description</label>
+                        <input type="text" id="time-description" placeholder="Description">
+                    </div>
+                </div>
+                <button id="add-time-entry">Add Time Entry</button>
+            </div>
+            
+            <!-- Add New Expense Form -->
+            <div class="form-group" style="background-color: #f8f8fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h3>Add New Expense</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="form-group">
+                        <label for="expense-date">Date</label>
+                        <input type="date" id="expense-date" value="" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-amount">Amount</label>
+                        <input type="number" id="expense-amount" placeholder="Amount" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-category">Category</label>
+                        <input type="text" id="expense-category" placeholder="Category">
+                    </div>
+                    <div class="form-group">
+                        <label for="expense-description">Description</label>
+                        <input type="text" id="expense-description" placeholder="Description">
+                    </div>
+                </div>
+                <button id="add-expense">Add Expense</button>
+            </div>
+
+            <div class="data-display">
+                <h3>Time Entries</h3>
+                <table id="time-entries">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Project</th>
+                            <th>Hours</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="time-entries-body"></tbody>
+                </table>
+            </div>
+
+            <div class="data-display">
+                <h3>Expenses</h3>
+                <table id="expenses">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Category</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-body"></tbody>
+                </table>
+            </div>
+
+            <button id="logout-button">Logout</button>
+        </div>
+
+        <div id="debug-section" class="debug-info">
+            <h3>Debug Information</h3>
+            <div id="debug-info"></div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://uhjwlnvnwjlroratyuto.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoandsbnZud2pscm9yYXR5dXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNDI0NjMsImV4cCI6MjA1NzkxODQ2M30.wxHaInP7oAWtCk5IAgrmqCpT4tqXPs7dxyWYUp0xIPY';
+        
+        // Initialize Supabase client - making sure we use the global supabase variable
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Log success
+        console.log('Supabase client initialized successfully');
+        
+        // Debug info
+        function logDebug(message, data = null) {
+            const debugInfo = document.getElementById('debug-info');
+            const timestamp = new Date().toISOString();
+            
+            let logMessage = `[${timestamp}] ${message}`;
+            if (data) {
+                // Convert data to string, handle objects
+                const dataStr = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+                logMessage += `\n${dataStr}`;
+            }
+            
+            debugInfo.textContent += logMessage + '\n\n';
+            console.log(message, data);
+        }
+
+        // Show error or success message
+        function showMessage(type, message) {
+            const errorEl = document.getElementById('error-message');
+            const successEl = document.getElementById('success-message');
+            
+            if (type === 'error') {
+                errorEl.textContent = message;
+                successEl.textContent = '';
+            } else {
+                successEl.textContent = message;
+                errorEl.textContent = '';
+            }
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+
+        // Handle login
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showMessage('error', 'Please enter both email and password');
+                return;
+            }
+            
+            try {
+                logDebug('Attempting login', { email });
+                
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) {
+                    logDebug('Login error', error);
+                    showMessage('error', `Login failed: ${error.message}`);
+                    return;
+                }
+                
+                logDebug('Login successful', { user: data.user });
+                showMessage('success', 'Login successful!');
+                
+                // Show user data
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('user-data').style.display = 'block';
+                
+                // Display user info
+                document.getElementById('user-info').textContent = `Logged in as: ${data.user.email}`;
+                
+                // Load user data
+                await loadUserData(data.user.id);
+                
+            } catch (error) {
+                logDebug('Login exception', error);
+                showMessage('error', `An error occurred: ${error.message}`);
+            }
+        }
+
+        // Handle logout
+        async function handleLogout() {
+            try {
+                await supabaseClient.auth.signOut();
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('user-data').style.display = 'none';
+                document.getElementById('time-entries-body').innerHTML = '';
+                document.getElementById('expenses-body').innerHTML = '';
+                document.getElementById('user-info').textContent = '';
+                showMessage('success', 'Logged out successfully');
+            } catch (error) {
+                logDebug('Logout error', error);
+                showMessage('error', `Logout failed: ${error.message}`);
+            }
+        }
+
+        // Original User ID that contains the data
+        const ORIGINAL_USER_ID = 'c35bc00f-0c63-4cc5-a5d6-aafeff68d911'; // tomh@redbaez.com
+        
+        // Add new time entry
+        async function addTimeEntry() {
+            const date = document.getElementById('time-date').value;
+            const project = document.getElementById('time-project').value;
+            const hours = parseFloat(document.getElementById('time-hours').value);
+            const description = document.getElementById('time-description').value;
+            
+            if (!date || isNaN(hours)) {
+                showMessage('error', 'Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                logDebug('Adding new time entry', { date, project, hours, description });
+                
+                const { data, error } = await supabaseClient
+                    .from('time_entries')
+                    .insert([
+                        { 
+                            date, 
+                            project, 
+                            hours, 
+                            description,
+                            user_id: ORIGINAL_USER_ID,
+                            created_at: new Date().toISOString()
+                        }
+                    ])
+                    .select();
+                
+                if (error) {
+                    logDebug('Error adding time entry', error);
+                    showMessage('error', `Failed to add time entry: ${error.message}`);
+                    return;
+                }
+                
+                logDebug('Time entry added successfully', data);
+                showMessage('success', 'Time entry added successfully');
+                
+                // Clear form
+                document.getElementById('time-project').value = '';
+                document.getElementById('time-hours').value = '';
+                document.getElementById('time-description').value = '';
+                
+                // Reload data
+                await loadUserData(ORIGINAL_USER_ID);
+                
+            } catch (error) {
+                logDebug('Exception adding time entry', error);
+                showMessage('error', `An error occurred: ${error.message}`);
+            }
+        }
+        
+        // Add new expense
+        async function addExpense() {
+            const date = document.getElementById('expense-date').value;
+            const amount = parseFloat(document.getElementById('expense-amount').value);
+            const category = document.getElementById('expense-category').value;
+            const description = document.getElementById('expense-description').value;
+            
+            if (!date || isNaN(amount)) {
+                showMessage('error', 'Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                logDebug('Adding new expense', { date, amount, category, description });
+                
+                const { data, error } = await supabaseClient
+                    .from('expenses')
+                    .insert([
+                        { 
+                            date, 
+                            amount, 
+                            category, 
+                            description,
+                            user_id: ORIGINAL_USER_ID,
+                            created_at: new Date().toISOString()
+                        }
+                    ])
+                    .select();
+                
+                if (error) {
+                    logDebug('Error adding expense', error);
+                    showMessage('error', `Failed to add expense: ${error.message}`);
+                    return;
+                }
+                
+                logDebug('Expense added successfully', data);
+                showMessage('success', 'Expense added successfully');
+                
+                // Clear form
+                document.getElementById('expense-amount').value = '';
+                document.getElementById('expense-category').value = '';
+                document.getElementById('expense-description').value = '';
+                
+                // Reload data
+                await loadUserData(ORIGINAL_USER_ID);
+                
+            } catch (error) {
+                logDebug('Exception adding expense', error);
+                showMessage('error', `An error occurred: ${error.message}`);
+            }
+        }
+
+        // Load user data from Supabase
+        async function loadUserData(userId) {
+            try {
+                // We'll use the original user ID to load data regardless of who's logged in
+                const targetUserId = ORIGINAL_USER_ID;
+                logDebug('Loading data for user ID', { 
+                    loggedInAs: userId, 
+                    loadingDataFor: targetUserId,
+                    note: 'Using original user ID regardless of login'
+                });
+
+                // Load time entries
+                logDebug('Loading time entries');
+                const { data: timeEntries, error: timeError } = await supabaseClient
+                    .from('time_entries')
+                    .select('*')
+                    .eq('user_id', targetUserId)
+                    .order('date', { ascending: false });
+                
+                if (timeError) {
+                    logDebug('Error loading time entries', timeError);
+                } else {
+                    logDebug('Time entries loaded', { count: timeEntries.length });
+                    displayTimeEntries(timeEntries);
+                }
+                
+                // Load expenses
+                logDebug('Loading expenses');
+                const { data: expenses, error: expenseError } = await supabaseClient
+                    .from('expenses')
+                    .select('*')
+                    .eq('user_id', targetUserId)
+                    .order('date', { ascending: false });
+                
+                if (expenseError) {
+                    logDebug('Error loading expenses', expenseError);
+                } else {
+                    logDebug('Expenses loaded', { count: expenses.length });
+                    displayExpenses(expenses);
+                }
+                
+            } catch (error) {
+                logDebug('Error loading user data', error);
+                showMessage('error', `Failed to load data: ${error.message}`);
+            }
+        }
+
+        // Display time entries in table
+        function displayTimeEntries(entries) {
+            const tbody = document.getElementById('time-entries-body');
+            tbody.innerHTML = '';
+            
+            if (!entries || entries.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.textContent = 'No time entries found';
+                cell.style.textAlign = 'center';
+                row.appendChild(cell);
+                tbody.appendChild(row);
+                return;
+            }
+            
+            entries.forEach(entry => {
+                const row = document.createElement('tr');
+                
+                const dateCell = document.createElement('td');
+                dateCell.textContent = formatDate(entry.date);
+                row.appendChild(dateCell);
+                
+                const projectCell = document.createElement('td');
+                projectCell.textContent = entry.project || '-';
+                row.appendChild(projectCell);
+                
+                const hoursCell = document.createElement('td');
+                hoursCell.textContent = entry.hours || '0';
+                row.appendChild(hoursCell);
+                
+                const descCell = document.createElement('td');
+                descCell.textContent = entry.description || '-';
+                row.appendChild(descCell);
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Display expenses in table
+        function displayExpenses(expenses) {
+            const tbody = document.getElementById('expenses-body');
+            tbody.innerHTML = '';
+            
+            if (!expenses || expenses.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.textContent = 'No expenses found';
+                cell.style.textAlign = 'center';
+                row.appendChild(cell);
+                tbody.appendChild(row);
+                return;
+            }
+            
+            expenses.forEach(expense => {
+                const row = document.createElement('tr');
+                
+                const dateCell = document.createElement('td');
+                dateCell.textContent = formatDate(expense.date);
+                row.appendChild(dateCell);
+                
+                const descCell = document.createElement('td');
+                descCell.textContent = expense.description || '-';
+                row.appendChild(descCell);
+                
+                const amountCell = document.createElement('td');
+                amountCell.textContent = expense.amount ? `$${expense.amount.toFixed(2)}` : '$0.00';
+                row.appendChild(amountCell);
+                
+                const categoryCell = document.createElement('td');
+                categoryCell.textContent = expense.category || '-';
+                row.appendChild(categoryCell);
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Log initialization
+            logDebug('Simple TimeTracker initialized');
+            logDebug('Supabase client status', { initialized: !!supabaseClient });
+            
+            // Set up login button
+            document.getElementById('login-button').addEventListener('click', handleLogin);
+            
+            // Set up email/password enter key
+            document.getElementById('password').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleLogin();
+                }
+            });
+            
+            // Set up logout button
+            document.getElementById('logout-button').addEventListener('click', handleLogout);
+            
+            // Set up add time entry button
+            document.getElementById('add-time-entry').addEventListener('click', addTimeEntry);
+            
+            // Set up add expense button
+            document.getElementById('add-expense').addEventListener('click', addExpense);
+            
+            // Set today's date as default for date inputs
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('time-date').value = today;
+            document.getElementById('expense-date').value = today;
+            
+            // Check if user is already signed in
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                    logDebug('User already signed in', { user: session.user });
+                    document.getElementById('login-form').style.display = 'none';
+                    document.getElementById('user-data').style.display = 'block';
+                    document.getElementById('user-info').textContent = `Logged in as: ${session.user.email}`;
+                    loadUserData(session.user.id);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

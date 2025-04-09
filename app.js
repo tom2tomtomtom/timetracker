@@ -1381,8 +1381,8 @@ function setupDateRangeListeners() { /* ... same ... */ }
 function setupAutoSave() { /* ... same ... */ }
 function setupDarkModeToggle() { /* ... same ... */ }
 function setupDatabaseCheckListener() {
-    // Add event listener to the check-setup button
-    addListener('check-setup', 'click', showDatabaseSetupModal);
+    // Disabled to prevent double login issues
+    // No setup check needed now that database is working
 }
 function addRecurringEntryActionListeners() { /* ... same ... */ }
 async function getDashboardDependencies() {
@@ -1624,7 +1624,7 @@ function editRateTemplate(id) { /* ... same ... */ }
 async function deleteRateTemplate(id) { /* ... same ... */ }
 
 // --- Data Management ---
-async function importData(e) { /* ... same ... */ }
+// Note: importData function is already declared above
 
 function applyFilters() {
     console.log("Applying filters...");
@@ -3559,19 +3559,10 @@ function exportReport() {
     showNotification(`Report printed. Use browser's "Save as PDF" option to save it.`, "success");
 }
 
-// --- Database Setup Check ---
+// --- Database Setup Check (Disabled) ---
 async function showDatabaseSetupModal() {
-    const setupResults = document.getElementById('setup-results');
-    setupResults.style.display = 'block';
-    setupResults.innerHTML = 'Running database setup checks...\n\n';
-    
-    try {
-        const result = await runSetupChecks();
-        setupResults.innerHTML += JSON.stringify(result, null, 2);
-    } catch (error) {
-        console.error('Error running setup checks:', error);
-        setupResults.innerHTML += 'Error: ' + error.message;
-    }
+    // Function disabled to prevent double login issues
+    console.log('Database setup check disabled - database is already set up properly');
 }
 
 // --- For debugging purposes ---
