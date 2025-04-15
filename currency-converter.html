@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeTracker Currency Converter</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .converter-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-box {
+            background-color: #f0f7ff;
+            border: 1px solid #cce5ff;
+            color: #004085;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .progress-container {
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress-bar-container {
+            background-color: #e9ecef;
+            border-radius: 4px;
+            height: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #0069d9;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .entry-amount-usd {
+            color: #28a745;
+        }
+        
+        .note {
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="converter-container">
+        <h1>TimeTracker Currency Converter</h1>
+        
+        <div class="info-box">
+            <p>This tool converts all your time entries from AUD to USD using historical exchange rates for each entry date. The conversions will be stored in your database and displayed in the TimeTracker interface.</p>
+        </div>
+        
+        <div class="api-key-container">
+            <label for="api-key">OpenAI API Key</label>
+            <input type="password" id="api-key" placeholder="Enter your OpenAI API key">
+            <p class="note">Your API key is only used for conversion requests and is never stored.</p>
+        </div>
+        
+        <div id="conversion-status" class="status"></div>
+        
+        <div id="progress-container" class="progress-container">
+            <h3>Conversion Progress</h3>
+            <div class="progress-bar-container">
+                <div id="conversion-progress" class="progress-bar"></div>
+            </div>
+            <div id="conversion-progress-text" class="progress-text">0 / 0 entries processed</div>
+        </div>
+        
+        <button id="convert-button">Convert All Entries</button>
+        <button id="view-button">View Time Entries</button>
+    </div>
+    
+    <!-- Include Supabase.js and our helper -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm" type="module"></script>
+    <script src="currency-helper.js" type="module"></script>
+    
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        
+        // Supabase configuration
+        const SUPABASE_URL = 'https://uhjwlnvnwjlroratyuto.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoandsbnZud2pscm9yYXR5dXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNDI0NjMsImV4cCI6MjA1NzkxODQ2M30.wxHaInP7oAWtCk5IAgrmqCpT4tqXPs7dxyWYUp0xIPY';
+        
+        // Initialize Supabase client
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Get DOM elements
+        const apiKeyInput = document.getElementById('api-key');
+        const convertButton = document.getElementById('convert-button');
+        const viewButton = document.getElementById('view-button');
+        const progressContainer = document.getElementById('progress-container');
+        
+        // Check authentication on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                
+                if (!data.session) {
+                    window.CurrencyHelper.updateConversionStatus(
+                        'You must be logged in to TimeTracker to use this tool. Please log in and try again.',
+                        'error'
+                    );
+                    convertButton.disabled = true;
+                    viewButton.disabled = true;
+                } else {
+                    window.CurrencyHelper.updateConversionStatus(
+                        `Logged in as ${data.session.user.email}. Ready to convert currency.`,
+                        'info'
+                    );
+                }
+            } catch (error) {
+                window.CurrencyHelper.updateConversionStatus(
+                    `Authentication error: ${error.message}`,
+                    'error'
+                );
+                convertButton.disabled = true;
+                viewButton.disabled = true;
+            }
+        });
+        
+        // Handle convert button click
+        convertButton.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                window.CurrencyHelper.updateConversionStatus(
+                    'Please enter your OpenAI API key to continue.',
+                    'error'
+                );
+                return;
+            }
+            
+            // Disable button during conversion
+            convertButton.disabled = true;
+            
+            // Show progress container
+            progressContainer.style.display = 'block';
+            
+            try {
+                // Start conversion
+                window.CurrencyHelper.updateConversionStatus(
+                    'Starting conversion process...',
+                    'info'
+                );
+                
+                const result = await window.CurrencyHelper.convertAllEntries(supabase, apiKey);
+                
+                if (result.success) {
+                    window.CurrencyHelper.updateConversionStatus(
+                        result.message,
+                        'success'
+                    );
+                } else {
+                    window.CurrencyHelper.updateConversionStatus(
+                        `Conversion failed: ${result.message}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                window.CurrencyHelper.updateConversionStatus(
+                    `Conversion error: ${error.message}`,
+                    'error'
+                );
+            } finally {
+                // Re-enable button
+                convertButton.disabled = false;
+            }
+        });
+        
+        // Handle view button click
+        viewButton.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
