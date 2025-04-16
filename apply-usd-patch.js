@@ -20,65 +20,83 @@ function applyUsdPatches() {
         const headerRow = document.querySelector('#time-entries-table thead tr');
         if (!headerRow) return;
         
-        // Check if USD header already exists
-        if (!headerRow.querySelector('th.usd-amount-header')) {
-            // Find Amount header
-            const amountHeader = headerRow.querySelector('th:nth-child(6)'); // Amount is usually the 6th column
-            if (amountHeader) {
-                // Add USD header after Amount
-                const usdHeader = document.createElement('th');
-                usdHeader.className = 'usd-amount-header';
-                usdHeader.textContent = 'Amount (USD)';
-                amountHeader.insertAdjacentElement('afterend', usdHeader);
-            }
+        // Remove any existing USD RATE and AMOUNT (USD) headers to prevent duplicates
+        headerRow.querySelectorAll('th.usd-rate-header, th.usd-amount-header').forEach(th => th.remove());
+        // Add USD RATE and AMOUNT (USD) headers after Amount column
+        const amountHeader = headerRow.querySelector('th:nth-child(6)');
+        if (amountHeader) {
+            // USD RATE header
+            const usdRateHeader = document.createElement('th');
+            usdRateHeader.className = 'usd-rate-header';
+            usdRateHeader.textContent = 'USD RATE';
+            amountHeader.insertAdjacentElement('afterend', usdRateHeader);
+            // AMOUNT (USD) header
+            const usdAmountHeader = document.createElement('th');
+            usdAmountHeader.className = 'usd-amount-header';
+            usdAmountHeader.textContent = 'AMOUNT (USD)';
+            usdRateHeader.insertAdjacentElement('afterend', usdAmountHeader);
         }
     }
 
-    // 2. Modify updateTimeEntriesTable function to show USD amounts
-    function patchUpdateTimeEntriesTable() {
-        // Keep reference to original function
-        const originalUpdateTimeEntriesTable = window.updateTimeEntriesTable;
-        
-        // Replace with patched version
-        window.updateTimeEntriesTable = function() {
-            // Call original function first
-            originalUpdateTimeEntriesTable.apply(this, arguments);
-            
-            // Now add USD amounts to the table
+    // 2. Patch updateTimeEntriesTableWithData to always apply USD headers/cells after each render
+    function patchUpdateTimeEntriesTableWithData() {
+        const originalFn = window.updateTimeEntriesTableWithData;
+        window.updateTimeEntriesTableWithData = function(entries) {
+            originalFn.apply(this, arguments);
+            // Patch header
+            updateTimeEntryTableHeader();
+            // Patch rows
             const entriesTable = document.getElementById('time-entries-table');
             if (!entriesTable) return;
-            
-            // Update header
-            updateTimeEntryTableHeader();
-            
-            // Update rows
             const rows = entriesTable.querySelectorAll('tbody tr');
             rows.forEach(row => {
                 const entryId = row.getAttribute('data-id');
                 if (!entryId) return;
-                
                 // Find entry in app state
                 const entry = window.appState.entries.find(e => e.id === entryId);
                 if (!entry) return;
-                
                 // Find amount cell
                 const amountCell = row.querySelector('td:nth-child(6)'); // Amount is usually the 6th column
                 if (!amountCell) return;
-                
-                // Check if USD cell already exists
-                let usdCell = row.querySelector('td.entry-amount-usd');
-                if (!usdCell) {
-                    // Create USD cell
-                    usdCell = document.createElement('td');
-                    usdCell.className = 'entry-amount-usd';
-                    amountCell.insertAdjacentElement('afterend', usdCell);
-                }
-                
-                // Update USD amount
-                if (entry.amountUsd !== null && entry.amountUsd !== undefined) {
-                    usdCell.textContent = formatCurrency(entry.amountUsd, 'USD');
+                // Remove existing USD cells to prevent duplicates
+                row.querySelectorAll('td.entry-usd-rate, td.entry-amount-usd').forEach(td => td.remove());
+                // USD RATE cell
+                const usdRateCell = document.createElement('td');
+                usdRateCell.className = 'entry-usd-rate';
+                // USD AMOUNT cell
+                const usdCell = document.createElement('td');
+                usdCell.className = 'entry-amount-usd';
+                // Insert after amountCell
+                amountCell.insertAdjacentElement('afterend', usdRateCell);
+                usdRateCell.insertAdjacentElement('afterend', usdCell);
+                // Update USD rate
+                if (entry.usdRate !== null && entry.usdRate !== undefined && !isNaN(entry.usdRate)) {
+                    usdRateCell.textContent = entry.usdRate.toFixed(6);
+                    usdRateCell.style.color = '';
+                    usdRateCell.style.fontStyle = '';
                 } else {
-                    usdCell.textContent = 'Not converted';
+                    usdRateCell.textContent = 'Rate not yet available (try again tomorrow)';
+                    usdRateCell.style.color = '#6c757d';
+                    usdRateCell.style.fontStyle = 'italic';
+                }
+                // Update USD amount
+                if (entry.amountUsd !== null && entry.amountUsd !== undefined && !isNaN(entry.amountUsd)) {
+                    usdCell.textContent = formatCurrency(entry.amountUsd, 'USD');
+                    usdCell.style.color = '';
+                    usdCell.style.fontStyle = '';
+                } else {
+                    usdCell.textContent = 'Rate not yet available (try again tomorrow)';
+                    usdCell.style.color = '#6c757d';
+                    usdCell.style.fontStyle = 'italic';
+                }
+                // Remove any Err text in these columns if present
+                if (usdRateCell.textContent === 'Err') {
+                    usdRateCell.textContent = 'Rate not yet available (try again tomorrow)';
+                    usdRateCell.style.color = '#6c757d';
+                    usdRateCell.style.fontStyle = 'italic';
+                }
+                if (usdCell.textContent === 'Err') {
+                    usdCell.textContent = 'Rate not yet available (try again tomorrow)';
                     usdCell.style.color = '#6c757d';
                     usdCell.style.fontStyle = 'italic';
                 }
@@ -111,13 +129,11 @@ function applyUsdPatches() {
     }
 
     // Apply all patches
-    patchUpdateTimeEntriesTable();
+    patchUpdateTimeEntriesTableWithData();
     addCurrencyConverterButton();
-    
     // Force update the table to show the changes
     if (window.updateTimeEntriesTable) {
         window.updateTimeEntriesTable();
     }
-    
     console.log('USD display patches applied successfully');
 }

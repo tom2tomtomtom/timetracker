@@ -679,6 +679,8 @@
                         <th>Hours</th>
                         <th>Rate</th>
                         <th>Amount</th>
+                        <th>USD RATE</th>
+                        <th>AMOUNT (USD)</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -903,8 +905,67 @@
                     <button id="generate-invoice" class="blue-btn">Generate Invoice</button>
                     <button id="view-invoice-entries">View Entries to be Included</button>
                 </div>
-            </div>
-            
+                <div class="filter-row" id="invoice-toggles-row" style="border:2px solid red;background:#fffbe6;">
+  <div style="color:#b00;font-weight:bold;margin-bottom:4px;">[DEBUG] Invoice Toggles Row Rendered</div>
+                    <div class="filter-group">
+                        <label class="toggle-label" for="invoice-currency-toggle">Invoice Currency:</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="invoice-currency-toggle">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label" id="currency-toggle-label">AUD</span>
+                        </label>
+                    </div>
+                    <div class="filter-group">
+                        <label class="toggle-label" for="invoice-invoiced-toggle">Invoiced:</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="invoice-invoiced-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="filter-group">
+                        <label class="toggle-label" for="invoice-paid-toggle">Paid:</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="invoice-paid-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+<script>
+  // DEBUG: Check if toggles are present and visible
+  window.addEventListener('DOMContentLoaded', function() {
+    const row = document.getElementById('invoice-toggles-row');
+    if (row) {
+      const style = window.getComputedStyle(row);
+      console.log('[DEBUG] invoice-toggles-row found. Display:', style.display, 'Visibility:', style.visibility, 'Opacity:', style.opacity);
+    } else {
+      console.log('[DEBUG] invoice-toggles-row NOT found');
+    }
+  });
+  // Invoice Currency Toggle
+  const currencyToggle = document.getElementById('invoice-currency-toggle');
+  const currencyLabel = document.getElementById('currency-toggle-label');
+  if (currencyToggle && currencyLabel) {
+    currencyToggle.addEventListener('change', () => {
+      currencyLabel.textContent = currencyToggle.checked ? 'USD' : 'AUD';
+      // TODO: Trigger invoice recalculation and UI update here
+    });
+  }
+  // Invoice Status Toggles (prepare for persistence logic)
+  const invoicedToggle = document.getElementById('invoice-invoiced-toggle');
+  const paidToggle = document.getElementById('invoice-paid-toggle');
+  if (invoicedToggle) {
+    invoicedToggle.addEventListener('change', (e) => {
+      // TODO: Persist 'invoiced' status to Supabase
+      console.log('Invoiced status:', e.target.checked);
+    });
+  }
+  if (paidToggle) {
+    paidToggle.addEventListener('change', (e) => {
+      // TODO: Persist 'paid' status to Supabase
+      console.log('Paid status:', e.target.checked);
+    });
+  }
+</script>
             <div id="invoice-entries-preview" style="display: none; margin-top: 20px;">
                 <h3>Entries to be Included</h3>
                 <table id="invoice-entries-table">
@@ -1867,6 +1928,7 @@
                 }
             });
         }
-    </script>
+    </div>
+    <script type="module" src="./invoice-toggles.js"></script>
 </body>
 </html>

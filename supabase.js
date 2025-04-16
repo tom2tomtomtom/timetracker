@@ -4,8 +4,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // === Configuration ===
 // IMPORTANT: Replace with your actual Supabase URL and Anon Key
-const SUPABASE_URL = 'https://uhjwlnvnwjlroratyuto.supabase.co'; // Replace with your URL if different
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoandsbnZud2pscm9yYXR5dXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNDI0NjMsImV4cCI6MjA1NzkxODQ2M30.wxHaInP7oAWtCk5IAgrmqCpT4tqXPs7dxyWYUp0xIPY'; // Replace with your Anon Key if different
+const SUPABASE_URL = "https://uhjwlnvnwjlroratyuto.supabase.co";'https://uhjwlnvnwjlroratyuto.supabase.co'; // Replace with your URL if different
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoandsbnZud2pscm9yYXR5dXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNDI0NjMsImV4cCI6MjA1NzkxODQ2M30.wxHaInP7oAWtCk5IAgrmqCpT4tqXPs7dxyWYUp0xIPY";'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoandsbnZud2pscm9yYXR5dXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNDI0NjMsImV4cCI6MjA1NzkxODQ2M30.wxHaInP7oAWtCk5IAgrmqCpT4tqXPs7dxyWYUp0xIPY'; // Replace with your Anon Key if different
 
 // === Initialize Client ===
 // Added schema option for auth, might be needed depending on setup
@@ -42,12 +42,20 @@ function mapToSnakeCase(obj) {
 // === API Functions ===
 
 // --- Time Entries ---
-export async function getTimeEntries() {
-    console.log("Fetching time entries...");
-    const { data, error } = await supabase.from('time_entries').select('*').order('date', { ascending: false });
+export async function getTimeEntries(userId) {
+    console.log("Fetching time entries for user:", userId);
+    const { data, error } = await supabase
+        .from('time_entries')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
     if (error) { console.error('Error fetching time entries:', error); throw new Error(`Supabase error: ${error.message}`); }
-    console.log(`Workspaceed ${data?.length ?? 0} time entries.`);
-    return mapToCamelCase(data || []).map(entry => ({ ...entry, hours: Number(entry.hours || 0), rate: Number(entry.rate || 0), amount: Number(entry.amount || 0) }));
+    return mapToCamelCase(data || []).map(entry => ({
+        ...entry,
+        hours: Number(entry.hours || 0),
+        rate: Number(entry.rate || 0),
+        amount: Number(entry.amount || 0)
+    }));
 }
 export async function addTimeEntry(entryDataCamel) {
     console.log('Adding time entry (camelCase):', entryDataCamel);

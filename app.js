@@ -316,7 +316,7 @@ async function loadUserData() {
             recurringEntriesData,
             invoicesData
         ] = await Promise.all([
-            SupabaseAPI.getTimeEntries(),
+            SupabaseAPI.getTimeEntries(appState.user.id),
             SupabaseAPI.getExpenses(),
             SupabaseAPI.getRates(),
             SupabaseAPI.getSettings(appState.user.id),
@@ -892,7 +892,7 @@ function exportCSV() {
     console.log("Exporting CSV...");
     try {
         // Prepare entries data
-        const headers = ['Date', 'Description', 'Client', 'Project', 'Hours', 'Rate', 'Amount'];
+        const headers = ['Date', 'Description', 'Client', 'Project', 'Hours', 'Rate', 'Amount', 'USD RATE', 'AMOUNT (USD)'];
         
         // Apply current filters to get filtered entries
         const { startDate, endDate } = getDateRangeFromOption(
@@ -934,12 +934,14 @@ function exportCSV() {
         filteredEntries.forEach(entry => {
             const row = [
                 entry.date,
-                `"${(entry.description || '').replace(/"/g, '""')}"`, // Escape quotes
-                `"${(entry.client || '').replace(/"/g, '""')}"`,
-                `"${(entry.project || '').replace(/"/g, '""')}"`,
+                "\"" + (entry.description || '').replace(/"/g, '""') + "\"", // Escape quotes
+                "\"" + (entry.client || '').replace(/"/g, '""') + "\"",
+                "\"" + (entry.project || '').replace(/"/g, '""') + "\"",
                 entry.hours,
                 entry.rate,
-                entry.amount
+                entry.amount,
+                (Number.isFinite(Number(entry.exchangeRateUsd)) ? Number(entry.exchangeRateUsd).toFixed(6) : ''),
+                (Number.isFinite(Number(entry.amountUsd)) ? ('$' + Number(entry.amountUsd).toFixed(2)) : '')
             ];
             csvContent += row.join(',') + '\n';
         });
@@ -1686,6 +1688,27 @@ function applyFilters() {
 }
 
 function updateTimeEntriesTableWithData(entries) {
+    // Ensure dynamic table header matches the row columns
+    const table = document.getElementById('entries-table');
+    if (table) {
+      const thead = table.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = `
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Client</th>
+            <th>Project</th>
+            <th>Hours</th>
+            <th>Rate</th>
+            <th>Amount</th>
+            <th>USD RATE</th>
+            <th>AMOUNT (USD)</th>
+            <th>Actions</th>
+          </tr>
+        `;
+      }
+    }
     const tableBody = document.getElementById('entries-body');
     if (!tableBody) return;
     
@@ -1709,9 +1732,37 @@ function updateTimeEntriesTableWithData(entries) {
             <td>${entry.hours.toFixed(2)}</td>
             <td>${formatCurrency(entry.rate)}</td>
             <td>${formatCurrency(entry.amount)}</td>
+            <td class="exchange-rate-cell">${
+                entry.exchangeRateUsd === null || entry.exchangeRateUsd === undefined || entry.exchangeRateUsd === ''
+                  ? '<span style="color:#888">Rate not yet available (try again tomorrow)</span>'
+                  : Number.isFinite(Number(entry.exchangeRateUsd))
+                    ? Number(entry.exchangeRateUsd).toFixed(6)
+                    : '<span style="color:#888">Rate not yet available (try again tomorrow)</span>'
+            }</td>
+            <td class="usd-amount-cell">${
+                entry.amountUsd === null || entry.amountUsd === undefined || entry.amountUsd === ''
+                  ? '<span style="color:#888">Amount not yet available</span>'
+                  : Number.isFinite(Number(entry.amountUsd))
+                    ? ('$' + Number(entry.amountUsd).toFixed(2))
+                    : '<span style="color:#888">Amount not yet available</span>'
+            }</td>
             <td>
-                <button class="edit-btn blue-btn" data-id="${entry.id}" style="margin-right: 5px; padding: 5px 10px;">Edit</button>
-                <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px;">Delete</button>
+                <label class="toggle-switch" title="Mark as Invoiced">
+                  <input type="checkbox" class="invoiced-toggle" data-id="${entry.id}" ${entry.invoiced ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size: 0.85em; color: #444; margin-left: 6px;">Invoiced</span>
+            </td>
+            <td>
+                <label class="toggle-switch" title="Mark as Paid">
+                  <input type="checkbox" class="paid-toggle" data-id="${entry.id}" ${entry.paid ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size: 0.85em; color: #444; margin-left: 6px;">Paid</span>
+            </td>
+            <td>
+                <button class="edit-btn blue-btn" data-id="${entry.id}" aria-label="Edit Entry" title="Edit" style="margin-right: 5px; padding: 5px 10px;">✏️</button>
+                <button class="delete-btn" data-id="${entry.id}" aria-label="Delete Entry" title="Delete" style="padding: 5px 10px;">🗑️</button>
             </td>
         `;
         
@@ -1726,6 +1777,134 @@ function updateTimeEntriesTableWithData(entries) {
     document.querySelectorAll('.edit-btn').forEach(button => {
         button.addEventListener('click', () => editTimeEntry(button.getAttribute('data-id')));
     });
+
+    // Add invoiced toggle listeners
+    document.querySelectorAll('.invoiced-toggle').forEach(toggle => {
+        toggle.addEventListener('change', async (e) => {
+            const entryId = toggle.getAttribute('data-id');
+            const checked = toggle.checked;
+            try {
+                await SupabaseAPI.updateTimeEntry(entryId, { invoiced: checked });
+                // Update appState
+                const entry = appState.entries.find(ent => ent.id == entryId);
+                if (entry) entry.invoiced = checked;
+                showNotification(`Entry marked as ${checked ? 'Invoiced' : 'Not Invoiced'}`, 'success');
+            } catch (err) {
+                showNotification('Failed to update invoiced status', 'error');
+                toggle.checked = !checked; // revert
+            }
+        });
+    });
+    // Add paid toggle listeners
+    document.querySelectorAll('.paid-toggle').forEach(toggle => {
+        toggle.addEventListener('change', async (e) => {
+            const entryId = toggle.getAttribute('data-id');
+            const checked = toggle.checked;
+            try {
+                await SupabaseAPI.updateTimeEntry(entryId, { paid: checked });
+                // Update appState
+                const entry = appState.entries.find(ent => ent.id == entryId);
+                if (entry) entry.paid = checked;
+                showNotification(`Entry marked as ${checked ? 'Paid' : 'Not Paid'}`, 'success');
+            } catch (err) {
+                showNotification('Failed to update paid status', 'error');
+                toggle.checked = !checked; // revert
+            }
+        });
+    });
+
+    // --- Exchange Rate & USD Amount Handling ---
+    async function refreshAllExchangeRates() {
+      const { fetchAudUsdRate } = await import('./exchange.js');
+      const rows = tableBody.querySelectorAll('tr');
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const row = rows[i];
+        const rateCell = row.querySelector('.exchange-rate-cell');
+        const usdCell = row.querySelector('.usd-amount-cell');
+        try {
+          rateCell.textContent = '...';
+          usdCell.textContent = '...';
+          // Ensure date is in YYYY-MM-DD format
+          const rawDate = entry.date;
+          const dateStr = new Date(rawDate).toISOString().split('T')[0];
+          console.log(`[EXCHANGE][REFRESH] Entry ID: ${entry.id}, Raw Date: ${rawDate}, Formatted Date: ${dateStr}, Calling fetchAudUsdRate(${dateStr})`);
+          const rate = await fetchAudUsdRate(dateStr);
+          console.log(`[EXCHANGE][REFRESH] Fetched rate for ${dateStr}:`, rate);
+          if (!rate || !Number.isFinite(rate)) throw new Error('No rate or not a number');
+          if (!Number.isFinite(entry.amount)) throw new Error('Entry amount is not a number');
+          const usdAmount = entry.amount * rate;
+          console.log(`[EXCHANGE][REFRESH] Calculated USD for entry ${entry.id}:`, usdAmount);
+          rateCell.textContent = rate.toFixed(6);
+          usdCell.textContent = '$' + usdAmount.toFixed(2);
+          // Persist to Supabase and appState
+          await SupabaseAPI.updateTimeEntry(entry.id, { exchange_rate_usd: rate, amount_usd: usdAmount });
+          console.log(`[EXCHANGE][REFRESH] Saved to Supabase for entry ${entry.id}`);
+          entry.exchangeRateUsd = rate;
+          entry.amountUsd = usdAmount;
+        } catch (err) {
+          console.error(`[EXCHANGE][REFRESH][ERROR] Entry ID: ${entry.id}, Date: ${entry.date}`, err);
+          rateCell.textContent = 'Err';
+          usdCell.textContent = 'Err';
+        }
+      }
+      showNotification('All exchange rates and USD amounts refreshed.');
+    }
+
+    // Add refresh button above the Time Log table if not present
+    let refreshBtn = document.getElementById('refresh-exchange-btn');
+    if (!refreshBtn) {
+      refreshBtn = document.createElement('button');
+      refreshBtn.id = 'refresh-exchange-btn';
+      refreshBtn.textContent = 'Refresh All Exchange Rates';
+      refreshBtn.style = 'margin-bottom: 10px; padding: 6px 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 1em; cursor: pointer;';
+      const table = document.getElementById('entries-table');
+      if (table && table.parentNode) {
+        table.parentNode.insertBefore(refreshBtn, table);
+      }
+    }
+    refreshBtn.onclick = async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+      await refreshAllExchangeRates();
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = 'Refresh All Exchange Rates';
+    };
+
+    (async () => {
+      const { fetchAudUsdRate } = await import('./exchange.js');
+      const rows = tableBody.querySelectorAll('tr');
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        if (Number.isFinite(Number(entry.exchangeRateUsd)) && Number.isFinite(Number(entry.amountUsd))) continue;
+        const row = rows[i];
+        const rateCell = row.querySelector('.exchange-rate-cell');
+        const usdCell = row.querySelector('.usd-amount-cell');
+        try {
+          rateCell.textContent = '...';
+          usdCell.textContent = '...';
+          const dateStr = entry.date;
+          console.log(`[EXCHANGE] Entry ID: ${entry.id}, Date: ${dateStr}, Calling fetchAudUsdRate(${dateStr})`);
+          const rate = await fetchAudUsdRate(dateStr);
+          console.log(`[EXCHANGE] Fetched rate for ${dateStr}:`, rate);
+          if (!rate || !Number.isFinite(rate)) throw new Error('No rate or not a number');
+          if (!Number.isFinite(entry.amount)) throw new Error('Entry amount is not a number');
+          const usdAmount = entry.amount * rate;
+          console.log(`[EXCHANGE] Calculated USD for entry ${entry.id}:`, usdAmount);
+          rateCell.textContent = rate.toFixed(6);
+          usdCell.textContent = '$' + usdAmount.toFixed(2);
+          // Persist to Supabase and appState
+          await SupabaseAPI.updateTimeEntry(entry.id, { exchange_rate_usd: rate, amount_usd: usdAmount });
+          console.log(`[EXCHANGE] Saved to Supabase for entry ${entry.id}`);
+          entry.exchangeRateUsd = rate;
+          entry.amountUsd = usdAmount;
+        } catch (err) {
+          console.error(`[EXCHANGE][ERROR] Entry ID: ${entry.id}, Date: ${entry.date}`, err);
+          rateCell.textContent = 'Err';
+          usdCell.textContent = 'Err';
+        }
+      }
+    })();
 }
 
 function clearFilters() {
@@ -1762,6 +1941,7 @@ function loadFormDataIntoForm(formData) { /* ... same ... */ }
 async function clearSavedFormData() { /* ... same ... */ }
 function showAutoSaveIndicator() { /* ... same ... */ }
 
+import { updateEntryUsdFields } from './entry-usd-helper.js';
 // --- Time Entry CRUD ---
 async function addTimeEntry() {
     console.log("Adding time entry...");
@@ -1814,7 +1994,13 @@ async function addTimeEntry() {
             
             // Add to local state
             appState.entries.push(newEntry);
-            
+
+            // Sort entries by date descending (most recent first)
+            appState.entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Fetch and update USD rate/amount in the background
+            updateEntryUsdFields(newEntry);
+
             // Update UI
             updateTimeEntriesTable();
             updateSummary();
@@ -3163,6 +3349,8 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                         <th>Hours</th>
                         <th>Rate</th>
                         <th>Amount</th>
+                        <th>USD RATE</th>
+                        <th>AMOUNT (USD)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3185,6 +3373,8 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                     <td>${entry.hours.toFixed(2)}</td>
                     <td>${formatCurrency(entry.rate)}</td>
                     <td>${formatCurrency(entry.amount)}</td>
+                    <td>${(entry.usdRate !== null && entry.usdRate !== undefined && entry.usdRate !== 0 && !isNaN(entry.usdRate)) ? entry.usdRate.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    <td>${(entry.amountUsd !== null && entry.amountUsd !== undefined && entry.amountUsd !== 0 && !isNaN(entry.amountUsd)) ? ('$' + entry.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                 </tr>
             `;
         });
