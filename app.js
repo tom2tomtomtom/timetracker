@@ -2541,6 +2541,20 @@ function populateInvoiceEntriesTable(entries) {
             <td>${entry.hours.toFixed(2)}</td>
             <td>${formatCurrency(entry.rate)}</td>
             <td>${formatCurrency(entry.amount)}</td>
+            <td class="exchange-rate-cell">${
+                entry.exchangeRateUsd === null || entry.exchangeRateUsd === undefined || entry.exchangeRateUsd === ''
+                  ? '<span style="color:#888">Rate not yet available (try again tomorrow)</span>'
+                  : Number.isFinite(Number(entry.exchangeRateUsd))
+                    ? Number(entry.exchangeRateUsd).toFixed(6)
+                    : '<span style="color:#888">Rate not yet available (try again tomorrow)</span>'
+            }</td>
+            <td class="usd-amount-cell">${
+                entry.amountUsd === null || entry.amountUsd === undefined || entry.amountUsd === ''
+                  ? '<span style="color:#888">Amount not yet available</span>'
+                  : Number.isFinite(Number(entry.amountUsd))
+                    ? ('$' + Number(entry.amountUsd).toFixed(2))
+                    : '<span style="color:#888">Amount not yet available</span>'
+            }</td>
             <td><input type="checkbox" class="include-entry" data-id="${entry.id}" checked></td>
         `;
         
@@ -2696,6 +2710,28 @@ function generateInvoicePreview() {
         }
     };
     
+    // Attach USD rates and amounts (DB rates fallback to manual input rate)
+    const currency = document.getElementById('invoice-currency-select').value;
+    const rateInput = document.getElementById('usd-exchange-rate');
+    const manualRate = rateInput ? parseFloat(rateInput.value) : 1;
+    if (currency === 'USD') {
+        invoiceData.entries = invoiceData.entries.map(entry => {
+            const usdRateVal = entry.exchangeRateUsd != null && !isNaN(entry.exchangeRateUsd)
+                ? entry.exchangeRateUsd
+                : manualRate;
+            return { ...entry, exchangeRateUsd: usdRateVal, amountUsd: entry.amount * usdRateVal };
+        });
+        invoiceData.expenses = invoiceData.expenses.map(exp => {
+            const usdRateVal = exp.exchangeRateUsd != null && !isNaN(exp.exchangeRateUsd)
+                ? exp.exchangeRateUsd
+                : manualRate;
+            return { ...exp, amountUsd: exp.amount * usdRateVal };
+        });
+    } else {
+        invoiceData.entries = invoiceData.entries.map(entry => ({ ...entry, exchangeRateUsd: null, amountUsd: null }));
+        invoiceData.expenses = invoiceData.expenses.map(exp => ({ ...exp, amountUsd: null }));
+    }
+    
     // Save to app state
     appState.currentlyGeneratedInvoice = invoiceData;
     
@@ -2756,6 +2792,8 @@ function generateInvoiceHtml(invoiceData) {
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Hours</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rate</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">USD RATE</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount (USD)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2768,11 +2806,13 @@ function generateInvoiceHtml(invoiceData) {
             const entryDate = formatDate(entry.date);
             invoiceHtml += `
                 <tr>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${entryDate}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${escapeHtml(entry.description)}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${entry.hours.toFixed(2)}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${formatCurrency(entry.rate)}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${formatCurrency(entry.amount)}</td>
+                    <td>${entryDate}</td>
+                    <td>${escapeHtml(entry.description)}</td>
+                    <td>${entry.hours.toFixed(2)}</td>
+                    <td>${formatCurrency(entry.rate)}</td>
+                    <td>${formatCurrency(entry.amount)}</td>
+                    <td>${(entry.exchangeRateUsd !== null && entry.exchangeRateUsd !== undefined && entry.exchangeRateUsd !== 0 && !isNaN(entry.exchangeRateUsd)) ? entry.exchangeRateUsd.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    <td>${(entry.amountUsd !== null && entry.amountUsd !== undefined && entry.amountUsd !== 0 && !isNaN(entry.amountUsd)) ? ('$' + entry.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                 </tr>
             `;
         });
@@ -2801,6 +2841,7 @@ function generateInvoiceHtml(invoiceData) {
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Description</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount (USD)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2813,9 +2854,10 @@ function generateInvoiceHtml(invoiceData) {
             const expenseDate = formatDate(expense.date);
             invoiceHtml += `
                 <tr>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${expenseDate}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${escapeHtml(expense.description)}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${formatCurrency(expense.amount)}</td>
+                    <td>${expenseDate}</td>
+                    <td>${escapeHtml(expense.description)}</td>
+                    <td>${formatCurrency(expense.amount)}</td>
+                    <td>${(expense.amountUsd !== null && expense.amountUsd !== undefined && expense.amountUsd !== 0 && !isNaN(expense.amountUsd)) ? ('$' + expense.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                 </tr>
             `;
         });
@@ -3252,9 +3294,9 @@ function generateReport() {
 
 function generateSummaryReport(entries, expenses, startDate, endDate) {
     // Calculate summary metrics
-    const totalHours = entries.reduce((sum, entry) => sum + Number(entry.hours), 0);
-    const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.amount), 0);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const totalHours = entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+    const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const netIncome = totalRevenue - totalExpenses;
     
     // Get unique clients and projects
@@ -3360,20 +3402,20 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
         let totalAmount = 0;
         
         sortedEntries.forEach(entry => {
-            const formattedDate = formatDate(entry.date);
+            const entryDate = formatDate(entry.date);
             totalHours += Number(entry.hours);
             totalAmount += Number(entry.amount);
             
             html += `
                 <tr>
-                    <td>${formattedDate}</td>
+                    <td>${entryDate}</td>
                     <td>${escapeHtml(entry.description)}</td>
                     <td>${escapeHtml(entry.client || '')}</td>
                     <td>${escapeHtml(entry.project || '')}</td>
                     <td>${entry.hours.toFixed(2)}</td>
                     <td>${formatCurrency(entry.rate)}</td>
                     <td>${formatCurrency(entry.amount)}</td>
-                    <td>${(entry.usdRate !== null && entry.usdRate !== undefined && entry.usdRate !== 0 && !isNaN(entry.usdRate)) ? entry.usdRate.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    <td>${(entry.exchangeRateUsd !== null && entry.exchangeRateUsd !== undefined && entry.exchangeRateUsd !== 0 && !isNaN(entry.exchangeRateUsd)) ? entry.exchangeRateUsd.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                     <td>${(entry.amountUsd !== null && entry.amountUsd !== undefined && entry.amountUsd !== 0 && !isNaN(entry.amountUsd)) ? ('$' + entry.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                 </tr>
             `;
@@ -3383,7 +3425,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="4" style="text-align: right;"><strong>Total:</strong></td>
+                        <td colspan="2" style="border: 1px solid #ddd; padding: 8px;"></td>
                         <td><strong>${totalHours.toFixed(2)}</strong></td>
                         <td></td>
                         <td><strong>${formatCurrency(totalAmount)}</strong></td>
@@ -3688,6 +3730,7 @@ function generateExpenseReport(expenses, startDate, endDate) {
                         <th>Client</th>
                         <th>Project</th>
                         <th>Amount</th>
+                        <th>Amount (USD)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3706,6 +3749,7 @@ function generateExpenseReport(expenses, startDate, endDate) {
                     <td>${escapeHtml(expense.client || '')}</td>
                     <td>${escapeHtml(expense.project || '')}</td>
                     <td>${formatCurrency(expense.amount)}</td>
+                    <td>${(expense.amountUsd !== null && expense.amountUsd !== undefined && expense.amountUsd !== 0 && !isNaN(expense.amountUsd)) ? ('$' + expense.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                 </tr>
             `;
         });
@@ -3763,12 +3807,10 @@ function debugButtons() {
     const exportDataBtn = document.getElementById('export-data');
     const importDataBtn = document.getElementById('import-data');
     const exportCsvBtn = document.getElementById('export-csv');
-    const fileInput = document.getElementById('file-input');
     
     console.log("Export Data button:", exportDataBtn);
     console.log("Import Data button:", importDataBtn);
     console.log("Export CSV button:", exportCsvBtn);
-    console.log("File input:", fileInput);
     
     // Log listeners attached to buttons
     console.log("Adding direct event listeners for debugging");

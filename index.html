@@ -109,6 +109,20 @@
             </div>
             <div class="filter-row">
                 <div class="filter-group">
+                    <label for="invoice-currency-select">Currency:</label>
+                    <select id="invoice-currency-select">
+                        <option value="AUD" selected>AUD</option>
+                        <option value="USD">USD</option>
+                    </select>
+                </div>
+                <div class="filter-group" id="usd-exchange-rate-group" style="display:none;">
+                    <label for="usd-exchange-rate">1 AUD =</label>
+                    <input type="number" id="usd-exchange-rate" step="0.0001" min="0.0001" value="0.65">
+                    <span>USD</span>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
                     <label for="invoice-date-range">Date Range:</label>
                     <select id="invoice-date-range">
                         <option value="this-month">This Month</option>
@@ -174,6 +188,8 @@
                         <th>Rate</th>
                         <th>Amount</th>
                         <th>Include</th>
+                        <th class="usd-rate-header" style="display:none;">USD Rate</th>
+                        <th class="usd-amount-header" style="display:none;">Amount (USD)</th>
                     </tr>
                 </thead>
                 <tbody id="invoice-entries-body"></tbody>
@@ -186,6 +202,7 @@
                         <th>Description</th>
                         <th>Amount</th>
                         <th>Include</th>
+                        <th class="usd-amount-expense-header" style="display:none;">Amount (USD)</th>
                     </tr>
                 </thead>
                 <tbody id="invoice-expenses-body"></tbody>
@@ -195,6 +212,8 @@
                 <p><strong>Total Hours Amount:</strong> $<span id="invoice-total-amount">0.00</span></p>
                 <p><strong>Total Expenses:</strong> $<span id="invoice-total-expenses">0.00</span></p>
                 <p><strong>Grand Total:</strong> $<span id="invoice-grand-total">0.00</span></p>
+                <p class="usd-summary" style="display:none;"><strong>Exchange Rate:</strong> <span id="invoice-usd-rate">0.00</span></p>
+                <p class="usd-summary" style="display:none;"><strong>Grand Total (USD):</strong> <span id="invoice-grand-total-usd">0.00</span></p>
             </div>
         </div>
         <div class="filter-row" style="margin-top: 20px;">

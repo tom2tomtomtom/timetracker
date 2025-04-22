@@ -54,7 +54,9 @@ export async function getTimeEntries(userId) {
         ...entry,
         hours: Number(entry.hours || 0),
         rate: Number(entry.rate || 0),
-        amount: Number(entry.amount || 0)
+        amount: Number(entry.amount || 0),
+        exchangeRateUsd: entry.exchangeRateUsd != null ? Number(entry.exchangeRateUsd) : null,
+        amountUsd: entry.amountUsd != null ? Number(entry.amountUsd) : null
     }));
 }
 export async function addTimeEntry(entryDataCamel) {

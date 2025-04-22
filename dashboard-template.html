@@ -1,0 +1,48 @@
+<!-- Dashboard Tab Content Template: Restored for dashboard.js compatibility -->
+<div class="dashboard-header">
+  <h2>Dashboard</h2>
+  <button id="refresh-dashboard" title="Refresh Dashboard">🔄 Refresh</button>
+</div>
+<div class="dashboard-filters">
+  <label for="dash-date-range">Date Range:</label>
+  <select id="dash-date-range">
+    <option value="this-week">This Week</option>
+    <option value="last-week">Last Week</option>
+    <option value="this-month">This Month</option>
+    <option value="last-month">Last Month</option>
+    <option value="custom">Custom Range</option>
+  </select>
+  <input type="date" id="dash-date-from" style="display:none;">
+  <input type="date" id="dash-date-to" style="display:none;">
+  <label for="dash-client">Client:</label>
+  <select id="dash-client"><option value="all">All Clients</option></select>
+  <label for="dash-project">Project:</label>
+  <select id="dash-project"><option value="all">All Projects</option></select>
+</div>
+<div class="dashboard-stats">
+  <div class="stat">
+    <div class="stat-label">Total Hours</div>
+    <div class="stat-value" id="dash-total-hours">0</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Total Revenue</div>
+    <div class="stat-value" id="dash-total-revenue">$0.00</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Entries</div>
+    <div class="stat-value" id="dash-total-entries">0</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Expenses</div>
+    <div class="stat-value" id="dash-total-expenses">$0.00</div>
+  </div>
+</div>
+<div class="dashboard-charts">
+  <canvas id="dash-hours-chart"></canvas>
+  <canvas id="dash-revenue-chart"></canvas>
+  <canvas id="dash-client-chart"></canvas>
+  <canvas id="dash-project-chart"></canvas>
+  <canvas id="dash-weekday-chart"></canvas>
+  <canvas id="dash-monthly-chart"></canvas>
+</div>
+<!-- Add more dashboard widgets as needed -->
