@@ -88,7 +88,140 @@
             </div>    <div id="dashboard-tab" class="tab-content" style="display: none;"></div>
     </div>
 
-            <div id="invoice-tab" class="tab-content" style="display: none;"></div>
+            <div id="invoice-tab" class="tab-content" style="display: none;">
+    <div class="invoice-generator">
+        <h2>Invoice Generator</h2>
+        <div class="filter-section">
+            <h3>Invoice Details</h3>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="invoice-client">Client:</label>
+                    <select id="invoice-client">
+                        <option value="">Select Client</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="invoice-project">Project (Optional):</label>
+                    <select id="invoice-project">
+                        <option value="all">All Projects</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="invoice-date-range">Date Range:</label>
+                    <select id="invoice-date-range">
+                        <option value="this-month">This Month</option>
+                        <option value="last-month">Last Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="filter-group" id="invoice-custom-date-range" style="display: none;">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <label for="invoice-date-from">From:</label>
+                            <input type="date" id="invoice-date-from">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="invoice-date-to">To:</label>
+                            <input type="date" id="invoice-date-to">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="include-expenses">Include Expenses:</label>
+                    <select id="include-expenses">
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="invoice-number">Invoice Number:</label>
+                    <input type="text" id="invoice-number" placeholder="Invoice #">
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="invoice-date">Invoice Date:</label>
+                    <input type="date" id="invoice-date">
+                </div>
+                <div class="filter-group">
+                    <label for="payment-terms">Payment Terms:</label>
+                    <input type="text" id="payment-terms" placeholder="e.g., Net 30" value="Net 30">
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="invoice-notes">Notes/Additional Information:</label>
+                    <textarea id="invoice-notes" rows="3" placeholder="Any additional notes or payment instructions"></textarea>
+                </div>
+            </div>
+            <div class="filter-row">
+                <button id="generate-invoice" class="blue-btn">Generate Invoice</button>
+                <button id="view-invoice-entries">View Entries to be Included</button>
+            </div>
+        </div>
+        <div id="invoice-entries-preview" style="display: none; margin-top: 20px;">
+            <h3>Entries to be Included</h3>
+            <table id="invoice-entries-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Hours</th>
+                        <th>Rate</th>
+                        <th>Amount</th>
+                        <th>Include</th>
+                    </tr>
+                </thead>
+                <tbody id="invoice-entries-body"></tbody>
+            </table>
+            <h3>Expenses to be Included</h3>
+            <table id="invoice-expenses-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Include</th>
+                    </tr>
+                </thead>
+                <tbody id="invoice-expenses-body"></tbody>
+            </table>
+            <div class="summary">
+                <p><strong>Total Hours:</strong> <span id="invoice-total-hours">0</span></p>
+                <p><strong>Total Hours Amount:</strong> $<span id="invoice-total-amount">0.00</span></p>
+                <p><strong>Total Expenses:</strong> $<span id="invoice-total-expenses">0.00</span></p>
+                <p><strong>Grand Total:</strong> $<span id="invoice-grand-total">0.00</span></p>
+            </div>
+        </div>
+        <div class="filter-row" style="margin-top: 20px;">
+            <button id="print-invoice" style="display: none;">Print Invoice</button>
+            <button id="save-invoice-pdf" class="blue-btn" style="display: none;">Save Invoice as PDF</button>
+            <button id="export-invoice-excel" class="blue-btn" style="display: none;">Export to Excel</button>
+            <button id="mark-as-paid" class="blue-btn" style="display: none;">Mark as Paid</button>
+        </div>
+        <div id="invoice-preview" class="invoice" style="display: none;"></div>
+        <div class="invoice-history" style="margin-top: 30px; display: none;">
+            <h3>Invoice History</h3>
+            <table id="invoice-history-table">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="invoice-history-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
             <div id="reports-tab" class="tab-content" style="display: none;"></div>
 
