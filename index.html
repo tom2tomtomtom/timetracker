@@ -85,13 +85,7 @@
   <section class="expense-section"><h2 style="display:none;">Expenses</h2><div class="filter-row"><div class="filter-group"><label for="expense-date">Date:</label><input type="date" id="expense-date" required></div><div class="filter-group"><label for="expense-description">Description:</label><input type="text" id="expense-description" required></div></div><div class="filter-row"><div class="filter-group"><label for="expense-amount">Amount ($):</label><input type="number" id="expense-amount" step="0.01" min="0.01" required></div><div class="filter-group"><label for="expense-client">Client:</label><input type="text" id="expense-client" list="clients-list-expense"><datalist id="clients-list-expense"></datalist></div><div class="filter-group"><label for="expense-project">Project:</label><input type="text" id="expense-project" list="projects-list-expense"><datalist id="projects-list-expense"></datalist></div></div><div class="filter-row"><div class="filter-group"><label for="expense-receipt">Receipt (opt.):</label><input type="file" id="expense-receipt" accept="image/*,.pdf"></div><div class="filter-group" style="align-self: flex-end;"><button id="add-expense" class="blue-btn">Add Expense</button></div></div><div style="margin-top: 20px;"><h3>Expenses List</h3><table id="expenses-table"><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Client</th><th>Project</th><th>Actions</th></tr></thead><tbody id="expenses-body"></tbody></table><div class="summary"><p><strong>Total Expenses:</strong> <span id="total-expenses">$0.00</span></p></div></div></section>
 </div>
                 <section class="time-log"><h2>Time Log</h2><table id="entries-table"><thead><tr><th>Date</th><th>Description</th><th>Client</th><th>Project</th><th>Hours</th><th>Rate</th><th>Amount</th><th>Actions</th></tr></thead><tbody id="entries-body"></tbody></table><div class="summary"><p><strong>Filtered Hours:</strong> <span id="filtered-hours">0</span></p><p><strong>Filtered Amount:</strong> <span id="filtered-amount">$0.00</span></p><p><strong>Total Hours:</strong> <span id="total-hours">0</span></p><p><strong>Total Amount:</strong> <span id="total-amount">$0.00</span></p></div></section>
-            </div>    <div id="dashboard-tab" class="tab-content" style="display: none;">
-      <div class="collapsible-header" style="cursor:pointer;font-weight:bold;margin-top:20px;">
-        ▼ Dashboard Panel (Click to Expand/Collapse)
-      </div>
-      <div class="collapsible-panel" style="padding:10px;background:#f8f8f8;">
-        <p>This is your dashboard collapsible panel. You can put dashboard content here, just like before.</p>
-      </div>
+            </div>    <div id="dashboard-tab" class="tab-content" style="display: none;"></div>
     </div>
 
             <div id="invoice-tab" class="tab-content" style="display: none;"></div>
