@@ -1378,14 +1378,7 @@ function setupSettingsListeners() {
         showNotification("Export to Excel not implemented yet", "info");
     });
     
-    // Clear data with confirmation
-    addListener('clear-all-data', 'click', () => {
-        if (confirm('Are you sure you want to delete ALL your data? This cannot be undone!')) {
-            if (confirm('FINAL WARNING: All your time entries, expenses, invoices, and settings will be permanently deleted. Continue?')) {
-                clearDatabaseData();
-            }
-        }
-    });
+
     
     console.log("Settings listeners setup complete");
 }
