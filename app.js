@@ -1004,6 +1004,7 @@ function setupAuthListeners() {
         
         if (!email || !password) {
             showNotification("Please enter email and password", "error");
+            console.error("Form validation failed: Missing required fields");
             return;
         }
         
@@ -1267,6 +1268,50 @@ function setupInvoiceListeners() {
     addListener('export-invoice-excel', 'click', exportInvoiceExcel);
     addListener('mark-as-paid', 'click', markCurrentlyGeneratedInvoicePaid);
     
+    // Invoice currency select show/hide USD fields
+    addListener('invoice-currency-select', 'change', () => {
+        console.log("DEBUG: Currency toggle handler start");
+        const dbgCurrency = document.getElementById('invoice-currency-select').value;
+        console.log(`DEBUG: [CurrencyChange] currency=${dbgCurrency}`);
+        console.log('DEBUG: USD headers count', document.querySelectorAll('.usd-rate-header').length,
+                    document.querySelectorAll('.usd-amount-header').length);
+        console.log('DEBUG: USD cells count', document.querySelectorAll('.exchange-rate-cell').length,
+                    document.querySelectorAll('.usd-amount-cell').length);
+        console.log('DEBUG: USD expense headers count', document.querySelectorAll('.usd-amount-expense-header').length,
+                    document.querySelectorAll('.usd-amount-expense-cell').length);
+        const currency = document.getElementById('invoice-currency-select').value;
+        const usdRateGroup = document.getElementById('usd-exchange-rate-group');
+        if (usdRateGroup) usdRateGroup.style.display = currency === 'USD' ? 'flex' : 'none';
+        // First refresh invoice preview tables and totals
+        populateInvoiceEntriesTable(appState.currentInvoicePreview.filteredEntries);
+        populateInvoiceExpensesTable(appState.currentInvoicePreview.filteredExpenses);
+        updateInvoiceTotalsFromPreview();
+        // Then toggle USD-related headers and cells
+        document.querySelectorAll('.usd-rate-header, .usd-amount-header').forEach(el => {
+            el.style.display = currency === 'USD' ? '' : 'none';
+        });
+        document.querySelectorAll('.usd-amount-expense-header').forEach(el => {
+            el.style.display = currency === 'USD' ? '' : 'none';
+        });
+        document.querySelectorAll('.exchange-rate-cell, .usd-amount-cell').forEach(el => {
+            el.style.display = currency === 'USD' ? '' : 'none';
+        });
+        document.querySelectorAll('.usd-amount-expense-cell').forEach(el => {
+            el.style.display = currency === 'USD' ? '' : 'none';
+        });
+        document.querySelectorAll('.usd-summary').forEach(el => {
+            el.style.display = currency === 'USD' ? '' : 'none';
+        });
+        console.log('DEBUG: usd-exchange-rate-group display:', usdRateGroup?.style.display);
+        console.log('DEBUG: .usd-rate-header[0].style.display:', document.querySelector('.usd-rate-header')?.style.display);
+    });
+    
+    // Trigger initial currency toggle to set correct column visibility
+    const initialCurrencySelect = document.getElementById('invoice-currency-select');
+    if (initialCurrencySelect) {
+        initialCurrencySelect.dispatchEvent(new Event('change'));
+    }
+    
     console.log("Invoice listeners setup complete");
 }
 function addInvoiceHistoryActionListeners() { /* ... same ... */ }
@@ -1354,9 +1399,9 @@ function setupDataManagementListeners() {
     const exportCsvBtn = document.getElementById('export-csv');
     
     console.log("Buttons found:", 
-        exportDataBtn ? "Export Data ✓" : "Export Data ✗", 
-        importDataBtn ? "Import Data ✓" : "Import Data ✗",
-        exportCsvBtn ? "Export CSV ✓" : "Export CSV ✗");
+        exportDataBtn ? "Export Data " : "Export Data ",
+        importDataBtn ? "Import Data " : "Import Data",
+        exportCsvBtn ? "Export CSV " : "Export CSV ");
     
     // Export data file
     addListener('export-data', 'click', exportData);
@@ -1659,17 +1704,23 @@ function applyFilters() {
     
     // Clone the entries before filtering
     filteredEntries = appState.entries.filter(entry => {
-        // Check if entry date is within range
-        const entryDate = new Date(entry.date + 'T00:00:00Z');
+        // Apply date filter if specified
+        if (startDate && endDate) {
+            const entryDate = new Date(entry.date);
+            if (entryDate < startDate || entryDate >= endDate) {
+                return false;
+            }
+        }
         
-        if (startDate && entryDate < startDate) return false;
-        if (endDate && entryDate > endDate) return false;
+        // Apply client filter if specified
+        if (clientFilter !== 'all' && entry.client !== clientFilter) {
+            return false;
+        }
         
-        // Check client filter
-        if (clientFilter !== 'all' && entry.client !== clientFilter) return false;
-        
-        // Check project filter
-        if (projectFilter !== 'all' && entry.project !== projectFilter) return false;
+        // Apply project filter if specified
+        if (projectFilter !== 'all' && entry.project !== projectFilter) {
+            return false;
+        }
         
         // Entry passed all filters
         filteredHours += entry.hours;
@@ -1761,8 +1812,8 @@ function updateTimeEntriesTableWithData(entries) {
                 <span style="font-size: 0.85em; color: #444; margin-left: 6px;">Paid</span>
             </td>
             <td>
-                <button class="edit-btn blue-btn" data-id="${entry.id}" aria-label="Edit Entry" title="Edit" style="margin-right: 5px; padding: 5px 10px;">✏️</button>
-                <button class="delete-btn" data-id="${entry.id}" aria-label="Delete Entry" title="Delete" style="padding: 5px 10px;">🗑️</button>
+                <button class="edit-btn blue-btn" data-id="${entry.id}" aria-label="Edit Entry" title="Edit" style="margin-right: 5px; padding: 5px 10px;"></button>
+                <button class="delete-btn" data-id="${entry.id}" aria-label="Delete Entry" title="Delete" style="padding: 5px 10px;"></button>
             </td>
         `;
         
@@ -2485,6 +2536,10 @@ function viewInvoiceEntries() {
         
         // Update totals
         updateInvoiceTotalsFromPreview();
+        
+        // Reapply currency toggle to hide/show USD columns after populating
+        const currencySelect = document.getElementById('invoice-currency-select');
+        if (currencySelect) currencySelect.dispatchEvent(new Event('change'));
     } catch (error) {
         console.error("Error viewing invoice entries:", error);
         showNotification("Error preparing invoice preview", "error");
@@ -2512,9 +2567,20 @@ function updateInvoiceTotalsFromPreview() {
     document.getElementById('invoice-total-amount').textContent = formatCurrency(totalAmount);
     document.getElementById('invoice-total-expenses').textContent = formatCurrency(totalExpenses);
     document.getElementById('invoice-grand-total').textContent = formatCurrency(grandTotal);
+    
+    // Update USD summary if applicable
+    const currency = document.getElementById('invoice-currency-select').value;
+    if (currency === 'USD') {
+        const rate = parseFloat(document.getElementById('usd-exchange-rate').value) || 0;
+        document.getElementById('invoice-usd-rate').textContent = rate.toFixed(4);
+        document.getElementById('invoice-grand-total-usd').textContent = (grandTotal * rate).toFixed(2);
+    }
 }
 
 function populateInvoiceEntriesTable(entries) {
+    const currency = document.getElementById('invoice-currency-select')?.value || 'AUD';
+    const showUsd = currency === 'USD';
+    const usdRate = parseFloat(document.getElementById('usd-exchange-rate')?.value) || 0;
     const tableBody = document.getElementById('invoice-entries-body');
     if (!tableBody) return;
     
@@ -2541,21 +2607,11 @@ function populateInvoiceEntriesTable(entries) {
             <td>${entry.hours.toFixed(2)}</td>
             <td>${formatCurrency(entry.rate)}</td>
             <td>${formatCurrency(entry.amount)}</td>
-            <td class="exchange-rate-cell">${
-                entry.exchangeRateUsd === null || entry.exchangeRateUsd === undefined || entry.exchangeRateUsd === ''
-                  ? '<span style="color:#888">Rate not yet available (try again tomorrow)</span>'
-                  : Number.isFinite(Number(entry.exchangeRateUsd))
-                    ? Number(entry.exchangeRateUsd).toFixed(6)
-                    : '<span style="color:#888">Rate not yet available (try again tomorrow)</span>'
-            }</td>
-            <td class="usd-amount-cell">${
-                entry.amountUsd === null || entry.amountUsd === undefined || entry.amountUsd === ''
-                  ? '<span style="color:#888">Amount not yet available</span>'
-                  : Number.isFinite(Number(entry.amountUsd))
-                    ? ('$' + Number(entry.amountUsd).toFixed(2))
-                    : '<span style="color:#888">Amount not yet available</span>'
-            }</td>
             <td><input type="checkbox" class="include-entry" data-id="${entry.id}" checked></td>
+            ${showUsd ? `
+            <td class="exchange-rate-cell">${usdRate.toFixed(6)}</td>
+            <td class="usd-amount-cell">${'$' + (entry.amount * usdRate).toFixed(2)}</td>
+            ` : ''}
         `;
         
         tableBody.appendChild(row);
@@ -2575,9 +2631,22 @@ function populateInvoiceEntriesTable(entries) {
             updateInvoiceTotalsFromPreview();
         });
     });
+    
+    // Toggle preview table USD headers
+    document.querySelectorAll('#invoice-entries-table .usd-rate-header, #invoice-entries-table .usd-amount-header').forEach(el => {
+        el.style.display = showUsd ? '' : 'none';
+    });
+    
+    // Hide or show USD cells based on currency immediately after rendering
+    tableBody.querySelectorAll('.exchange-rate-cell, .usd-amount-cell').forEach(el => {
+        el.style.display = showUsd ? '' : 'none';
+    });
 }
 
 function populateInvoiceExpensesTable(expenses) {
+    const currency = document.getElementById('invoice-currency-select')?.value || 'AUD';
+    const showUsd = currency === 'USD';
+    const usdRate = parseFloat(document.getElementById('usd-exchange-rate')?.value) || 0;
     const tableBody = document.getElementById('invoice-expenses-body');
     if (!tableBody) return;
     
@@ -2603,6 +2672,9 @@ function populateInvoiceExpensesTable(expenses) {
             <td>${escapeHtml(expense.description)}</td>
             <td>${formatCurrency(expense.amount)}</td>
             <td><input type="checkbox" class="include-expense" data-id="${expense.id}" checked></td>
+            ${showUsd ? `
+            <td class="usd-amount-expense-cell">${'$' + (expense.amount * usdRate).toFixed(2)}</td>
+            ` : ''}
         `;
         
         tableBody.appendChild(row);
@@ -2621,6 +2693,16 @@ function populateInvoiceExpensesTable(expenses) {
             
             updateInvoiceTotalsFromPreview();
         });
+    });
+    
+    // Toggle preview expenses USD header
+    document.querySelectorAll('#invoice-expenses-table .usd-amount-expense-header').forEach(el => {
+        el.style.display = showUsd ? '' : 'none';
+    });
+    
+    // Hide or show USD expense cells based on currency immediately after rendering
+    tableBody.querySelectorAll('.usd-amount-expense-cell').forEach(el => {
+        el.style.display = showUsd ? '' : 'none';
     });
 }
 
@@ -2673,6 +2755,7 @@ function generateInvoicePreview() {
     const invoiceDate = document.getElementById('invoice-date').value || new Date().toISOString().split('T')[0];
     const paymentTerms = document.getElementById('payment-terms').value || appState.settings.defaultPaymentTerms;
     const invoiceNotes = document.getElementById('invoice-notes').value || '';
+    const currency = document.getElementById('invoice-currency-select').value;
     
     // Get filtered and included entries and expenses
     const includedEntries = appState.currentInvoicePreview.filteredEntries
@@ -2707,11 +2790,11 @@ function generateInvoicePreview() {
             address: appState.settings.address || 'Your Address',
             paymentInstructions: appState.settings.paymentInstructions || 'Please make payment within the specified terms.',
             bankingDetails: appState.settings.bankingDetails || ''
-        }
+        },
+        currency: currency
     };
     
     // Attach USD rates and amounts (DB rates fallback to manual input rate)
-    const currency = document.getElementById('invoice-currency-select').value;
     const rateInput = document.getElementById('usd-exchange-rate');
     const manualRate = rateInput ? parseFloat(rateInput.value) : 1;
     if (currency === 'USD') {
@@ -2754,7 +2837,9 @@ function generateInvoicePreview() {
     showNotification("Invoice generated", "success");
 }
 
-function generateInvoiceHtml(invoiceData) {
+function _generateInvoiceHtmlRaw(invoiceData) {
+    const currency = invoiceData.currency;
+    const showUsd = currency === 'USD';
     const formattedDate = formatDate(invoiceData.invoiceDate);
     
     // Create HTML template
@@ -2792,8 +2877,10 @@ function generateInvoiceHtml(invoiceData) {
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Hours</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rate</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                        ${showUsd ? `
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">USD RATE</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount (USD)</th>
+                        ` : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -2811,8 +2898,10 @@ function generateInvoiceHtml(invoiceData) {
                     <td>${entry.hours.toFixed(2)}</td>
                     <td>${formatCurrency(entry.rate)}</td>
                     <td>${formatCurrency(entry.amount)}</td>
+                    ${showUsd ? `
                     <td>${(entry.exchangeRateUsd !== null && entry.exchangeRateUsd !== undefined && entry.exchangeRateUsd !== 0 && !isNaN(entry.exchangeRateUsd)) ? entry.exchangeRateUsd.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                     <td>${(entry.amountUsd !== null && entry.amountUsd !== undefined && entry.amountUsd !== 0 && !isNaN(entry.amountUsd)) ? ('$' + entry.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    ` : ''}
                 </tr>
             `;
         });
@@ -2822,9 +2911,9 @@ function generateInvoiceHtml(invoiceData) {
                 <tfoot>
                     <tr>
                         <td colspan="2" style="border: 1px solid #ddd; padding: 8px;"></td>
-                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>${invoiceData.totalHours.toFixed(2)}</strong></td>
-                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>Subtotal:</strong></td>
-                        <td style="border: 1px solid #ddd; padding: 8px;"><strong>${formatCurrency(invoiceData.totalAmount)}</strong></td>
+                        <td><strong>${invoiceData.totalHours.toFixed(2)}</strong></td>
+                        <td></td>
+                        <td><strong>${formatCurrency(invoiceData.totalAmount)}</strong></td>
                     </tr>
                 </tfoot>
             </table>
@@ -2841,7 +2930,9 @@ function generateInvoiceHtml(invoiceData) {
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Description</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+                        ${showUsd ? `
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount (USD)</th>
+                        ` : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -2857,7 +2948,9 @@ function generateInvoiceHtml(invoiceData) {
                     <td>${expenseDate}</td>
                     <td>${escapeHtml(expense.description)}</td>
                     <td>${formatCurrency(expense.amount)}</td>
+                    ${showUsd ? `
                     <td>${(expense.amountUsd !== null && expense.amountUsd !== undefined && expense.amountUsd !== 0 && !isNaN(expense.amountUsd)) ? ('$' + expense.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    ` : ''}
                 </tr>
             `;
         });
@@ -2911,6 +3004,23 @@ function generateInvoiceHtml(invoiceData) {
     }
     
     return invoiceHtml;
+}
+
+// Split invoice rendering into AUD vs USD entry points
+
+/** Render AUD-only version by forcing currency to AUD */
+function generateInvoiceHtmlAUD(data) {
+  return _generateInvoiceHtmlRaw({ ...data, currency: 'AUD' });
+}
+/** Render USD version */
+function generateInvoiceHtmlUSD(data) {
+  return _generateInvoiceHtmlRaw({ ...data, currency: 'USD' });
+}
+/** Public dispatch: choose renderer based on data.currency */
+function generateInvoiceHtml(data) {
+  return data.currency === 'USD'
+    ? generateInvoiceHtmlUSD(data)
+    : generateInvoiceHtmlAUD(data);
 }
 
 function generateInvoiceNumber() {
@@ -3801,6 +3911,7 @@ async function showDatabaseSetupModal() {
 
 // --- For debugging purposes ---
 function debugButtons() {
+    const fileInput = document.getElementById('file-input');
     console.log("Debugging data export buttons...");
     
     // Check if buttons exist
@@ -3974,11 +4085,11 @@ function setupAuthFormsListeners() {
 }
 
 // --- Tab Navigation ---
-function openTab(evt, tabName) {
-    console.log(`Opening tab: ${tabName}`);
+function openTab(evt, tabId) {
+    console.log(`Opening tab: ${tabId}`);
     
     // Debug data buttons when time tracking tab is opened
-    if (tabName === 'time-tracking-tab') {
+    if (tabId === 'time-tracking-tab') {
         debugButtons();
     }
     
@@ -3995,9 +4106,9 @@ function openTab(evt, tabName) {
     }
     
     // Get the tab element
-    const tabElement = document.getElementById(tabName);
+    const tabElement = document.getElementById(tabId);
     if (!tabElement) {
-        console.error(`Tab element with ID '${tabName}' not found`);
+        console.error(`Tab element with ID '${tabId}' not found`);
         return;
     }
     
@@ -4009,7 +4120,7 @@ function openTab(evt, tabName) {
         evt.currentTarget.classList.add('active');
     } else {
         // If called programmatically, find the button by data-tab attribute
-        const button = document.querySelector(`[data-tab="${tabName}"]`);
+        const button = document.querySelector(`[data-tab="${tabId}"]`);
         if (button) {
             button.classList.add('active');
         }
@@ -4018,31 +4129,31 @@ function openTab(evt, tabName) {
     // Handle special cases for tabs that need content loaded
     const tabsNeedingContent = ['dashboard-tab', 'invoice-tab', 'reports-tab', 'settings-tab'];
     
-    if (tabsNeedingContent.includes(tabName)) {
+    if (tabsNeedingContent.includes(tabId)) {
         // Let's load content if needed
         if (tabElement.innerHTML.trim() === '') {
             // Show a loading indicator
             tabElement.innerHTML = '<div style="text-align: center; padding: 50px;"><p>Loading content...</p></div>';
             
             // Try to load content from time-tracker.html
-            loadTabContent(tabName).then(success => {
+            loadTabContent(tabId).then(success => {
                 if (success) {
-                    console.log(`Content loaded successfully for ${tabName}`);
+                    console.log(`Content loaded successfully for ${tabId}`);
                     
                     // Special handling for dashboard
-                    if (tabName === 'dashboard-tab') {
+                    if (tabId === 'dashboard-tab') {
                         initDashboardIfNeeded();
                     }
                 } else {
-                    console.error(`Failed to load content for ${tabName}`);
+                    console.error(`Failed to load content for ${tabId}`);
                     tabElement.innerHTML = '<div style="text-align: center; padding: 50px;"><p>Failed to load content. Please try refreshing the page.</p></div>';
                 }
             });
         } else {
-            console.log(`Tab ${tabName} already has content, checking if initialization is needed`);
+            console.log(`Tab ${tabId} already has content, checking if initialization is needed`);
             
             // Special handling for dashboard
-            if (tabName === 'dashboard-tab') {
+            if (tabId === 'dashboard-tab') {
                 initDashboardIfNeeded();
             }
         }
