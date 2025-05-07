@@ -25,19 +25,19 @@
             --input-background: #ffffff;
             --shadow-color: rgba(0, 0, 0, 0.1);
             --card-shadow: 0 2px 8px var(--shadow-color);
-            
+
             /* Fonts */
             --system-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            
+
             /* Sizes */
             --border-radius-small: 8px;
             --border-radius-medium: 12px;
             --border-radius-large: 16px;
-            
+
             /* Transitions */
             --transition-speed: 0.2s;
         }
-        
+
         body {
             font-family: var(--system-font);
             line-height: 1.5;
@@ -49,28 +49,28 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        
+
         h1, h2, h3 {
             font-weight: 600;
             letter-spacing: -0.01em;
             color: var(--primary-text);
         }
-        
+
         h1 {
             font-size: 32px;
             margin-bottom: 24px;
         }
-        
+
         h2 {
             font-size: 24px;
             margin-bottom: 16px;
         }
-        
+
         h3 {
             font-size: 18px;
             margin-bottom: 12px;
         }
-        
+
         label {
             display: block;
             margin: 10px 0 5px;
@@ -78,7 +78,7 @@
             font-weight: 500;
             color: var(--secondary-text);
         }
-        
+
         input, select, textarea {
             width: 100%;
             padding: 12px;
@@ -91,13 +91,13 @@
             color: var(--primary-text);
             transition: all var(--transition-speed) ease;
         }
-        
+
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--accent-color);
             box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
         }
-        
+
         button {
             background-color: var(--accent-color);
             color: white;
@@ -112,13 +112,13 @@
             font-size: 15px;
             transition: all var(--transition-speed) ease;
         }
-        
+
         button:hover {
             background-color: var(--accent-hover);
             transform: translateY(-1px);
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        
+
         table {
             width: 100%;
             border-collapse: separate;
@@ -129,13 +129,13 @@
             overflow: hidden;
             box-shadow: var(--card-shadow);
         }
-        
+
         th, td {
             padding: 14px 16px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
-        
+
         th {
             background-color: var(--card-background);
             font-weight: 600;
@@ -144,15 +144,15 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        
+
         tbody tr:last-child td {
             border-bottom: none;
         }
-        
+
         tbody tr:hover {
             background-color: rgba(0, 0, 0, 0.02);
         }
-        
+
         .invoice {
             background-color: var(--card-background);
             border-radius: var(--border-radius-medium);
@@ -160,7 +160,7 @@
             margin-top: 20px;
             box-shadow: var(--card-shadow);
         }
-        
+
         .summary {
             margin-top: 20px;
             padding: 16px;
@@ -168,17 +168,17 @@
             border-radius: var(--border-radius-small);
             box-shadow: var(--card-shadow);
         }
-        
+
         .delete-btn {
             background-color: var(--error-color);
             padding: 8px 12px;
             font-size: 13px;
         }
-        
+
         .delete-btn:hover {
             background-color: #ff291f;
         }
-        
+
         .file-operations, .filter-section, .timer-container, .expense-section, .time-entry {
             margin: 20px 0;
             padding: 24px;
@@ -186,11 +186,11 @@
             border-radius: var(--border-radius-medium);
             box-shadow: var(--card-shadow);
         }
-        
+
         .blue-btn {
             background-color: var(--accent-color);
         }
-        
+
         .blue-btn:hover {
             background-color: var(--accent-hover);
         }
@@ -201,7 +201,7 @@
             border-radius: var(--border-radius-medium);
             box-shadow: var(--card-shadow);
         }
-        
+
         .chart-container {
             position: relative;
             height: 300px;
@@ -211,19 +211,19 @@
             border-radius: var(--border-radius-medium);
             box-shadow: var(--card-shadow);
         }
-        
+
         .chart-row {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 20px;
         }
-        
+
         .chart-column {
             flex: 1;
             min-width: 300px;
         }
-        
+
         .tabs {
             display: flex;
             overflow: hidden;
@@ -232,7 +232,7 @@
             box-shadow: var(--card-shadow);
             margin-bottom: 24px;
         }
-        
+
         .tab-button {
             background-color: transparent;
             border: none;
@@ -246,17 +246,17 @@
             font-weight: 500;
             position: relative;
         }
-        
+
         .tab-button:hover {
             background-color: rgba(0, 0, 0, 0.03);
             color: var(--primary-text);
         }
-        
+
         .tab-button.active {
             color: var(--accent-color);
             font-weight: 600;
         }
-        
+
         .tab-button.active::after {
             content: '';
             position: absolute;
@@ -266,7 +266,7 @@
             height: 2px;
             background-color: var(--accent-color);
         }
-        
+
         .tab-content {
             display: none;
             padding: 0;
@@ -282,29 +282,29 @@
             font-weight: 500;
             color: var(--accent-color);
         }
-        
+
         .project-tag {
             background-color: rgba(52, 199, 89, 0.1);
             color: var(--success-color);
         }
-        
+
         .client-tag {
             background-color: rgba(255, 149, 0, 0.1);
             color: var(--warning-color);
         }
-        
+
         .filter-row {
             display: flex;
             flex-wrap: wrap;
             gap: 16px;
             margin-bottom: 16px;
         }
-        
+
         .filter-group {
             flex: 1;
             min-width: 200px;
         }
-        
+
         .timer-display {
             font-size: 48px;
             font-weight: 300;
@@ -314,7 +314,7 @@
             text-align: center;
             font-variant-numeric: tabular-nums;
         }
-        
+
         .recurring-entry {
             background-color: rgba(0, 113, 227, 0.05);
             padding: 16px;
@@ -325,13 +325,13 @@
             align-items: center;
             transition: all var(--transition-speed) ease;
         }
-        
+
         .recurring-entry:hover {
             background-color: rgba(0, 113, 227, 0.1);
             transform: translateY(-1px);
             box-shadow: 0 2px 5px var(--shadow-color);
         }
-        
+
         #dark-mode-toggle {
             position: fixed;
             bottom: 24px;
@@ -351,12 +351,12 @@
             font-size: 20px;
             transition: all var(--transition-speed) ease;
         }
-        
+
         #dark-mode-toggle:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 10px var(--shadow-color);
         }
-        
+
         /* Dark mode styles */
         .dark-mode {
             --background-color: #000;
@@ -367,43 +367,43 @@
             --input-background: #2c2c2e;
             --shadow-color: rgba(0, 0, 0, 0.3);
         }
-        
+
         .dark-mode .tab-button.active {
             color: #0a84ff;
         }
-        
+
         .dark-mode .tab-button.active::after {
             background-color: #0a84ff;
         }
-        
+
         .dark-mode .tab-button:hover {
             background-color: rgba(255, 255, 255, 0.05);
         }
-        
+
         .dark-mode .stats-value {
             color: #0a84ff;
         }
-        
+
         .dark-mode #dark-mode-toggle {
             background-color: #1c1c1e;
             color: #f5f5f7;
         }
-        
+
         .dark-mode .tag {
             color: #0a84ff;
             background-color: rgba(10, 132, 255, 0.2);
         }
-        
+
         .dark-mode .project-tag {
             color: #30d158;
             background-color: rgba(48, 209, 88, 0.2);
         }
-        
+
         .dark-mode .client-tag {
             color: #ff9f0a;
             background-color: rgba(255, 159, 10, 0.2);
         }
-        
+
         /* Stats cards */
         .stats-card {
             background-color: var(--card-background);
@@ -413,25 +413,25 @@
             box-shadow: var(--card-shadow);
             transition: all var(--transition-speed) ease;
         }
-        
+
         .stats-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px var(--shadow-color);
         }
-        
+
         .stats-row {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 24px;
         }
-        
+
         .stats-card {
             flex: 1;
             min-width: 200px;
             text-align: center;
         }
-        
+
         .stats-value {
             font-size: 32px;
             font-weight: 600;
@@ -439,7 +439,7 @@
             color: var(--accent-color);
             letter-spacing: -0.02em;
         }
-        
+
         .stats-label {
             color: var(--secondary-text);
             font-size: 14px;
@@ -447,7 +447,47 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        
+
+        /* Payment status styles */
+        .status-paid {
+            color: #4CAF50;
+            background-color: rgba(76, 175, 80, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .status-invoiced {
+            color: #FF9800;
+            background-color: rgba(255, 152, 0, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .status-not-invoiced {
+            color: #9E9E9E;
+            background-color: rgba(158, 158, 158, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .dark-mode .status-paid {
+            color: #81C784;
+            background-color: rgba(129, 199, 132, 0.2);
+        }
+
+        .dark-mode .status-invoiced {
+            color: #FFB74D;
+            background-color: rgba(255, 183, 77, 0.2);
+        }
+
+        .dark-mode .status-not-invoiced {
+            color: #BDBDBD;
+            background-color: rgba(189, 189, 189, 0.2);
+        }
+
         @media print {
             button, .no-print {
                 display: none;
@@ -457,7 +497,7 @@
 </head>
 <body>
     <h1>Time Tracker & Invoice Generator</h1>
-    
+
     <!-- Tab Navigation -->
     <div class="tabs">
         <button class="tab-button active" onclick="openTab(event, 'time-tracking-tab')">Time Tracking</button>
@@ -466,9 +506,9 @@
         <button class="tab-button" onclick="openTab(event, 'reports-tab')">Reports</button>
         <button class="tab-button" onclick="openTab(event, 'settings-tab')">Settings</button>
     </div>
-    
+
     <button id="dark-mode-toggle" title="Toggle Dark Mode">${settings && settings.theme === 'dark' ? '☀️' : '🌙'}</button>
-    
+
     <!-- Time Tracking Tab -->
     <div id="time-tracking-tab" class="tab-content" style="display: block;">
         <div class="file-operations">
@@ -481,7 +521,7 @@
                 <input type="file" id="file-input" style="display:none;">
             </div>
         </div>
-        
+
         <div class="filter-section">
             <h2>Filter Entries</h2>
             <div class="filter-row">
@@ -530,7 +570,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Timer Section -->
         <div class="timer-container">
             <h2>Timer</h2>
@@ -555,7 +595,7 @@
                 <button id="cancel-timer" style="display: none;">Cancel</button>
             </div>
         </div>
-        
+
         <div class="time-entry">
             <h2 id="form-title">Record Time Manually</h2>
             <div>
@@ -596,7 +636,7 @@
                 <button id="save-recurring" class="blue-btn">Save as Recurring</button>
             </div>
         </div>
-        
+
         <!-- Recurring Entries Section -->
         <div class="time-entry" style="margin-top: 20px;">
             <h2>Recurring Entries</h2>
@@ -605,7 +645,7 @@
                 <p id="no-recurring" style="font-style: italic;">No saved recurring entries yet.</p>
             </div>
         </div>
-        
+
         <!-- Expenses Section -->
         <div class="expense-section">
             <h2>Expenses</h2>
@@ -644,7 +684,7 @@
                     <button id="add-expense" class="blue-btn">Add Expense</button>
                 </div>
             </div>
-            
+
             <div style="margin-top: 20px;">
                 <h3>Expenses List</h3>
                 <table id="expenses-table">
@@ -660,7 +700,7 @@
                     </thead>
                     <tbody id="expenses-body"></tbody>
                 </table>
-                
+
                 <div class="summary">
                     <p><strong>Total Expenses:</strong> $<span id="total-expenses">0.00</span></p>
                 </div>
@@ -684,7 +724,7 @@
                 </thead>
                 <tbody id="entries-body"></tbody>
             </table>
-            
+
             <div class="summary">
                 <p><strong>Filtered Hours:</strong> <span id="filtered-hours">0</span></p>
                 <p><strong>Filtered Amount:</strong> $<span id="filtered-amount">0.00</span></p>
@@ -693,11 +733,11 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Dashboard Tab -->
     <div id="dashboard-tab" class="tab-content">
         <h2>Dashboard</h2>
-        
+
         <div class="filter-section">
             <h3>Dashboard Filters</h3>
             <div class="filter-row">
@@ -742,7 +782,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="stats-row">
             <div class="stats-card">
                 <div class="stats-label">Total Hours</div>
@@ -761,7 +801,7 @@
                 <div id="dash-avg-revenue" class="stats-value">$0</div>
             </div>
         </div>
-        
+
         <div class="stats-row">
             <div class="stats-card">
                 <div class="stats-label">Hourly Rate (Average)</div>
@@ -780,7 +820,7 @@
                 <div id="dash-days-tracked" class="stats-value">0/0 (0%)</div>
             </div>
         </div>
-        
+
         <div class="chart-row">
             <div class="chart-column">
                 <div class="chart-container">
@@ -795,7 +835,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="chart-row">
             <div class="chart-column">
                 <div class="chart-container">
@@ -810,7 +850,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="chart-row">
             <div class="chart-column">
                 <div class="chart-container">
@@ -826,12 +866,12 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Invoice Tab -->
     <div id="invoice-tab" class="tab-content">
         <div class="invoice-generator">
             <h2>Invoice Generator</h2>
-            
+
             <div class="filter-section">
                 <h3>Invoice Details</h3>
                 <div class="filter-row">
@@ -904,7 +944,7 @@
                     <button id="view-invoice-entries">View Entries to be Included</button>
                 </div>
             </div>
-            
+
             <div id="invoice-entries-preview" style="display: none; margin-top: 20px;">
                 <h3>Entries to be Included</h3>
                 <table id="invoice-entries-table">
@@ -920,7 +960,7 @@
                     </thead>
                     <tbody id="invoice-entries-body"></tbody>
                 </table>
-                
+
                 <h3>Expenses to be Included</h3>
                 <table id="invoice-expenses-table">
                     <thead>
@@ -933,7 +973,7 @@
                     </thead>
                     <tbody id="invoice-expenses-body"></tbody>
                 </table>
-                
+
                 <div class="summary">
                     <p><strong>Total Hours:</strong> <span id="invoice-total-hours">0</span></p>
                     <p><strong>Total Hours Amount:</strong> $<span id="invoice-total-amount">0.00</span></p>
@@ -941,7 +981,7 @@
                     <p><strong>Grand Total:</strong> $<span id="invoice-grand-total">0.00</span></p>
                 </div>
             </div>
-            
+
             <div class="filter-row" style="margin-top: 20px;">
                 <button id="print-invoice" style="display: none;">Print Invoice</button>
                 <button id="save-invoice-pdf" class="blue-btn" style="display: none;">Save Invoice as PDF</button>
@@ -951,7 +991,7 @@
         </div>
 
         <div id="invoice-preview" class="invoice" style="display: none;"></div>
-        
+
         <div class="invoice-history" style="margin-top: 30px; display: none;">
             <h3>Invoice History</h3>
             <table id="invoice-history-table">
@@ -973,7 +1013,7 @@
     <!-- Reports Tab -->
     <div id="reports-tab" class="tab-content">
         <h2>Reports</h2>
-        
+
         <div class="filter-section">
             <h3>Report Settings</h3>
             <div class="filter-row">
@@ -1022,23 +1062,34 @@
                         <option value="all">All Projects</option>
                     </select>
                 </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="report-payment-status">Payment Status:</label>
+                    <select id="report-payment-status">
+                        <option value="all">All Entries</option>
+                        <option value="invoiced">Invoiced Only</option>
+                        <option value="paid">Paid Only</option>
+                        <option value="unpaid">Not Invoiced/Unpaid</option>
+                    </select>
+                </div>
                 <div class="filter-group">
                     <button id="generate-report" class="blue-btn">Generate Report</button>
                     <button id="export-report" class="blue-btn">Export Report</button>
                 </div>
             </div>
         </div>
-        
+
         <div id="report-container" style="margin-top: 20px;">
             <!-- Report will be displayed here -->
             <p id="no-report" style="font-style: italic; text-align: center;">Select report settings and click "Generate Report" to view your data.</p>
         </div>
     </div>
-    
+
     <!-- Settings Tab -->
     <div id="settings-tab" class="tab-content">
         <h2>Settings</h2>
-        
+
         <div class="filter-section">
             <h3>Rate Templates</h3>
             <div class="filter-row">
@@ -1058,7 +1109,7 @@
                 <!-- Rate templates will be displayed here -->
             </div>
         </div>
-        
+
         <div class="filter-section">
             <h3>Default Settings</h3>
             <div class="filter-row">
@@ -1103,7 +1154,7 @@
                 <button id="save-settings" class="blue-btn">Save Settings</button>
             </div>
         </div>
-        
+
         <div class="filter-section">
             <h3>Data Management</h3>
             <div class="filter-row">
@@ -1116,7 +1167,7 @@
                 <button id="clear-all-data" style="background-color: #f44336;">Clear All Data</button>
             </div>
         </div>
-        
+
         <div class="filter-section">
             <h3>Display Settings</h3>
             <div class="filter-row">
@@ -1173,16 +1224,16 @@
             dateFormat: 'MM/DD/YYYY',
             currency: 'USD'
         };
-        
+
         // Apply theme if set in localStorage
-        if (settings.theme === 'dark' || 
-           (settings.theme === 'auto' && 
+        if (settings.theme === 'dark' ||
+           (settings.theme === 'auto' &&
             window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.body.classList.add('dark-mode');
         }
-        
+
         let hourlyRate = 350; // Default rate
-        
+
         // Charts
         let hoursChart, revenueChart, monthlyChart;
 
@@ -1208,46 +1259,46 @@
             window.print();
         });
         document.getElementById('refresh-dashboard').addEventListener('click', updateDashboard);
-        
+
         // Dark mode toggle
         document.getElementById('dark-mode-toggle').addEventListener('click', toggleDarkMode);
-        
+
         function toggleDarkMode() {
             const isDark = document.body.classList.toggle('dark-mode');
-            
+
             // Update settings
             settings.theme = isDark ? 'dark' : 'light';
             localStorage.setItem('settings', JSON.stringify(settings));
-            
+
             // Update icon
             document.getElementById('dark-mode-toggle').textContent = isDark ? '☀️' : '🌙';
-            
+
             // Rebuild charts with new theme
             if (document.getElementById('dashboard-tab').style.display === 'block') {
                 updateDashboard();
             }
         }
-        
+
         // Add time entry
         function addTimeEntry() {
             const dateInput = document.getElementById('date');
             const descriptionInput = document.getElementById('description');
             const hoursInput = document.getElementById('hours');
             const rateInput = document.getElementById('rate');
-            
+
             // Validate inputs
             if (!dateInput.value || !descriptionInput.value || !hoursInput.value || !rateInput.value) {
                 alert('Please fill in all fields');
                 return;
             }
-            
+
             // Get values
             const date = dateInput.value;
             const description = descriptionInput.value;
             const hours = parseFloat(hoursInput.value);
             const rate = parseFloat(rateInput.value);
             const amount = hours * rate;
-            
+
             // Add to entries array
             timeEntries.push({
                 id: Date.now(), // unique ID for entry
@@ -1257,34 +1308,34 @@
                 rate,
                 amount
             });
-            
+
             // Save to localStorage
             localStorage.setItem('timeEntries', JSON.stringify(timeEntries));
-            
+
             // Update the UI
             updateTable();
             updateSummary();
-            
+
             // Clear form (except rate)
             descriptionInput.value = '';
             hoursInput.value = '';
         }
-        
+
         // Update the entries table
         function updateTable() {
             const tableBody = document.getElementById('entries-body');
             tableBody.innerHTML = '';
-            
+
             // Sort entries by date (newest first)
-            const sortedEntries = [...timeEntries].sort((a, b) => 
+            const sortedEntries = [...timeEntries].sort((a, b) =>
                 new Date(b.date) - new Date(a.date)
             );
-            
+
             sortedEntries.forEach(entry => {
                 const row = document.createElement('tr');
-                
+
                 const formatDate = new Date(entry.date).toLocaleDateString();
-                
+
                 row.innerHTML = `
                     <td>${formatDate}</td>
                     <td>${entry.description}</td>
@@ -1296,55 +1347,55 @@
                         <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px;">Delete</button>
                     </td>
                 `;
-                
+
                 tableBody.appendChild(row);
             });
-            
+
             // Add delete and edit event listeners
             document.querySelectorAll('.delete-btn').forEach(button => {
                 button.addEventListener('click', deleteEntry);
             });
-            
+
             document.querySelectorAll('.edit-btn').forEach(button => {
                 button.addEventListener('click', editEntry);
             });
         }
-        
+
         // Update summary
         function updateSummary() {
             const totalHours = timeEntries.reduce((sum, entry) => sum + entry.hours, 0);
             const totalAmount = timeEntries.reduce((sum, entry) => sum + entry.amount, 0);
-            
+
             document.getElementById('total-hours').textContent = totalHours.toFixed(2);
             document.getElementById('total-amount').textContent = totalAmount.toFixed(2);
         }
-        
+
         // Edit an entry
         function editEntry(e) {
             const id = parseInt(e.target.getAttribute('data-id'));
             const entry = timeEntries.find(entry => entry.id === id);
-            
+
             if (!entry) return;
-            
+
             // Populate the form with entry data
             document.getElementById('date').value = entry.date;
             document.getElementById('description').value = entry.description;
             document.getElementById('hours').value = entry.hours;
             document.getElementById('rate').value = entry.rate;
             document.getElementById('edit-id').value = entry.id;
-            
+
             // Show update buttons and hide add button
             document.getElementById('add-entry').style.display = 'none';
             document.getElementById('update-entry').style.display = 'inline-block';
             document.getElementById('cancel-edit').style.display = 'inline-block';
-            
+
             // Change form title
             document.getElementById('form-title').textContent = 'Edit Time Entry';
-            
+
             // Scroll to the form
             document.querySelector('.time-entry').scrollIntoView({ behavior: 'smooth' });
         }
-        
+
         // Update an entry
         function updateTimeEntry() {
             const dateInput = document.getElementById('date');
@@ -1352,28 +1403,28 @@
             const hoursInput = document.getElementById('hours');
             const rateInput = document.getElementById('rate');
             const editId = parseInt(document.getElementById('edit-id').value);
-            
+
             // Validate inputs
             if (!dateInput.value || !descriptionInput.value || !hoursInput.value || !rateInput.value) {
                 alert('Please fill in all fields');
                 return;
             }
-            
+
             // Get values
             const date = dateInput.value;
             const description = descriptionInput.value;
             const hours = parseFloat(hoursInput.value);
             const rate = parseFloat(rateInput.value);
             const amount = hours * rate;
-            
+
             // Find the entry index
             const entryIndex = timeEntries.findIndex(entry => entry.id === editId);
-            
+
             if (entryIndex === -1) {
                 alert('Error: Entry not found!');
                 return;
             }
-            
+
             // Update the entry
             timeEntries[entryIndex] = {
                 ...timeEntries[entryIndex],
@@ -1383,72 +1434,72 @@
                 rate,
                 amount
             };
-            
+
             // Save to localStorage
             localStorage.setItem('timeEntries', JSON.stringify(timeEntries));
-            
+
             // Update the UI
             updateTable();
             updateSummary();
-            
+
             // Reset the form
             cancelEdit();
         }
-        
+
         // Cancel edit mode
         function cancelEdit() {
             // Clear form
             document.getElementById('description').value = '';
             document.getElementById('hours').value = '';
             document.getElementById('edit-id').value = '';
-            
+
             // Reset date to today
             document.getElementById('date').valueAsDate = new Date();
-            
+
             // Show add button and hide update buttons
             document.getElementById('add-entry').style.display = 'inline-block';
             document.getElementById('update-entry').style.display = 'none';
             document.getElementById('cancel-edit').style.display = 'none';
-            
+
             // Reset form title
             document.getElementById('form-title').textContent = 'Record Time';
         }
-        
+
         // Delete an entry
         function deleteEntry(e) {
             const id = parseInt(e.target.getAttribute('data-id'));
-            
+
             // Confirm deletion
             if (!confirm('Are you sure you want to delete this entry?')) {
                 return;
             }
-            
+
             timeEntries = timeEntries.filter(entry => entry.id !== id);
             localStorage.setItem('timeEntries', JSON.stringify(timeEntries));
-            
+
             updateTable();
             updateSummary();
         }
-        
+
         // Generate invoice
         function generateInvoice() {
             const clientName = document.getElementById('client-name').value;
             const invoiceNumber = document.getElementById('invoice-number').value;
             const invoiceDate = document.getElementById('invoice-date').value;
             const paymentTerms = document.getElementById('payment-terms').value;
-            
+
             if (!clientName || !invoiceNumber || !invoiceDate) {
                 alert('Please fill in client name, invoice number, and invoice date');
                 return;
             }
-            
+
             const invoicePreview = document.getElementById('invoice-preview');
             const formattedDate = new Date(invoiceDate).toLocaleDateString();
-            
+
             // Calculate totals
             const totalHours = timeEntries.reduce((sum, entry) => sum + entry.hours, 0);
             const totalAmount = timeEntries.reduce((sum, entry) => sum + entry.amount, 0);
-            
+
             // Generate invoice HTML
             let invoiceHtml = `
                 <div style="text-align: right; margin-bottom: 20px;">
@@ -1457,12 +1508,12 @@
                     <p><strong>Date:</strong> ${formattedDate}</p>
                     <p><strong>Terms:</strong> ${paymentTerms}</p>
                 </div>
-                
+
                 <div style="margin-bottom: 20px;">
                     <h3>Bill To:</h3>
                     <p>${clientName}</p>
                 </div>
-                
+
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr>
@@ -1475,12 +1526,12 @@
                     </thead>
                     <tbody>
             `;
-            
+
             // Add entries to invoice - sort by date
-            const sortedEntries = [...timeEntries].sort((a, b) => 
+            const sortedEntries = [...timeEntries].sort((a, b) =>
                 new Date(a.date) - new Date(b.date)
             );
-            
+
             sortedEntries.forEach(entry => {
                 const entryDate = new Date(entry.date).toLocaleDateString();
                 invoiceHtml += `
@@ -1493,7 +1544,7 @@
                     </tr>
                 `;
             });
-            
+
             // Add totals to invoice
             invoiceHtml += `
                     </tbody>
@@ -1506,19 +1557,19 @@
                         </tr>
                     </tfoot>
                 </table>
-                
+
                 <div style="margin-top: 40px;">
                     <p><strong>Payment Instructions:</strong></p>
                     <p>Please make payment within ${paymentTerms} days of the invoice date.</p>
                 </div>
             `;
-            
+
             invoicePreview.innerHTML = invoiceHtml;
             invoicePreview.style.display = 'block';
             document.getElementById('print-invoice').style.display = 'inline-block';
             document.getElementById('save-invoice-pdf').style.display = 'inline-block';
         }
-        
+
         // Export data to a file
         function exportData() {
             // Create data object with all necessary information
@@ -1527,68 +1578,68 @@
                 version: '1.0',
                 exportDate: new Date().toISOString()
             };
-            
+
             // Convert to JSON
             const jsonData = JSON.stringify(dataToExport, null, 2);
-            
+
             // Create blob and download link
             const blob = new Blob([jsonData], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-            
+
             // Create a download link and click it
             const a = document.createElement('a');
             a.href = url;
             a.download = `time-tracker-data-${new Date().toISOString().slice(0, 10)}.json`;
             document.body.appendChild(a);
             a.click();
-            
+
             // Clean up
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         }
-        
+
         // Import data from a file
         function importData(e) {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             const reader = new FileReader();
-            
+
             reader.onload = function(event) {
                 try {
                     const importedData = JSON.parse(event.target.result);
-                    
+
                     // Validate the data
                     if (!importedData.timeEntries || !Array.isArray(importedData.timeEntries)) {
                         throw new Error('Invalid data format');
                     }
-                    
+
                     // Ask for confirmation to replace existing data
                     if (timeEntries.length > 0) {
                         if (!confirm('This will replace your existing data. Continue?')) {
                             return;
                         }
                     }
-                    
+
                     // Import the data
                     timeEntries = importedData.timeEntries;
                     localStorage.setItem('timeEntries', JSON.stringify(timeEntries));
-                    
+
                     // Update the UI
                     updateTable();
                     updateSummary();
-                    
+
                     alert('Data imported successfully!');
                 } catch (error) {
                     alert('Error importing data: ' + error.message);
                 }
             };
-            
+
             reader.readAsText(file);
             // Reset the file input
             e.target.value = '';
         }
-        
+
         // Tab functionality
         function openTab(evt, tabName) {
             // Hide all tab content
@@ -1596,153 +1647,153 @@
             for (let i = 0; i < tabContent.length; i++) {
                 tabContent[i].style.display = "none";
             }
-            
+
             // Remove active class from all tab buttons
             const tabButtons = document.getElementsByClassName("tab-button");
             for (let i = 0; i < tabButtons.length; i++) {
                 tabButtons[i].className = tabButtons[i].className.replace(" active", "");
             }
-            
+
             // Show the current tab and add active class to the button
             document.getElementById(tabName).style.display = "block";
             evt.currentTarget.className += " active";
-            
+
             // Initialize dashboard if it's the dashboard tab
             if (tabName === 'dashboard-tab') {
                 updateDashboard();
             }
         }
-        
+
         // Update dashboard charts and statistics
         function updateDashboard() {
             // Update statistics
             const totalHours = timeEntries.reduce((sum, entry) => sum + entry.hours, 0);
             const totalRevenue = timeEntries.reduce((sum, entry) => sum + entry.amount, 0);
-            
+
             document.getElementById('dash-total-hours').textContent = totalHours.toFixed(2);
             document.getElementById('dash-total-revenue').textContent = '$' + totalRevenue.toFixed(2);
-            
+
             // Process data for charts
             const weeklyData = getWeeklyData();
             const monthlyData = getMonthlyData();
-            
+
             // Calculate averages
             let avgWeeklyHours = 0;
             let avgWeeklyRevenue = 0;
-            
+
             if (weeklyData.weeks.length > 0) {
                 avgWeeklyHours = weeklyData.hours.reduce((a, b) => a + b, 0) / weeklyData.weeks.length;
                 avgWeeklyRevenue = weeklyData.revenue.reduce((a, b) => a + b, 0) / weeklyData.weeks.length;
             }
-            
+
             document.getElementById('dash-avg-hours').textContent = avgWeeklyHours.toFixed(2);
             document.getElementById('dash-avg-revenue').textContent = '$' + avgWeeklyRevenue.toFixed(2);
-            
+
             // Update charts
             updateHoursChart(weeklyData);
             updateRevenueChart(weeklyData);
             updateMonthlyChart(monthlyData);
         }
-        
+
         // Get weekly data from time entries
         function getWeeklyData() {
             // Sort entries by date
-            const sortedEntries = [...timeEntries].sort((a, b) => 
+            const sortedEntries = [...timeEntries].sort((a, b) =>
                 new Date(a.date) - new Date(b.date)
             );
-            
+
             if (sortedEntries.length === 0) {
                 return { weeks: [], hours: [], revenue: [] };
             }
-            
+
             // Group entries by week
             const weeklyData = {};
-            
+
             sortedEntries.forEach(entry => {
                 const date = new Date(entry.date);
                 // Get the monday of this week as a key
                 date.setDate(date.getDate() - date.getDay() + 1);
                 const weekKey = date.toISOString().slice(0, 10);
-                
+
                 if (!weeklyData[weekKey]) {
                     weeklyData[weekKey] = { hours: 0, revenue: 0 };
                 }
-                
+
                 weeklyData[weekKey].hours += entry.hours;
                 weeklyData[weekKey].revenue += entry.amount;
             });
-            
+
             // Convert to arrays for Chart.js
             const weeks = Object.keys(weeklyData);
             const hours = weeks.map(week => weeklyData[week].hours);
             const revenue = weeks.map(week => weeklyData[week].revenue);
-            
+
             // Format week labels to be more readable
             const formattedWeeks = weeks.map(week => {
                 const date = new Date(week);
                 return `${date.toLocaleDateString(undefined, { month: 'short' })} ${date.getDate()}`;
             });
-            
+
             return {
                 weeks: formattedWeeks,
                 hours,
                 revenue
             };
         }
-        
+
         // Get monthly data from time entries
         function getMonthlyData() {
             // Sort entries by date
-            const sortedEntries = [...timeEntries].sort((a, b) => 
+            const sortedEntries = [...timeEntries].sort((a, b) =>
                 new Date(a.date) - new Date(b.date)
             );
-            
+
             if (sortedEntries.length === 0) {
                 return { months: [], hours: [], revenue: [] };
             }
-            
+
             // Group entries by month
             const monthlyData = {};
-            
+
             sortedEntries.forEach(entry => {
                 const date = new Date(entry.date);
                 const monthKey = date.toISOString().slice(0, 7); // YYYY-MM
-                
+
                 if (!monthlyData[monthKey]) {
                     monthlyData[monthKey] = { hours: 0, revenue: 0 };
                 }
-                
+
                 monthlyData[monthKey].hours += entry.hours;
                 monthlyData[monthKey].revenue += entry.amount;
             });
-            
+
             // Convert to arrays for Chart.js
             const months = Object.keys(monthlyData);
             const hours = months.map(month => monthlyData[month].hours);
             const revenue = months.map(month => monthlyData[month].revenue);
-            
+
             // Format month labels to be more readable
             const formattedMonths = months.map(month => {
                 const date = new Date(month + '-01');
                 return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
             });
-            
+
             return {
                 months: formattedMonths,
                 hours,
                 revenue
             };
         }
-        
+
         // Update hours chart
         function updateHoursChart(data) {
             const ctx = document.getElementById('hours-chart').getContext('2d');
-            
+
             // Destroy existing chart if it exists
             if (hoursChart) {
                 hoursChart.destroy();
             }
-            
+
             hoursChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1770,16 +1821,16 @@
                 }
             });
         }
-        
+
         // Update revenue chart
         function updateRevenueChart(data) {
             const ctx = document.getElementById('revenue-chart').getContext('2d');
-            
+
             // Destroy existing chart if it exists
             if (revenueChart) {
                 revenueChart.destroy();
             }
-            
+
             revenueChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1807,16 +1858,16 @@
                 }
             });
         }
-        
+
         // Update monthly chart
         function updateMonthlyChart(data) {
             const ctx = document.getElementById('monthly-chart').getContext('2d');
-            
+
             // Destroy existing chart if it exists
             if (monthlyChart) {
                 monthlyChart.destroy();
             }
-            
+
             monthlyChart = new Chart(ctx, {
                 type: 'bar',
                 data: {

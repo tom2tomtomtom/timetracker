@@ -3216,8 +3216,11 @@ function generateReport() {
         const dateRange = document.getElementById('report-date-range')?.value || 'this-month';
         const client = document.getElementById('report-client')?.value || 'all';
         const project = document.getElementById('report-project')?.value || 'all';
+        const paymentStatus = document.getElementById('report-payment-status')?.value || 'all';
         const customFrom = document.getElementById('report-date-from')?.value || '';
         const customTo = document.getElementById('report-date-to')?.value || '';
+
+        console.log("Report parameters:", { reportType, dateRange, client, project, paymentStatus, customFrom, customTo });
 
         // Get date range
         const { startDate, endDate } = getDateRangeFromOption(dateRange, customFrom, customTo);
@@ -3247,6 +3250,51 @@ function generateReport() {
         if (project !== 'all') {
             filteredEntries = filteredEntries.filter(entry => entry.project === project);
             filteredExpenses = filteredExpenses.filter(expense => expense.project === project);
+        }
+
+        // Apply payment status filter
+        if (paymentStatus !== 'all') {
+            console.log("Filtering by payment status:", paymentStatus);
+
+            // Get all invoices to check payment status
+            const allInvoices = appState.invoices || [];
+
+            // Create sets of invoiced and paid entry IDs for faster lookup
+            const invoicedEntryIds = new Set();
+            const paidEntryIds = new Set();
+
+            allInvoices.forEach(invoice => {
+                if (invoice.entryIds && invoice.entryIds.length > 0) {
+                    invoice.entryIds.forEach(id => {
+                        invoicedEntryIds.add(id);
+
+                        // If invoice is marked as paid, also add to paid entries
+                        if (invoice.paid) {
+                            paidEntryIds.add(id);
+                        }
+                    });
+                }
+            });
+
+            console.log(`Found ${invoicedEntryIds.size} invoiced entries and ${paidEntryIds.size} paid entries`);
+
+            // Filter entries based on payment status
+            switch (paymentStatus) {
+                case 'invoiced':
+                    // Show only invoiced entries (both paid and unpaid)
+                    filteredEntries = filteredEntries.filter(entry => invoicedEntryIds.has(entry.id));
+                    break;
+                case 'paid':
+                    // Show only paid entries
+                    filteredEntries = filteredEntries.filter(entry => paidEntryIds.has(entry.id));
+                    break;
+                case 'unpaid':
+                    // Show only entries that are not invoiced or paid
+                    filteredEntries = filteredEntries.filter(entry => !invoicedEntryIds.has(entry.id));
+                    break;
+            }
+
+            console.log(`After payment status filter: ${filteredEntries.length} entries remaining`);
         }
 
         // Generate report HTML based on type
@@ -3299,6 +3347,34 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
     const clients = [...new Set(entries.map(entry => entry.client).filter(Boolean))];
     const projects = [...new Set(entries.map(entry => entry.project).filter(Boolean))];
 
+    // Get payment status metrics
+    const allInvoices = appState.invoices || [];
+    const invoicedEntryIds = new Set();
+    const paidEntryIds = new Set();
+
+    allInvoices.forEach(invoice => {
+        if (invoice.entryIds && invoice.entryIds.length > 0) {
+            invoice.entryIds.forEach(id => {
+                invoicedEntryIds.add(id);
+
+                // If invoice is marked as paid, also add to paid entries
+                if (invoice.paid) {
+                    paidEntryIds.add(id);
+                }
+            });
+        }
+    });
+
+    // Count entries by payment status
+    const paidEntries = entries.filter(entry => paidEntryIds.has(entry.id));
+    const invoicedButNotPaidEntries = entries.filter(entry => invoicedEntryIds.has(entry.id) && !paidEntryIds.has(entry.id));
+    const uninvoicedEntries = entries.filter(entry => !invoicedEntryIds.has(entry.id));
+
+    // Calculate amounts by payment status
+    const paidAmount = paidEntries.reduce((sum, entry) => sum + Number(entry.amount), 0);
+    const invoicedButNotPaidAmount = invoicedButNotPaidEntries.reduce((sum, entry) => sum + Number(entry.amount), 0);
+    const uninvoicedAmount = uninvoicedEntries.reduce((sum, entry) => sum + Number(entry.amount), 0);
+
     // Date range string
     let dateRangeText = 'All Time';
     if (startDate && endDate) {
@@ -3345,6 +3421,27 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
                 <p><strong>Projects Worked On:</strong> ${projects.length} (${projects.join(', ')})</p>
                 <p><strong>Average Hourly Rate:</strong> ${formatCurrency(totalHours > 0 ? totalRevenue / totalHours : 0)}</p>
             </div>
+
+            <div class="report-section">
+                <h3>Payment Status</h3>
+                <div class="stats-row">
+                    <div class="stats-card">
+                        <div class="stats-label">Paid</div>
+                        <div class="stats-value">${formatCurrency(paidAmount)}</div>
+                        <p>${paidEntries.length} entries</p>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">Invoiced (Unpaid)</div>
+                        <div class="stats-value">${formatCurrency(invoicedButNotPaidAmount)}</div>
+                        <p>${invoicedButNotPaidEntries.length} entries</p>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">Not Invoiced</div>
+                        <div class="stats-value">${formatCurrency(uninvoicedAmount)}</div>
+                        <p>${uninvoicedEntries.length} entries</p>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -3387,6 +3484,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                         <th>Hours</th>
                         <th>Rate</th>
                         <th>Amount</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3395,10 +3493,42 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
         let totalHours = 0;
         let totalAmount = 0;
 
+        // Create sets of invoiced and paid entry IDs for faster lookup
+        const invoicedEntryIds = new Set();
+        const paidEntryIds = new Set();
+
+        // Get all invoices to check payment status
+        const allInvoices = appState.invoices || [];
+
+        allInvoices.forEach(invoice => {
+            if (invoice.entryIds && invoice.entryIds.length > 0) {
+                invoice.entryIds.forEach(id => {
+                    invoicedEntryIds.add(id);
+
+                    // If invoice is marked as paid, also add to paid entries
+                    if (invoice.paid) {
+                        paidEntryIds.add(id);
+                    }
+                });
+            }
+        });
+
         sortedEntries.forEach(entry => {
             const formattedDate = formatDate(entry.date);
             totalHours += Number(entry.hours);
             totalAmount += Number(entry.amount);
+
+            // Determine payment status
+            let paymentStatus = 'Not Invoiced';
+            let statusClass = 'status-not-invoiced';
+
+            if (paidEntryIds.has(entry.id)) {
+                paymentStatus = 'Paid';
+                statusClass = 'status-paid';
+            } else if (invoicedEntryIds.has(entry.id)) {
+                paymentStatus = 'Invoiced';
+                statusClass = 'status-invoiced';
+            }
 
             html += `
                 <tr>
@@ -3409,6 +3539,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                     <td>${entry.hours.toFixed(2)}</td>
                     <td>${formatCurrency(entry.rate)}</td>
                     <td>${formatCurrency(entry.amount)}</td>
+                    <td><span class="${statusClass}">${paymentStatus}</span></td>
                 </tr>
             `;
         });
@@ -3421,6 +3552,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                         <td><strong>${totalHours.toFixed(2)}</strong></td>
                         <td></td>
                         <td><strong>${formatCurrency(totalAmount)}</strong></td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
