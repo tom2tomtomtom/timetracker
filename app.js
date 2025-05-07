@@ -521,6 +521,50 @@ function showLoginForm() {
 
     // Set up login and signup forms if not already done
     setupAuthFormsListeners();
+
+    // Force re-attach event listeners to ensure they work
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        console.log("Re-attaching login form submit handler");
+        loginForm.onsubmit = async function(e) {
+            e.preventDefault();
+            console.log("Login form submitted");
+
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                showNotification("Please enter email and password", "error");
+                return;
+            }
+
+            try {
+                showLoadingIndicator(true);
+
+                console.log("Attempting to sign in with email:", email);
+                const result = await SupabaseAPI.signIn(email, password);
+
+                if (result.success) {
+                    console.log("Login successful:", result.user.email);
+                    appState.user = result.user;
+
+                    // Load user data
+                    await loadUserData();
+
+                    // Show application
+                    showApp();
+                } else {
+                    console.error("Login failed:", result.error);
+                    showNotification("Login failed: " + (result.error?.message || "Unknown error"), "error");
+                }
+            } catch (error) {
+                console.error("Login error:", error);
+                showNotification("Login failed: " + error.message, "error");
+            } finally {
+                showLoadingIndicator(false);
+            }
+        };
+    }
 }
 function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() {
