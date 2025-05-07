@@ -8,17 +8,17 @@ import { runSetupChecks } from './setup-check.js';
 // --- Application State ---
 const appState = {
     entries: [], expenses: [], recurringEntries: [], invoices: [], rates: [],
-    settings: { 
-        defaultRate: 350, 
-        defaultPaymentTerms: 'Net 30', 
-        name: '', 
-        email: '', 
-        address: '', 
-        paymentInstructions: '', 
-        bankingDetails: '', 
-        theme: 'auto', 
-        dateFormat: 'MM/DD/YYYY', 
-        currency: 'USD' 
+    settings: {
+        defaultRate: 350,
+        defaultPaymentTerms: 'Net 30',
+        name: '',
+        email: '',
+        address: '',
+        paymentInstructions: '',
+        bankingDetails: '',
+        theme: 'auto',
+        dateFormat: 'MM/DD/YYYY',
+        currency: 'USD'
     },
     user: null,
     currentTimer: { intervalId: null, startTime: null, pausedTime: 0, isPaused: false },
@@ -74,25 +74,25 @@ function formatDate(dateString, format = appState.settings.dateFormat) {
 }
 function calculateDueDate(invoiceDateStr, paymentTerms) {
     if (!invoiceDateStr) return '';
-    
+
     try {
         const invoiceDate = new Date(invoiceDateStr);
         if (isNaN(invoiceDate)) return '';
-        
+
         // Extract days from payment terms (e.g., "Net 30" -> 30)
         let days = 30; // Default is 30 days
-        
+
         if (paymentTerms) {
             const match = paymentTerms.match(/\d+/);
             if (match) {
                 days = parseInt(match[0], 10);
             }
         }
-        
+
         // Calculate due date
         const dueDate = new Date(invoiceDate);
         dueDate.setDate(dueDate.getDate() + days);
-        
+
         return dueDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
     } catch (e) {
         console.error("Error calculating due date:", e);
@@ -102,26 +102,26 @@ function calculateDueDate(invoiceDateStr, paymentTerms) {
 
 function getDateRangeFromOption(option, fromDateStr, toDateStr) {
     console.log("Getting date range for:", { option, fromDateStr, toDateStr });
-    
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
-    
+
     let startDate = null;
     let endDate = null;
-    
+
     switch (option) {
         case 'today':
             startDate = today;
             endDate = new Date(today);
             endDate.setDate(endDate.getDate() + 1);
             break;
-            
+
         case 'yesterday':
             startDate = new Date(today);
             startDate.setDate(startDate.getDate() - 1);
             endDate = today;
             break;
-            
+
         case 'this-week':
             // Get the first day of the current week (Sunday)
             startDate = new Date(today);
@@ -130,7 +130,7 @@ function getDateRangeFromOption(option, fromDateStr, toDateStr) {
             endDate = new Date(startDate);
             endDate.setDate(endDate.getDate() + 7);
             break;
-            
+
         case 'last-week':
             // Get the first day of the last week
             startDate = new Date(today);
@@ -139,41 +139,41 @@ function getDateRangeFromOption(option, fromDateStr, toDateStr) {
             endDate = new Date(startDate);
             endDate.setDate(endDate.getDate() + 7);
             break;
-            
+
         case 'this-month':
             // Get the first day of the current month
             startDate = new Date(today.getFullYear(), today.getMonth(), 1);
             // Get the first day of the next month
             endDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             break;
-            
+
         case 'last-month':
             // Get the first day of the last month
             startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
             // Get the first day of the current month
             endDate = new Date(today.getFullYear(), today.getMonth(), 1);
             break;
-            
+
         case 'this-year':
             // Get the first day of the current year
             startDate = new Date(today.getFullYear(), 0, 1);
             // Get the first day of the next year
             endDate = new Date(today.getFullYear() + 1, 0, 1);
             break;
-            
+
         case 'last-year':
             // Get the first day of the last year
             startDate = new Date(today.getFullYear() - 1, 0, 1);
             // Get the first day of the current year
             endDate = new Date(today.getFullYear(), 0, 1);
             break;
-            
+
         case 'custom':
             if (fromDateStr) {
                 startDate = new Date(fromDateStr);
                 if (isNaN(startDate.getTime())) startDate = null;
             }
-            
+
             if (toDateStr) {
                 endDate = new Date(toDateStr);
                 if (isNaN(endDate.getTime())) endDate = null;
@@ -184,38 +184,38 @@ function getDateRangeFromOption(option, fromDateStr, toDateStr) {
                 }
             }
             break;
-            
+
         case 'all':
         default:
             // All dates, no filtering needed
             break;
     }
-    
+
     console.log("Date range:", {
         option,
         startDate: startDate ? startDate.toISOString() : null,
         endDate: endDate ? endDate.toISOString() : null
     });
-    
+
     return { startDate, endDate };
 }
 
 function triggerDownload(content, filename, contentType) {
     console.log("Triggering download:", filename, contentType);
-    
+
     // Create a Blob with the content
     const blob = new Blob([content], { type: contentType });
-    
+
     // Create a download link
     const a = document.createElement('a');
     const url = URL.createObjectURL(blob);
     a.href = url;
     a.download = filename;
-    
+
     // Append to document, click, and remove
     document.body.appendChild(a);
     a.click();
-    
+
     // Clean up
     setTimeout(() => {
         document.body.removeChild(a);
@@ -232,7 +232,47 @@ function readFileAsText(file) {
         reader.readAsText(file);
     });
 }
-function showLoadingIndicator(show) { console.log(`Loading: ${show}`); /* TODO: Visual indicator */ }
+function showLoadingIndicator(show) {
+    console.log(`Loading: ${show}`);
+
+    // Create or get the loading indicator
+    let loadingIndicator = document.getElementById('loading-indicator');
+
+    if (!loadingIndicator && show) {
+        // Create the loading indicator if it doesn't exist
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'loading-indicator';
+        loadingIndicator.style.position = 'fixed';
+        loadingIndicator.style.top = '0';
+        loadingIndicator.style.left = '0';
+        loadingIndicator.style.width = '100%';
+        loadingIndicator.style.height = '100%';
+        loadingIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        loadingIndicator.style.display = 'flex';
+        loadingIndicator.style.justifyContent = 'center';
+        loadingIndicator.style.alignItems = 'center';
+        loadingIndicator.style.zIndex = '9999';
+
+        const spinner = document.createElement('div');
+        spinner.style.width = '50px';
+        spinner.style.height = '50px';
+        spinner.style.border = '5px solid #f3f3f3';
+        spinner.style.borderTop = '5px solid #3498db';
+        spinner.style.borderRadius = '50%';
+        spinner.style.animation = 'spin 1s linear infinite';
+
+        // Add the animation
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+
+        loadingIndicator.appendChild(spinner);
+        document.body.appendChild(loadingIndicator);
+    } else if (loadingIndicator) {
+        // Show or hide the existing indicator
+        loadingIndicator.style.display = show ? 'flex' : 'none';
+    }
+}
 function getFormDataFromLocalStorage() { /* ... same ... */ }
 // *** addListener DEFINED ONCE HERE ***
 function addListener(id, event, handler) {
@@ -248,7 +288,7 @@ document.addEventListener('DOMContentLoaded', initApp);
 
 async function initApp() {
     console.log("Initializing application...");
-    
+
     try {
         // Check if Supabase connection is valid
         const isConnected = await checkSupabaseConnection();
@@ -256,29 +296,42 @@ async function initApp() {
             showNotification("Failed to connect to database. Please check your configuration.", "error");
             return;
         }
-        
+
         // Setup event listeners
         setupEventListeners();
-        
+
         // Set default dates
         setDefaultDates();
-        
+
         // Check if user is logged in
-        const { data: { session } } = await SupabaseAPI.supabase.auth.getSession();
-        
-        if (session) {
-            console.log("User authenticated:", session.user.email);
-            appState.user = session.user;
-            
-            // Load user data
-            await loadUserData();
-            
-            // Show application
-            showApp();
-            
-            // Dashboard will be initialized when the user clicks on the dashboard tab
-        } else {
-            console.log("No active session found. Showing login form.");
+        try {
+            const { data, error } = await SupabaseAPI.supabase.auth.getSession();
+
+            if (error) {
+                console.error("Error getting session:", error);
+                showNotification("Authentication error. Please try again.", "error");
+                showLoginForm();
+                return;
+            }
+
+            if (data.session) {
+                console.log("User authenticated:", data.session.user.email);
+                appState.user = data.session.user;
+
+                // Load user data
+                await loadUserData();
+
+                // Show application
+                showApp();
+
+                // Dashboard will be initialized when the user clicks on the dashboard tab
+            } else {
+                console.log("No active session found. Showing login form.");
+                showLoginForm();
+            }
+        } catch (authError) {
+            console.error("Authentication error:", authError);
+            showNotification("Authentication error. Please try again.", "error");
             showLoginForm();
         }
     } catch (error) {
@@ -306,7 +359,7 @@ async function loadUserData() {
     console.log("Loading user data...");
     try {
         showLoadingIndicator(true);
-        
+
         // Fetch all user data in parallel
         const [
             entriesData,
@@ -323,22 +376,22 @@ async function loadUserData() {
             SupabaseAPI.getRecurringEntries(),
             SupabaseAPI.getInvoices()
         ]);
-        
+
         // Update application state
         appState.entries = entriesData;
         appState.expenses = expensesData;
         appState.rates = ratesData || [{ id: 1, name: 'Standard Rate', amount: 350 }];
         appState.recurringEntries = recurringEntriesData;
         appState.invoices = invoicesData;
-        
+
         // Load settings if available
         if (settings) {
             appState.settings = settings;
         }
-        
+
         // Apply theme from settings
         applyTheme(appState.settings.theme);
-        
+
         // Update UI elements
         updateTimeEntriesTable();
         updateExpensesTable();
@@ -349,7 +402,7 @@ async function loadUserData() {
         populateSettingsForm();
         populateRateTemplates();
         updateRateDropdowns();
-        
+
         // Load auto-saved form data if any
         const formData = await SupabaseAPI.getFormDataFromDatabase(appState.user.id);
         if (formData) {
@@ -357,7 +410,7 @@ async function loadUserData() {
             loadFormDataIntoForm(formData);
             showAutoSaveIndicator();
         }
-        
+
         console.log("User data loaded successfully");
     } catch (error) {
         console.error("Error loading user data:", error);
@@ -370,67 +423,67 @@ async function loadUserData() {
 // --- UI Updates ---
 async function showApp() {
     console.log("Showing app interface...");
-    
+
     // Hide login/signup container and show main app
     document.getElementById('login-container').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
-    
+
     // Show welcome message with user email
     const userEmail = appState.user ? appState.user.email : 'User';
     const userWelcome = document.getElementById('user-welcome');
     if (userWelcome) {
         userWelcome.textContent = userEmail;
     }
-    
+
     // Initialize the tabs with content if needed
     const tabsNeedingContent = ['dashboard-tab', 'invoice-tab', 'reports-tab', 'settings-tab'];
-    
+
     // Check which tab is currently visible
     let activeTabId = 'time-tracking-tab'; // Default
-    
+
     const activeTabButton = document.querySelector('.tab-button.active');
     if (activeTabButton) {
         activeTabId = activeTabButton.getAttribute('data-tab');
     }
-    
+
     // Make sure we have the active tab showing
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.style.display = 'none';
     });
-    
+
     const activeTab = document.getElementById(activeTabId);
     if (activeTab) {
         activeTab.style.display = 'block';
     }
-    
+
     // Set active class on active tab button
     document.querySelectorAll('.tab-button').forEach(button => {
         button.classList.remove('active');
     });
-    
+
     const activeButtonSelector = `.tab-button[data-tab="${activeTabId}"]`;
     const activeButton = document.querySelector(activeButtonSelector);
     if (activeButton) {
         activeButton.classList.add('active');
     }
-    
+
     // Load content for all tabs
     console.log("Loading content for all tabs...");
-    
+
     // Create an array of promises for loading each tab
     const loadPromises = [];
-    
+
     for (const tabId of tabsNeedingContent) {
         const tabElement = document.getElementById(tabId);
         if (tabElement && tabElement.innerHTML.trim() === '') {
             // Queue up the tab content loading
             const loadPromise = loadTabContent(tabId);
             loadPromises.push(loadPromise);
-            
+
             if (tabId === activeTabId) {
                 // For the active tab, we need to wait for it to load before initializing
                 await loadPromise;
-                
+
                 // If the dashboard tab is active, initialize it
                 if (tabId === 'dashboard-tab') {
                     console.log("Initializing dashboard as active tab");
@@ -443,7 +496,7 @@ async function showApp() {
             await initDashboardIfNeeded();
         }
     }
-    
+
     // Load the remaining tabs in the background
     Promise.all(loadPromises).then(() => {
         console.log("All tabs loaded successfully");
@@ -453,26 +506,26 @@ async function showApp() {
 }
 function showLoginForm() {
     console.log("Showing login form...");
-    
+
     // Show login container
     const loginContainer = document.getElementById('login-container');
     const appContainer = document.getElementById('app-container');
-    
+
     if (loginContainer) {
         loginContainer.style.display = 'flex';
     }
-    
+
     if (appContainer) {
         appContainer.style.display = 'none';
     }
-    
+
     // Set up login and signup forms if not already done
     setupAuthFormsListeners();
 }
 function applyTheme(themePreference) { /* ... same ... */ }
 function populateSettingsForm() {
     console.log("Populating settings form...");
-    
+
     // Get form elements
     const nameInput = document.getElementById('your-name');
     const emailInput = document.getElementById('your-email');
@@ -484,13 +537,13 @@ function populateSettingsForm() {
     const themeSelect = document.getElementById('theme-selection');
     const dateFormatSelect = document.getElementById('date-format');
     const currencySelect = document.getElementById('currency-format');
-    
+
     // Check if elements exist
     if (!nameInput || !emailInput) {
         console.warn("Settings form elements not found. The form may not be loaded yet.");
         return;
     }
-    
+
     // Populate settings
     if (nameInput) nameInput.value = appState.settings.name || '';
     if (emailInput) emailInput.value = appState.settings.email || '';
@@ -499,42 +552,42 @@ function populateSettingsForm() {
     if (bankingDetailsInput) bankingDetailsInput.value = appState.settings.bankingDetails || '';
     if (defaultRateSelect) defaultRateSelect.value = appState.settings.defaultRate || 350;
     if (paymentTermsInput) paymentTermsInput.value = appState.settings.defaultPaymentTerms || 'Net 30';
-    
+
     // Display settings
     if (themeSelect) themeSelect.value = appState.settings.theme || 'light';
     if (dateFormatSelect) dateFormatSelect.value = appState.settings.dateFormat || 'MM/DD/YYYY';
     if (currencySelect) currencySelect.value = appState.settings.currency || 'USD';
-    
+
     console.log("Settings form populated");
 }
 function populateRateTemplates() {
     console.log("Populating rate templates...");
-    
+
     const ratesContainer = document.getElementById('rates-container');
     const rateSelect = document.getElementById('timer-rate');
-    
+
     if (!ratesContainer || !rateSelect) {
         console.warn("Rate template elements not found. The form may not be loaded yet.");
         return;
     }
-    
+
     // Clear existing rate templates and dropdown options
     ratesContainer.innerHTML = '';
     rateSelect.innerHTML = '';
-    
+
     if (appState.rates.length === 0) {
         ratesContainer.innerHTML = '<p style="font-style: italic;">No rate templates saved yet.</p>';
-        
+
         // Add default rate option
         const defaultOption = document.createElement('option');
         defaultOption.value = appState.settings.defaultRate || 350;
         defaultOption.textContent = `Standard Rate ($${appState.settings.defaultRate || 350})`;
         rateSelect.appendChild(defaultOption);
-        
+
         console.log("No rates found");
         return;
     }
-    
+
     // Add rate templates to container
     appState.rates.forEach(rate => {
         const rateItem = document.createElement('div');
@@ -550,50 +603,50 @@ function populateRateTemplates() {
             </div>
         `;
         ratesContainer.appendChild(rateItem);
-        
+
         // Add to rate dropdown
         const option = document.createElement('option');
         option.value = rate.amount;
         option.textContent = `${rate.name} (${formatCurrency(rate.amount)})`;
         rateSelect.appendChild(option);
     });
-    
+
     // Add rate action listeners
     addRateActionListeners();
-    
+
     console.log(`Populated ${appState.rates.length} rate templates`);
 }
 function updateRateDropdowns() { /* ... same ... */ }
 function updateTimeEntriesTable() {
     console.log("Updating time entries table...");
     console.log("Number of entries:", appState.entries.length);
-    
+
     // Update table with all entries
     updateTimeEntriesTableWithData(appState.entries);
 }
 function updateExpensesTable() {
     console.log("Updating expenses table...");
     console.log("Number of expenses:", appState.expenses.length);
-    
+
     const tableBody = document.getElementById('expenses-body');
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = '';
-    
+
     // Sort expenses by date (newest first)
-    const sortedExpenses = [...appState.expenses].sort((a, b) => 
+    const sortedExpenses = [...appState.expenses].sort((a, b) =>
         new Date(b.date) - new Date(a.date)
     );
-    
+
     let totalExpenses = 0;
-    
+
     sortedExpenses.forEach(expense => {
         totalExpenses += Number(expense.amount || 0);
-        
+
         const row = document.createElement('tr');
-        
+
         const formattedDate = formatDate(expense.date);
-        
+
         row.innerHTML = `
             <td>${formattedDate}</td>
             <td>${escapeHtml(expense.description)}</td>
@@ -605,58 +658,58 @@ function updateExpensesTable() {
                 <button class="delete-expense-btn" data-id="${expense.id}" style="padding: 5px 10px;">Delete</button>
             </td>
         `;
-        
+
         tableBody.appendChild(row);
     });
-    
+
     // Update total expenses
     document.getElementById('total-expenses').textContent = formatCurrency(totalExpenses);
-    
+
     // Add edit and delete event listeners
     document.querySelectorAll('.edit-expense-btn').forEach(button => {
         button.addEventListener('click', () => editExpense(button.getAttribute('data-id')));
     });
-    
+
     document.querySelectorAll('.delete-expense-btn').forEach(button => {
         button.addEventListener('click', () => deleteExpense(button.getAttribute('data-id')));
     });
-    
+
     console.log(`Expenses updated: ${sortedExpenses.length} expenses, ${formatCurrency(totalExpenses)}`);
 }
 function updateSummary() {
     console.log("Updating summary...");
-    
+
     // Calculate totals
     const totalHours = appState.entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
     const totalAmount = appState.entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    
+
     // Update UI
     document.getElementById('total-hours').textContent = totalHours.toFixed(2);
     document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
-    
+
     // Initially set filtered values to match totals (until filters are applied)
     document.getElementById('filtered-hours').textContent = totalHours.toFixed(2);
     document.getElementById('filtered-amount').textContent = formatCurrency(totalAmount);
-    
+
     console.log(`Summary updated: ${totalHours.toFixed(2)} hours, ${formatCurrency(totalAmount)}`);
 }
 function updateClientProjectDropdowns() {
     try {
         // Get unique clients
         const clients = [...new Set(appState.entries.map(entry => entry.client).filter(Boolean))];
-        
+
         // Get unique projects
         const projects = [...new Set(appState.entries.map(entry => entry.project).filter(Boolean))];
-        
+
         // Populate client dropdowns
         const clientDropdowns = [
-            'filter-client', 
-            'dash-client', 
-            'invoice-client', 
+            'filter-client',
+            'dash-client',
+            'invoice-client',
             'report-client',
             'timer-client'
         ];
-        
+
         clientDropdowns.forEach(id => {
             const dropdown = document.getElementById(id);
             if (dropdown) {
@@ -664,7 +717,7 @@ function updateClientProjectDropdowns() {
                 const firstOption = dropdown.options[0];
                 dropdown.innerHTML = '';
                 dropdown.appendChild(firstOption);
-                
+
                 // Add client options
                 clients.forEach(client => {
                     const option = document.createElement('option');
@@ -674,16 +727,16 @@ function updateClientProjectDropdowns() {
                 });
             }
         });
-        
+
         // Populate project dropdowns
         const projectDropdowns = [
-            'filter-project', 
-            'dash-project', 
-            'invoice-project', 
+            'filter-project',
+            'dash-project',
+            'invoice-project',
             'report-project',
             'timer-project'
         ];
-        
+
         projectDropdowns.forEach(id => {
             const dropdown = document.getElementById(id);
             if (dropdown) {
@@ -691,7 +744,7 @@ function updateClientProjectDropdowns() {
                 const firstOption = dropdown.options[0];
                 dropdown.innerHTML = '';
                 dropdown.appendChild(firstOption);
-                
+
                 // Add project options
                 projects.forEach(project => {
                     const option = document.createElement('option');
@@ -701,7 +754,7 @@ function updateClientProjectDropdowns() {
                 });
             }
         });
-        
+
         // Also update datalists
         const clientDataLists = ['clients-list', 'clients-list-expense'];
         clientDataLists.forEach(id => {
@@ -715,7 +768,7 @@ function updateClientProjectDropdowns() {
                 });
             }
         });
-        
+
         const projectDataLists = ['projects-list', 'projects-list-expense'];
         projectDataLists.forEach(id => {
             const datalist = document.getElementById(id);
@@ -732,16 +785,16 @@ function updateClientProjectDropdowns() {
         console.error('Error populating dropdowns:', err);
     }
 }
-function populateDropdown(elementId, optionsArray, defaultOptionText = 'All') { 
+function populateDropdown(elementId, optionsArray, defaultOptionText = 'All') {
     const dropdown = document.getElementById(elementId);
     if (!dropdown) return;
-    
+
     // Store current value to try to preserve selection if possible
     const currentValue = dropdown.value;
-    
+
     // Keep only the first option (typically "All")
     dropdown.options.length = 1;
-    
+
     // Add options
     optionsArray.forEach(option => {
         const optionElement = document.createElement('option');
@@ -749,20 +802,20 @@ function populateDropdown(elementId, optionsArray, defaultOptionText = 'All') {
         optionElement.textContent = option;
         dropdown.appendChild(optionElement);
     });
-    
+
     // Try to restore previous value if it exists in new options
     if (currentValue && [...dropdown.options].some(opt => opt.value === currentValue)) {
         dropdown.value = currentValue;
     }
 }
 
-function populateDatalist(elementId, optionsArray) { 
+function populateDatalist(elementId, optionsArray) {
     const datalist = document.getElementById(elementId);
     if (!datalist) return;
-    
+
     // Clear existing options
     datalist.innerHTML = '';
-    
+
     // Add options
     optionsArray.forEach(option => {
         const optionElement = document.createElement('option');
@@ -774,23 +827,23 @@ function populateDatalist(elementId, optionsArray) {
 // Helper function to update projects dropdown based on selected client
 function updateProjectsDropdownForClient(projectDropdown, selectedClient) {
     if (!projectDropdown || !selectedClient) return;
-    
+
     console.log(`Updating projects dropdown for client: ${selectedClient}`);
-    
+
     // Get projects for this client
     const clientProjects = appState.entries
         .filter(entry => entry.client === selectedClient)
         .map(entry => entry.project)
         .filter(Boolean);
-    
+
     // Get unique projects
     const uniqueProjects = [...new Set(clientProjects)];
-    
+
     // Keep the first option
     const firstOption = projectDropdown.options[0];
     projectDropdown.innerHTML = '';
     projectDropdown.appendChild(firstOption);
-    
+
     // Add client projects
     uniqueProjects.forEach(project => {
         const option = document.createElement('option');
@@ -798,7 +851,7 @@ function updateProjectsDropdownForClient(projectDropdown, selectedClient) {
         option.textContent = project;
         projectDropdown.appendChild(option);
     });
-    
+
     console.log(`Added ${uniqueProjects.length} projects for client ${selectedClient}`);
 }
 function updateRecurringEntriesUI() { /* ... same ... */ }
@@ -818,18 +871,18 @@ function exportData() {
             exportDate: new Date().toISOString(),
             version: '1.0'
         };
-        
+
         // Convert to JSON
         const jsonData = JSON.stringify(exportData, null, 2);
-        
+
         // Generate filename with current date
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
         const filename = `timetracker_export_${dateStr}.json`;
-        
+
         // Trigger download
         triggerDownload(jsonData, filename, 'application/json');
-        
+
         showNotification("Data exported successfully", "success");
     } catch (error) {
         console.error("Error exporting data:", error);
@@ -842,27 +895,27 @@ async function importData(file) {
     try {
         // Read file content
         const content = await readFileAsText(file);
-        
+
         // Parse JSON
         const importData = JSON.parse(content);
-        
+
         // Validate data structure
         if (!importData.entries || !importData.expenses) {
             throw new Error("Invalid data format");
         }
-        
+
         // Confirm import
         if (!confirm("Are you sure you want to import this data? It will replace your current data.")) {
             return;
         }
-        
+
         // Replace app state data
         appState.entries = importData.entries;
         appState.expenses = importData.expenses;
         if (importData.recurringEntries) appState.recurringEntries = importData.recurringEntries;
         if (importData.rates) appState.rates = importData.rates;
         if (importData.settings) appState.settings = importData.settings;
-        
+
         // Update UI
         updateTimeEntriesTable();
         updateExpensesTable();
@@ -871,7 +924,7 @@ async function importData(file) {
         updateRecurringEntriesUI();
         populateRateTemplates();
         populateSettingsForm();
-        
+
         // Save to database
         await Promise.all([
             SupabaseAPI.replaceTimeEntries(appState.entries),
@@ -880,7 +933,7 @@ async function importData(file) {
             SupabaseAPI.replaceRates(appState.rates),
             SupabaseAPI.updateSettings(appState.settings)
         ]);
-        
+
         showNotification("Data imported successfully", "success");
     } catch (error) {
         console.error("Error importing data:", error);
@@ -893,17 +946,17 @@ function exportCSV() {
     try {
         // Prepare entries data
         const headers = ['Date', 'Description', 'Client', 'Project', 'Hours', 'Rate', 'Amount'];
-        
+
         // Apply current filters to get filtered entries
         const { startDate, endDate } = getDateRangeFromOption(
             document.getElementById('date-range').value,
             document.getElementById('date-from').value,
             document.getElementById('date-to').value
         );
-        
+
         const clientFilter = document.getElementById('filter-client').value;
         const projectFilter = document.getElementById('filter-project').value;
-        
+
         // Filter entries based on criteria
         const filteredEntries = appState.entries.filter(entry => {
             // Apply date filter if specified
@@ -913,23 +966,23 @@ function exportCSV() {
                     return false;
                 }
             }
-            
+
             // Apply client filter if specified
             if (clientFilter !== 'all' && entry.client !== clientFilter) {
                 return false;
             }
-            
+
             // Apply project filter if specified
             if (projectFilter !== 'all' && entry.project !== projectFilter) {
                 return false;
             }
-            
+
             return true;
         });
-        
+
         // Create CSV content
         let csvContent = headers.join(',') + '\n';
-        
+
         // Add entry rows
         filteredEntries.forEach(entry => {
             const row = [
@@ -943,15 +996,15 @@ function exportCSV() {
             ];
             csvContent += row.join(',') + '\n';
         });
-        
+
         // Generate filename with current date
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
         const filename = `timetracker_export_${dateStr}.csv`;
-        
+
         // Trigger download
         triggerDownload(csvContent, filename, 'text/csv');
-        
+
         showNotification("CSV exported successfully", "success");
     } catch (error) {
         console.error("Error exporting CSV:", error);
@@ -980,119 +1033,33 @@ function setupEventListeners() {
 // addDelegatedListener defined above
 function setupAuthListeners() {
     console.log("Setting up authentication listeners...");
-    
-    // Handle signup form toggle
-    addListener('show-signup-link', 'click', () => {
-        document.getElementById('login-form-container').style.display = 'none';
-        document.getElementById('signup-form-container').style.display = 'block';
-    });
-    
-    // Handle login form toggle
-    addListener('show-login-link', 'click', () => {
-        document.getElementById('signup-form-container').style.display = 'none';
-        document.getElementById('login-form-container').style.display = 'block';
-    });
-    
-    // Handle login form submission
-    addListener('login-form', 'submit', async (e) => {
-        e.preventDefault();
-        
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        
-        if (!email || !password) {
-            showNotification("Please enter email and password", "error");
-            return;
-        }
-        
-        try {
-            showLoadingIndicator(true);
-            
-            const result = await SupabaseAPI.signIn(email, password);
-            
-            if (result.success) {
-                // Set user state
-                appState.user = result.user;
-                
-                // Load user data
-                await loadUserData();
-                
-                // Show application
-                showApp();
-                
-                showNotification("Login successful!", "success");
-            } else {
-                showNotification("Login failed: " + (result.error?.message || "Unknown error"), "error");
-            }
-        } catch (error) {
-            console.error("Login error:", error);
-            showNotification("Login failed: " + error.message, "error");
-        } finally {
-            showLoadingIndicator(false);
-        }
-    });
-    
-    // Handle signup form submission
-    addListener('signup-form', 'submit', async (e) => {
-        e.preventDefault();
-        
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
-        const confirmPassword = document.getElementById('signup-confirm-password').value;
-        
-        if (!email || !password || !confirmPassword) {
-            showNotification("Please fill all fields", "error");
-            return;
-        }
-        
-        if (password !== confirmPassword) {
-            showNotification("Passwords do not match", "error");
-            return;
-        }
-        
-        try {
-            showLoadingIndicator(true);
-            
-            const result = await SupabaseAPI.signUp(email, password);
-            
-            if (result.success) {
-                showNotification("Signup successful! Please check your email for verification.", "success");
-                
-                // Switch to login form
-                document.getElementById('signup-form-container').style.display = 'none';
-                document.getElementById('login-form-container').style.display = 'block';
-            } else {
-                showNotification("Signup failed: " + (result.error?.message || "Unknown error"), "error");
-            }
-        } catch (error) {
-            console.error("Signup error:", error);
-            showNotification("Signup failed: " + error.message, "error");
-        } finally {
-            showLoadingIndicator(false);
-        }
-    });
-    
+
+    // Note: Form toggle and submission handlers are now set up in setupAuthFormsListeners()
+    // This function now only handles the logout button
+
     // Logout button
     addListener('logout-button', 'click', async () => {
         try {
             await SupabaseAPI.signOut();
-            
+
             // Reset app state
             appState.user = null;
             appState.entries = [];
             appState.expenses = [];
             appState.recurringEntries = [];
             appState.invoices = [];
-            
+
             // Show login form
             showLoginForm();
-            
+
             showNotification("Logged out successfully", "success");
         } catch (error) {
             console.error("Logout error:", error);
             showNotification("Logout failed: " + error.message, "error");
         }
     });
+
+    console.log("Auth listeners setup complete");
 }
 function setupNavigationListeners() {
     // Tab navigation buttons
@@ -1101,7 +1068,7 @@ function setupNavigationListeners() {
         const tabId = button.getAttribute('data-tab');
         button.addEventListener('click', (e) => {
             openTab(e, tabId);
-            
+
             // If dashboard tab is opened, make sure it's initialized
             if (tabId === 'dashboard-tab') {
                 initDashboardIfNeeded();
@@ -1113,19 +1080,19 @@ function setupNavigationListeners() {
 // Helper function to initialize dashboard when needed
 async function initDashboardIfNeeded() {
     console.log("Checking if dashboard needs initialization...");
-    
+
     const dashboardTab = document.getElementById('dashboard-tab');
     if (!dashboardTab) {
         console.error("Dashboard tab element not found");
         return;
     }
-    
+
     // Check if tab is visible and not already initialized
     const isVisible = dashboardTab.style.display !== 'none';
     const isInitialized = dashboardTab.dataset.initialized === 'true';
-    
+
     console.log(`Dashboard visibility: ${isVisible}, Already initialized: ${isInitialized}`);
-    
+
     if (isVisible && !isInitialized) {
         try {
             // Show loading indicator
@@ -1135,7 +1102,7 @@ async function initDashboardIfNeeded() {
                 loadingIndicator.style.textAlign = 'center';
                 loadingIndicator.style.padding = '20px';
                 loadingIndicator.innerHTML = '<p>Loading dashboard data...</p>';
-                
+
                 // Insert after any h2 elements, or at the beginning if no h2
                 const h2 = dashboardTab.querySelector('h2');
                 if (h2 && h2.nextSibling) {
@@ -1144,40 +1111,40 @@ async function initDashboardIfNeeded() {
                     dashboardTab.prepend(loadingIndicator);
                 }
             }
-            
+
             // Get dependencies
             const dashboardDeps = await getDashboardDependencies();
             if (!dashboardDeps) {
                 throw new Error("Failed to load dashboard dependencies");
             }
-            
+
             if (typeof dashboardDeps.initDashboard !== 'function') {
                 throw new Error("Dashboard initialization function not found");
             }
-            
+
             // Initialize the dashboard
             await dashboardDeps.initDashboard(appState, dashboardDeps);
-            
+
             // Mark as initialized
             dashboardTab.dataset.initialized = 'true';
-            
+
             // Remove loading indicator
             const loadingIndicator = dashboardTab.querySelector('.dashboard-loading');
             if (loadingIndicator) {
                 loadingIndicator.remove();
             }
-            
+
             console.log("Dashboard successfully initialized");
         } catch (error) {
             console.error("Error initializing dashboard:", error);
-            
+
             // Show error message in the dashboard tab
             const errorMessage = document.createElement('div');
             errorMessage.className = 'dashboard-error';
             errorMessage.style.padding = '20px';
             errorMessage.style.color = 'var(--error-color)';
             errorMessage.innerHTML = '<p>Failed to initialize dashboard. Please try refreshing the page.</p>';
-            
+
             // Replace loading indicator if exists, otherwise add to the tab
             const loadingIndicator = dashboardTab.querySelector('.dashboard-loading');
             if (loadingIndicator) {
@@ -1190,7 +1157,7 @@ async function initDashboardIfNeeded() {
                     dashboardTab.prepend(errorMessage);
                 }
             }
-            
+
             // Show notification
             showNotification("Error loading dashboard. See console for details.", "error");
         }
@@ -1212,15 +1179,15 @@ function setupTimeEntryListeners() {
     addListener('add-entry', 'click', addTimeEntry);
     addListener('update-entry', 'click', updateTimeEntry);
     addListener('cancel-edit', 'click', cancelEdit);
-    
+
     // Filter buttons
     addListener('apply-filters', 'click', applyFilters);
     addListener('clear-filters', 'click', clearFilters);
-    
+
     // Recurring entries
     addListener('save-recurring', 'click', saveRecurringEntry);
     addRecurringEntryActionListeners();
-    
+
     // Timer buttons
     addListener('start-timer', 'click', startTimer);
     addListener('pause-timer', 'click', pauseTimer);
@@ -1231,73 +1198,73 @@ function setupTimeEntryListeners() {
 function setupExpenseListeners() { /* ... same ... */ }
 function setupInvoiceListeners() {
     console.log("Setting up invoice listeners...");
-    
+
     // Invoice generation
     addListener('generate-invoice', 'click', handleGenerateInvoiceClick);
     addListener('view-invoice-entries', 'click', viewInvoiceEntries);
-    
+
     // Invoice date range
     addListener('invoice-date-range', 'change', () => {
         const dateRangeSelect = document.getElementById('invoice-date-range');
         const customDateContainer = document.getElementById('invoice-custom-date-range');
-        
+
         if (dateRangeSelect && customDateContainer) {
-            customDateContainer.style.display = 
+            customDateContainer.style.display =
                 dateRangeSelect.value === 'custom' ? 'flex' : 'none';
         }
     });
-    
+
     // Invoice client/project relationship
     addListener('invoice-client', 'change', () => {
         const clientSelect = document.getElementById('invoice-client');
         const projectSelect = document.getElementById('invoice-project');
-        
+
         if (clientSelect && projectSelect && clientSelect.value) {
             // Filter projects by selected client
             const selectedClient = clientSelect.value;
             updateProjectsDropdownForClient(projectSelect, selectedClient);
         }
     });
-    
+
     // Invoice action buttons
     addListener('print-invoice', 'click', printInvoice);
     addListener('save-invoice-pdf', 'click', saveInvoicePdf);
     addListener('export-invoice-excel', 'click', exportInvoiceExcel);
     addListener('mark-as-paid', 'click', markCurrentlyGeneratedInvoicePaid);
-    
+
     console.log("Invoice listeners setup complete");
 }
 function addInvoiceHistoryActionListeners() { /* ... same ... */ }
 function setupReportListeners() {
     console.log("Setting up reports listeners...");
-    
+
     // Report generation
     addListener('generate-report', 'click', generateReport);
     addListener('export-report', 'click', exportReport);
-    
+
     // Report date range
     addListener('report-date-range', 'change', () => {
         const dateRangeSelect = document.getElementById('report-date-range');
         const customDateContainer = document.getElementById('report-custom-date-range');
-        
+
         if (dateRangeSelect && customDateContainer) {
-            customDateContainer.style.display = 
+            customDateContainer.style.display =
                 dateRangeSelect.value === 'custom' ? 'flex' : 'none';
         }
     });
-    
+
     // Report type change
     addListener('report-type', 'change', () => {
         // Could update available filters based on report type
         const reportType = document.getElementById('report-type').value;
         console.log(`Report type changed to: ${reportType}`);
     });
-    
+
     // Client/project relationship
     addListener('report-client', 'change', () => {
         const clientSelect = document.getElementById('report-client');
         const projectSelect = document.getElementById('report-project');
-        
+
         if (clientSelect && projectSelect && clientSelect.value !== 'all') {
             // Filter projects by selected client
             const selectedClient = clientSelect.value;
@@ -1307,21 +1274,21 @@ function setupReportListeners() {
             updateClientProjectDropdowns();
         }
     });
-    
+
     console.log("Reports listeners setup complete");
 }
 function setupSettingsListeners() {
     console.log("Setting up settings listeners...");
-    
+
     // Core settings form
     addListener('save-settings', 'click', saveCoreSettings);
-    
+
     // Display settings form
     addListener('save-display-settings', 'click', saveDisplaySettings);
-    
+
     // Rate templates
     addListener('add-rate', 'click', addRateTemplate);
-    
+
     // Data management in settings
     addListener('export-all-data', 'click', exportData);
     addListener('import-all-data', 'click', () => document.getElementById('file-input').click());
@@ -1330,7 +1297,7 @@ function setupSettingsListeners() {
         console.log("Export to Excel not implemented");
         showNotification("Export to Excel not implemented yet", "info");
     });
-    
+
     // Clear data with confirmation
     addListener('clear-all-data', 'click', () => {
         if (confirm('Are you sure you want to delete ALL your data? This cannot be undone!')) {
@@ -1339,34 +1306,34 @@ function setupSettingsListeners() {
             }
         }
     });
-    
+
     console.log("Settings listeners setup complete");
 }
 function addRateActionListeners() { /* ... same ... */ }
 function setupDataManagementListeners() {
     console.log("Setting up data management listeners...");
-    
+
     // Get direct references to buttons for debugging
     const exportDataBtn = document.getElementById('export-data');
     const importDataBtn = document.getElementById('import-data');
     const exportCsvBtn = document.getElementById('export-csv');
-    
-    console.log("Buttons found:", 
-        exportDataBtn ? "Export Data ✓" : "Export Data ✗", 
+
+    console.log("Buttons found:",
+        exportDataBtn ? "Export Data ✓" : "Export Data ✗",
         importDataBtn ? "Import Data ✓" : "Import Data ✗",
         exportCsvBtn ? "Export CSV ✓" : "Export CSV ✗");
-    
+
     // Export data file
     addListener('export-data', 'click', exportData);
-    
+
     // Import data file
     addListener('import-data', 'click', () => {
         document.getElementById('file-input').click();
     });
-    
+
     // Export CSV
     addListener('export-csv', 'click', exportCSV);
-    
+
     // Handle file selection for import
     addListener('file-input', 'change', (e) => {
         const file = e.target.files[0];
@@ -1374,7 +1341,7 @@ function setupDataManagementListeners() {
             importData(file);
         }
     });
-    
+
     console.log("Data management listeners setup complete");
 }
 function setupDateRangeListeners() { /* ... same ... */ }
@@ -1390,27 +1357,27 @@ async function getDashboardDependencies() {
     try {
         // Import dashboard module dynamically
         const dashboardModule = await import('./dashboard.js');
-        
+
         // Get reference to Chart.js library
         let Chart = window.Chart;
-        
+
         if (!Chart) {
             console.warn("Chart.js not found in global scope. Attempting to load it...");
-            
+
             // Try to load Chart.js dynamically if not available
             try {
                 await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
                 console.log("Chart.js loaded dynamically");
-                
+
                 // Check if Chart is now available
                 Chart = window.Chart;
-                
+
                 if (!Chart) {
                     console.warn("Chart.js still not available after loading. Trying alternative CDN...");
                     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js');
                     Chart = window.Chart;
                 }
-                
+
                 if (!Chart) {
                     console.error("Failed to load Chart.js from multiple sources");
                     showNotification("Failed to load chart library. Some visualizations may not work.", "warning");
@@ -1422,7 +1389,7 @@ async function getDashboardDependencies() {
                 showNotification("Failed to load chart library. Some visualizations may not work.", "warning");
             }
         }
-        
+
         return {
             initDashboard: dashboardModule.initDashboard,
             updateDashboard: dashboardModule.updateDashboard,
@@ -1460,7 +1427,7 @@ function toggleAuthForms(showSignup) { /* ... same ... */ }
 // --- Settings ---
 async function saveCoreSettings() {
     console.log("Saving core settings...");
-    
+
     try {
         // Get values from form
         const nameInput = document.getElementById('your-name');
@@ -1470,13 +1437,13 @@ async function saveCoreSettings() {
         const bankingDetailsInput = document.getElementById('banking-details');
         const defaultRateSelect = document.getElementById('default-rate');
         const paymentTermsInput = document.getElementById('default-payment-terms');
-        
+
         if (!nameInput || !emailInput) {
             console.error("Required settings form elements not found");
             showNotification("Settings form not fully loaded. Try reopening the tab.", "error");
             return;
         }
-        
+
         // Update appState settings
         appState.settings.name = nameInput.value;
         appState.settings.email = emailInput.value;
@@ -1485,15 +1452,15 @@ async function saveCoreSettings() {
         appState.settings.bankingDetails = bankingDetailsInput?.value || '';
         appState.settings.defaultRate = parseFloat(defaultRateSelect?.value || appState.settings.defaultRate);
         appState.settings.defaultPaymentTerms = paymentTermsInput?.value || 'Net 30';
-        
+
         // Save to Supabase
         const settingsData = {
             ...appState.settings,
             userId: appState.user.id
         };
-        
+
         const savedSettings = await SupabaseAPI.saveSettings(settingsData);
-        
+
         if (savedSettings) {
             console.log("Core settings saved successfully:", savedSettings);
             showNotification("Settings saved successfully", "success");
@@ -1509,52 +1476,52 @@ async function saveCoreSettings() {
 
 async function saveDisplaySettings() {
     console.log("Saving display settings...");
-    
+
     try {
         // Get values from form
         const themeSelect = document.getElementById('theme-selection');
         const dateFormatSelect = document.getElementById('date-format');
         const currencySelect = document.getElementById('currency-format');
-        
+
         if (!themeSelect || !dateFormatSelect || !currencySelect) {
             console.error("Required display settings form elements not found");
             showNotification("Display settings form not fully loaded. Try reopening the tab.", "error");
             return;
         }
-        
+
         // Check if currency has changed
         const oldCurrency = appState.settings.currency;
         const newCurrency = currencySelect.value;
         const currencyChanged = oldCurrency !== newCurrency;
-        
+
         // Update appState settings
         appState.settings.theme = themeSelect.value;
         appState.settings.dateFormat = dateFormatSelect.value;
         appState.settings.currency = newCurrency;
-        
+
         // Apply theme
         applyTheme(appState.settings.theme);
-        
+
         // Save to Supabase
         const settingsData = {
             ...appState.settings,
             userId: appState.user.id
         };
-        
+
         const savedSettings = await SupabaseAPI.saveSettings(settingsData);
-        
+
         if (savedSettings) {
             console.log("Display settings saved successfully:", savedSettings);
-            
+
             // If currency changed, ask if user wants to update existing entries
             if (currencyChanged && appState.entries.length > 0) {
                 const shouldUpdate = confirm(`Currency changed from ${oldCurrency} to ${newCurrency}. Would you like to update the currency for existing time entries? This won't change their value, only how they're displayed.`);
-                
+
                 if (shouldUpdate) {
                     await updateCurrencyForExistingEntries(oldCurrency, newCurrency);
                 }
             }
-            
+
             showNotification("Display settings saved successfully", "success");
         } else {
             console.error("Failed to save display settings: No data returned");
@@ -1569,38 +1536,38 @@ async function saveDisplaySettings() {
 // Function to update currency for existing time entries
 async function updateCurrencyForExistingEntries(oldCurrency, newCurrency) {
     console.log(`Updating currency for existing entries from ${oldCurrency} to ${newCurrency}...`);
-    
+
     try {
         // Show loading indicator
         showNotification("Updating currency for existing entries...", "info");
-        
+
         // Count of entries to update (entries with amounts)
         const entriesToUpdate = appState.entries.filter(entry => entry.amount !== undefined && entry.amount !== null);
-        
+
         if (entriesToUpdate.length === 0) {
             console.log("No entries with amount values to update");
             return;
         }
-        
+
         console.log(`Found ${entriesToUpdate.length} entries with amounts to update`);
-        
+
         // We won't actually convert values, just set the currency code
         // You could add actual exchange rate conversion here
-        
+
         // Get updated entries
         const updateResults = await Promise.all(
             entriesToUpdate.map(entry => {
                 // Here we're just updating the currency code, not converting the value
                 // In a real app, you might apply exchange rates
-                return SupabaseAPI.updateTimeEntry(entry.id, { 
+                return SupabaseAPI.updateTimeEntry(entry.id, {
                     currency: newCurrency
                 });
             })
         );
-        
+
         // Check results
         const updatedCount = updateResults.filter(result => result !== null).length;
-        
+
         // Refresh entries to get the updated data
         const updatedEntries = await SupabaseAPI.getTimeEntries();
         if (updatedEntries) {
@@ -1608,7 +1575,7 @@ async function updateCurrencyForExistingEntries(oldCurrency, newCurrency) {
             updateTimeEntriesTable();
             updateSummary();
         }
-        
+
         console.log(`Successfully updated ${updatedCount} entries to ${newCurrency}`);
         showNotification(`Updated ${updatedCount} entries to ${newCurrency}`, "success");
     } catch (error) {
@@ -1628,79 +1595,79 @@ async function importData(e) { /* ... same ... */ }
 
 function applyFilters() {
     console.log("Applying filters...");
-    
+
     // Get filter values
     const dateRangeOption = document.getElementById('date-range').value;
     const clientFilter = document.getElementById('filter-client').value;
     const projectFilter = document.getElementById('filter-project').value;
-    
+
     // Get custom date range if selected
     let customFrom, customTo;
     if (dateRangeOption === 'custom') {
         customFrom = document.getElementById('date-from').value;
         customTo = document.getElementById('date-to').value;
-        
+
         if (!customFrom || !customTo) {
             showNotification("Please select both start and end dates for custom range", "error");
             return;
         }
     }
-    
+
     // Get date range
     const { startDate, endDate } = getDateRangeFromOption(dateRangeOption, customFrom, customTo);
-    
+
     // Filter entries
     const tableBody = document.getElementById('entries-body');
     let filteredEntries = [];
     let filteredHours = 0;
     let filteredAmount = 0;
-    
+
     // Clone the entries before filtering
     filteredEntries = appState.entries.filter(entry => {
         // Check if entry date is within range
         const entryDate = new Date(entry.date + 'T00:00:00Z');
-        
+
         if (startDate && entryDate < startDate) return false;
         if (endDate && entryDate > endDate) return false;
-        
+
         // Check client filter
         if (clientFilter !== 'all' && entry.client !== clientFilter) return false;
-        
+
         // Check project filter
         if (projectFilter !== 'all' && entry.project !== projectFilter) return false;
-        
+
         // Entry passed all filters
         filteredHours += entry.hours;
         filteredAmount += entry.amount;
         return true;
     });
-    
+
     // Update the filtered summary
     document.getElementById('filtered-hours').textContent = filteredHours.toFixed(2);
     document.getElementById('filtered-amount').textContent = filteredAmount.toFixed(2);
-    
+
     // Update table with filtered entries
     updateTimeEntriesTableWithData(filteredEntries);
-    
+
     showNotification(`Showing ${filteredEntries.length} filtered entries`, "info");
 }
 
 function updateTimeEntriesTableWithData(entries) {
     const tableBody = document.getElementById('entries-body');
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = '';
-    
+
     // Sort entries by date (newest first)
-    const sortedEntries = [...entries].sort((a, b) => 
+    const sortedEntries = [...entries].sort((a, b) =>
         new Date(b.date) - new Date(a.date)
     );
-    
+
     sortedEntries.forEach(entry => {
         const row = document.createElement('tr');
-        
+
         const formattedDate = formatDate(entry.date);
-        
+
         row.innerHTML = `
             <td>${formattedDate}</td>
             <td>${escapeHtml(entry.description)}</td>
@@ -1714,15 +1681,15 @@ function updateTimeEntriesTableWithData(entries) {
                 <button class="delete-btn" data-id="${entry.id}" style="padding: 5px 10px;">Delete</button>
             </td>
         `;
-        
+
         tableBody.appendChild(row);
     });
-    
+
     // Add delete and edit event listeners
     document.querySelectorAll('.delete-btn').forEach(button => {
         button.addEventListener('click', () => deleteTimeEntry(button.getAttribute('data-id')));
     });
-    
+
     document.querySelectorAll('.edit-btn').forEach(button => {
         button.addEventListener('click', () => editTimeEntry(button.getAttribute('data-id')));
     });
@@ -1730,25 +1697,25 @@ function updateTimeEntriesTableWithData(entries) {
 
 function clearFilters() {
     console.log("Clearing filters...");
-    
+
     // Reset filter dropdowns
     document.getElementById('date-range').value = 'all';
     document.getElementById('filter-client').value = 'all';
     document.getElementById('filter-project').value = 'all';
-    
+
     // Hide custom date range
     document.getElementById('custom-date-range').style.display = 'none';
-    
+
     // Reset filtered summary to match total
     const totalHours = appState.entries.reduce((sum, entry) => sum + entry.hours, 0);
     const totalAmount = appState.entries.reduce((sum, entry) => sum + entry.amount, 0);
-    
+
     document.getElementById('filtered-hours').textContent = totalHours.toFixed(2);
     document.getElementById('filtered-amount').textContent = totalAmount.toFixed(2);
-    
+
     // Update table with all entries
     updateTimeEntriesTableWithData(appState.entries);
-    
+
     showNotification("Filters cleared", "info");
 }
 function clearLocalStorageData() { /* ... same ... */ }
@@ -1765,7 +1732,7 @@ function showAutoSaveIndicator() { /* ... same ... */ }
 // --- Time Entry CRUD ---
 async function addTimeEntry() {
     console.log("Adding time entry...");
-    
+
     // Get values from form
     const dateInput = document.getElementById('date');
     const descriptionInput = document.getElementById('description');
@@ -1773,14 +1740,14 @@ async function addTimeEntry() {
     const projectInput = document.getElementById('project');
     const hoursInput = document.getElementById('hours');
     const rateInput = document.getElementById('rate');
-    
+
     // Validate required fields
     if (!dateInput?.value || !descriptionInput?.value || !hoursInput?.value || !rateInput?.value) {
         showNotification("Please fill in all required fields", "error");
         console.error("Form validation failed: Missing required fields");
         return;
     }
-    
+
     // Get values
     const date = dateInput.value;
     const description = descriptionInput.value;
@@ -1789,9 +1756,9 @@ async function addTimeEntry() {
     const hours = parseFloat(hoursInput.value);
     const rate = parseFloat(rateInput.value);
     const amount = hours * rate;
-    
+
     console.log("New entry data:", { date, description, client, project, hours, rate, amount });
-    
+
     try {
         // Create entry object
         const entryData = {
@@ -1805,27 +1772,27 @@ async function addTimeEntry() {
             userId: appState.user.id, // Using camelCase as expected by supabase.js
             createdAt: new Date().toISOString() // Using camelCase as expected by supabase.js
         };
-        
+
         // Add to Supabase
         const newEntry = await SupabaseAPI.addTimeEntry(entryData);
-        
+
         if (newEntry) {
             console.log("Entry added successfully:", newEntry);
-            
+
             // Add to local state
             appState.entries.push(newEntry);
-            
+
             // Update UI
             updateTimeEntriesTable();
             updateSummary();
             updateClientProjectDropdowns();
-            
+
             // Clear form
             descriptionInput.value = '';
             hoursInput.value = '';
             clientInput.value = '';
             projectInput.value = '';
-            
+
             showNotification("Time entry added successfully", "success");
         } else {
             console.error("Failed to add entry: No data returned");
@@ -1838,7 +1805,7 @@ async function addTimeEntry() {
 }
 async function updateTimeEntry() {
     console.log("Updating time entry...");
-    
+
     // Get values from form
     const dateInput = document.getElementById('date');
     const descriptionInput = document.getElementById('description');
@@ -1847,14 +1814,14 @@ async function updateTimeEntry() {
     const hoursInput = document.getElementById('hours');
     const rateInput = document.getElementById('rate');
     const editId = document.getElementById('edit-id').value;
-    
+
     // Validate required fields
     if (!dateInput?.value || !descriptionInput?.value || !hoursInput?.value || !rateInput?.value || !editId) {
         showNotification("Please fill in all required fields", "error");
         console.error("Form validation failed: Missing required fields");
         return;
     }
-    
+
     // Get values
     const date = dateInput.value;
     const description = descriptionInput.value;
@@ -1863,9 +1830,9 @@ async function updateTimeEntry() {
     const hours = parseFloat(hoursInput.value);
     const rate = parseFloat(rateInput.value);
     const amount = hours * rate;
-    
+
     console.log("Updating entry:", editId, { date, description, client, project, hours, rate, amount });
-    
+
     try {
         // Create update object
         const entryData = {
@@ -1880,27 +1847,27 @@ async function updateTimeEntry() {
             userId: appState.user.id, // Include user ID for validation
             updatedAt: new Date().toISOString() // Using camelCase as expected by supabase.js
         };
-        
+
         // Update in Supabase
         const updatedEntry = await SupabaseAPI.updateTimeEntryFull(entryData);
-        
+
         if (updatedEntry) {
             console.log("Entry updated successfully:", updatedEntry);
-            
+
             // Update in local state
             const entryIndex = appState.entries.findIndex(entry => entry.id === updatedEntry.id);
             if (entryIndex !== -1) {
                 appState.entries[entryIndex] = updatedEntry;
             }
-            
+
             // Update UI
             updateTimeEntriesTable();
             updateSummary();
             updateClientProjectDropdowns();
-            
+
             // Clear form and exit edit mode
             cancelEdit();
-            
+
             showNotification("Time entry updated successfully", "success");
         } else {
             console.error("Failed to update entry: No data returned");
@@ -1913,18 +1880,18 @@ async function updateTimeEntry() {
 }
 function editTimeEntry(id) {
     console.log("Editing time entry:", id);
-    
+
     // Find entry in appState
     const entry = appState.entries.find(entry => entry.id === id);
-    
+
     if (!entry) {
         console.error("Entry not found:", id);
         showNotification("Entry not found", "error");
         return;
     }
-    
+
     console.log("Found entry to edit:", entry);
-    
+
     // Populate form fields
     document.getElementById('date').value = entry.date;
     document.getElementById('description').value = entry.description;
@@ -1933,36 +1900,36 @@ function editTimeEntry(id) {
     document.getElementById('hours').value = entry.hours;
     document.getElementById('rate').value = entry.rate;
     document.getElementById('edit-id').value = entry.id;
-    
+
     // Switch to edit mode
     setEditModeUI(true);
-    
+
     // Scroll to form
     document.querySelector('.time-entry').scrollIntoView({ behavior: 'smooth' });
 }
 async function deleteTimeEntry(id) {
     console.log("Deleting time entry:", id);
-    
+
     // Confirm deletion
     if (!confirm('Are you sure you want to delete this entry?')) {
         return;
     }
-    
+
     try {
         // Delete from Supabase
         const success = await SupabaseAPI.deleteTimeEntry(id);
-        
+
         if (success) {
             console.log("Entry deleted successfully");
-            
+
             // Remove from local state
             appState.entries = appState.entries.filter(entry => entry.id !== id);
-            
+
             // Update UI
             updateTimeEntriesTable();
             updateSummary();
             updateClientProjectDropdowns();
-            
+
             showNotification("Time entry deleted successfully", "success");
         } else {
             console.error("Failed to delete entry");
@@ -1975,44 +1942,44 @@ async function deleteTimeEntry(id) {
 }
 function cancelEdit() {
     console.log("Canceling edit mode");
-    
+
     // Clear form
     resetTimeEntryForm();
-    
+
     // Switch to add mode
     setEditModeUI(false);
 }
 
 function resetTimeEntryForm() {
     console.log("Resetting form");
-    
+
     // Reset date to today
     document.getElementById('date').valueAsDate = new Date();
-    
+
     // Clear other fields
     document.getElementById('description').value = '';
     document.getElementById('client').value = '';
     document.getElementById('project').value = '';
     document.getElementById('hours').value = '';
     document.getElementById('edit-id').value = '';
-    
+
     // Keep the rate field as is (for convenience)
 }
 
 function setEditModeUI(isEditing) {
     console.log("Setting edit mode UI:", isEditing);
-    
+
     const addButton = document.getElementById('add-entry');
     const updateButton = document.getElementById('update-entry');
     const cancelButton = document.getElementById('cancel-edit');
     const formTitle = document.getElementById('form-title');
-    
+
     if (isEditing) {
         // Show update and cancel buttons, hide add button
         if (addButton) addButton.style.display = 'none';
         if (updateButton) updateButton.style.display = 'inline-block';
         if (cancelButton) cancelButton.style.display = 'inline-block';
-        
+
         // Change form title
         if (formTitle) formTitle.textContent = 'Edit Time Entry';
     } else {
@@ -2020,7 +1987,7 @@ function setEditModeUI(isEditing) {
         if (addButton) addButton.style.display = 'inline-block';
         if (updateButton) updateButton.style.display = 'none';
         if (cancelButton) cancelButton.style.display = 'none';
-        
+
         // Reset form title
         if (formTitle) formTitle.textContent = 'Record Time Manually';
     }
@@ -2036,90 +2003,90 @@ function updateTimerDisplay() {
     // Update timer display with current elapsed time
     const timerDisplay = document.getElementById('timer-display');
     if (!timerDisplay) return;
-    
+
     let elapsedSeconds = 0;
-    
+
     if (appState.currentTimer.startTime) {
         const currentTime = new Date();
         elapsedSeconds = Math.floor((currentTime - appState.currentTimer.startTime) / 1000);
-        
+
         if (appState.currentTimer.isPaused) {
             elapsedSeconds = Math.floor(appState.currentTimer.pausedTime / 1000);
         }
     }
-    
+
     // Format the time as HH:MM:SS
     const hours = Math.floor(elapsedSeconds / 3600);
     const minutes = Math.floor((elapsedSeconds % 3600) / 60);
     const seconds = elapsedSeconds % 60;
-    
-    const formattedTime = 
-        String(hours).padStart(2, '0') + ':' + 
-        String(minutes).padStart(2, '0') + ':' + 
+
+    const formattedTime =
+        String(hours).padStart(2, '0') + ':' +
+        String(minutes).padStart(2, '0') + ':' +
         String(seconds).padStart(2, '0');
-    
+
     timerDisplay.textContent = formattedTime;
 }
 
 function startTimer() {
     console.log("Starting timer...");
-    
+
     // Set timer start time
     appState.currentTimer.startTime = new Date();
     appState.currentTimer.pausedTime = 0;
     appState.currentTimer.isPaused = false;
-    
+
     // Start interval to update timer display
     appState.currentTimer.intervalId = setInterval(updateTimerDisplay, 1000);
-    
+
     // Update UI buttons
     document.getElementById('start-timer').style.display = 'none';
     document.getElementById('pause-timer').style.display = 'inline-block';
     document.getElementById('stop-timer').style.display = 'inline-block';
     document.getElementById('cancel-timer').style.display = 'inline-block';
-    
+
     showNotification("Timer started", "info");
 }
 
 function pauseTimer() {
     console.log("Pausing timer...");
-    
+
     // Calculate elapsed time so far
     const currentTime = new Date();
     appState.currentTimer.pausedTime = currentTime - appState.currentTimer.startTime;
     appState.currentTimer.isPaused = true;
-    
+
     // Stop interval
     clearInterval(appState.currentTimer.intervalId);
-    
+
     // Update UI buttons
     document.getElementById('pause-timer').style.display = 'none';
     document.getElementById('resume-timer').style.display = 'inline-block';
-    
+
     showNotification("Timer paused", "info");
 }
 
 function resumeTimer() {
     console.log("Resuming timer...");
-    
+
     // Adjust start time to account for paused duration
     const currentTime = new Date();
     appState.currentTimer.startTime = new Date(currentTime - appState.currentTimer.pausedTime);
     appState.currentTimer.isPaused = false;
-    
+
     // Restart interval
     appState.currentTimer.intervalId = setInterval(updateTimerDisplay, 1000);
-    
+
     // Update UI buttons
     document.getElementById('resume-timer').style.display = 'none';
     document.getElementById('pause-timer').style.display = 'inline-block';
-    
+
     showNotification("Timer resumed", "info");
 }
 
 async function stopAndSaveTimer() {
     console.log("Stopping and saving timer...");
-    
+
     // Calculate elapsed time
     let elapsedTime;
     if (appState.currentTimer.isPaused) {
@@ -2128,22 +2095,22 @@ async function stopAndSaveTimer() {
         const currentTime = new Date();
         elapsedTime = currentTime - appState.currentTimer.startTime;
     }
-    
+
     // Convert to hours with 2 decimal places
     const hours = Math.round(elapsedTime / 36000) / 100; // Convert ms to hours with 2 decimal places
-    
+
     // Reset timer
     clearInterval(appState.currentTimer.intervalId);
-    
+
     // Get values from timer form
     const description = document.getElementById('timer-description').value;
     const project = document.getElementById('timer-project').value;
     const client = document.getElementById('timer-client').value;
-    
+
     // Get rate value from the select element
     const rateSelect = document.getElementById('timer-rate');
     const rateValue = parseFloat(rateSelect.value) || appState.settings.defaultRate;
-    
+
     // Create time entry
     if (description && hours > 0) {
         // Set values in the regular time entry form
@@ -2153,22 +2120,22 @@ async function stopAndSaveTimer() {
         setInputValue('client', client);
         setInputValue('hours', hours.toFixed(2));
         setInputValue('rate', rateValue);
-        
+
         // Add the entry
         await addTimeEntry();
-        
+
         // Reset the timer form
         document.getElementById('timer-description').value = '';
     } else {
         showNotification("Please provide a description before saving the time entry", "error");
         return;
     }
-    
+
     // Reset timer state
     appState.currentTimer.startTime = null;
     appState.currentTimer.pausedTime = 0;
     appState.currentTimer.isPaused = false;
-    
+
     // Update UI
     document.getElementById('timer-display').textContent = '00:00:00';
     document.getElementById('start-timer').style.display = 'inline-block';
@@ -2176,21 +2143,21 @@ async function stopAndSaveTimer() {
     document.getElementById('resume-timer').style.display = 'none';
     document.getElementById('stop-timer').style.display = 'none';
     document.getElementById('cancel-timer').style.display = 'none';
-    
+
     showNotification("Time entry saved", "success");
 }
 
 function cancelTimer() {
     console.log("Cancelling timer...");
-    
+
     // Stop interval
     clearInterval(appState.currentTimer.intervalId);
-    
+
     // Reset timer state
     appState.currentTimer.startTime = null;
     appState.currentTimer.pausedTime = 0;
     appState.currentTimer.isPaused = false;
-    
+
     // Update UI
     document.getElementById('timer-display').textContent = '00:00:00';
     document.getElementById('start-timer').style.display = 'inline-block';
@@ -2198,7 +2165,7 @@ function cancelTimer() {
     document.getElementById('resume-timer').style.display = 'none';
     document.getElementById('stop-timer').style.display = 'none';
     document.getElementById('cancel-timer').style.display = 'none';
-    
+
     showNotification("Timer cancelled", "info");
 }
 
@@ -2213,47 +2180,47 @@ function useRecurringEntry(id) { /* ... same ... */ }
 async function deleteRecurringEntry(id) { /* ... same ... */ }
 
 // --- Invoice Generation ---
-function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) { 
+function filterInvoiceItems(client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses) {
     console.log("Filtering invoice items:", { client, projectOption, dateRangeOption, customFrom, customTo, includeExpenses });
-    
+
     // Get date range
     const { startDate, endDate } = getDateRangeFromOption(dateRangeOption, customFrom, customTo);
-    
+
     // Clone arrays to avoid modifying the originals
     let filteredEntries = [...appState.entries];
     let filteredExpenses = includeExpenses ? [...appState.expenses] : [];
-    
+
     // Filter by client
     if (client) {
         filteredEntries = filteredEntries.filter(entry => entry.client === client);
         filteredExpenses = filteredExpenses.filter(expense => expense.client === client);
     }
-    
+
     // Filter by project if not "all"
     if (projectOption && projectOption !== 'all') {
         filteredEntries = filteredEntries.filter(entry => entry.project === projectOption);
         filteredExpenses = filteredExpenses.filter(expense => expense.project === projectOption);
     }
-    
+
     // Filter by date range
     if (startDate) {
         filteredEntries = filteredEntries.filter(entry => new Date(entry.date) >= startDate);
         filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) >= startDate);
     }
-    
+
     if (endDate) {
         filteredEntries = filteredEntries.filter(entry => new Date(entry.date) <= endDate);
         filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) <= endDate);
     }
-    
+
     console.log(`Filtered to ${filteredEntries.length} entries and ${filteredExpenses.length} expenses`);
-    
+
     return { entries: filteredEntries, expenses: filteredExpenses };
 }
 
 function viewInvoiceEntries() {
     console.log("Viewing invoice entries preview...");
-    
+
     try {
         // Get form values
         const clientSelect = document.getElementById('invoice-client');
@@ -2262,12 +2229,12 @@ function viewInvoiceEntries() {
         const includeExpensesSelect = document.getElementById('include-expenses');
         const customFromInput = document.getElementById('invoice-date-from');
         const customToInput = document.getElementById('invoice-date-to');
-        
+
         if (!clientSelect || !clientSelect.value) {
             showNotification("Please select a client first", "error");
             return;
         }
-        
+
         // Get filter values
         const client = clientSelect.value;
         const project = projectSelect ? projectSelect.value : 'all';
@@ -2275,28 +2242,28 @@ function viewInvoiceEntries() {
         const includeExpenses = includeExpensesSelect ? includeExpensesSelect.value === 'yes' : true;
         const customFrom = customFromInput ? customFromInput.value : '';
         const customTo = customToInput ? customToInput.value : '';
-        
+
         // Filter items
         const { entries, expenses } = filterInvoiceItems(
             client, project, dateRange, customFrom, customTo, includeExpenses
         );
-        
+
         // Update the app state with filtered items
         appState.currentInvoicePreview.filteredEntries = entries;
         appState.currentInvoicePreview.filteredExpenses = expenses;
         appState.currentInvoicePreview.includedEntryIds = new Set(entries.map(e => e.id));
         appState.currentInvoicePreview.includedExpenseIds = new Set(expenses.map(e => e.id));
-        
+
         // Display the preview tables
         const entriesPreview = document.getElementById('invoice-entries-preview');
         if (entriesPreview) {
             entriesPreview.style.display = 'block';
         }
-        
+
         // Populate the invoice tables
         populateInvoiceEntriesTable(entries);
         populateInvoiceExpensesTable(expenses);
-        
+
         // Update totals
         updateInvoiceTotalsFromPreview();
     } catch (error) {
@@ -2310,17 +2277,17 @@ function updateInvoiceTotalsFromPreview() {
     const totalHours = appState.currentInvoicePreview.filteredEntries
         .filter(entry => appState.currentInvoicePreview.includedEntryIds.has(entry.id))
         .reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
-    
+
     const totalAmount = appState.currentInvoicePreview.filteredEntries
         .filter(entry => appState.currentInvoicePreview.includedEntryIds.has(entry.id))
         .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    
+
     const totalExpenses = appState.currentInvoicePreview.filteredExpenses
         .filter(expense => appState.currentInvoicePreview.includedExpenseIds.has(expense.id))
         .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-    
+
     const grandTotal = totalAmount + totalExpenses;
-    
+
     // Update UI
     document.getElementById('invoice-total-hours').textContent = totalHours.toFixed(2);
     document.getElementById('invoice-total-amount').textContent = formatCurrency(totalAmount);
@@ -2331,24 +2298,24 @@ function updateInvoiceTotalsFromPreview() {
 function populateInvoiceEntriesTable(entries) {
     const tableBody = document.getElementById('invoice-entries-body');
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = '';
-    
+
     if (entries.length === 0) {
         const row = document.createElement('tr');
         row.innerHTML = '<td colspan="6" style="text-align: center;">No time entries found for the selected criteria</td>';
         tableBody.appendChild(row);
         return;
     }
-    
+
     // Sort entries by date
     const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     sortedEntries.forEach(entry => {
         const row = document.createElement('tr');
-        
+
         const formattedDate = formatDate(entry.date);
-        
+
         row.innerHTML = `
             <td>${formattedDate}</td>
             <td>${escapeHtml(entry.description)}</td>
@@ -2357,21 +2324,21 @@ function populateInvoiceEntriesTable(entries) {
             <td>${formatCurrency(entry.amount)}</td>
             <td><input type="checkbox" class="include-entry" data-id="${entry.id}" checked></td>
         `;
-        
+
         tableBody.appendChild(row);
     });
-    
+
     // Add event listeners to checkboxes
     document.querySelectorAll('.include-entry').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             const entryId = this.getAttribute('data-id');
-            
+
             if (this.checked) {
                 appState.currentInvoicePreview.includedEntryIds.add(entryId);
             } else {
                 appState.currentInvoicePreview.includedEntryIds.delete(entryId);
             }
-            
+
             updateInvoiceTotalsFromPreview();
         });
     });
@@ -2380,45 +2347,45 @@ function populateInvoiceEntriesTable(entries) {
 function populateInvoiceExpensesTable(expenses) {
     const tableBody = document.getElementById('invoice-expenses-body');
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = '';
-    
+
     if (expenses.length === 0) {
         const row = document.createElement('tr');
         row.innerHTML = '<td colspan="4" style="text-align: center;">No expenses found for the selected criteria</td>';
         tableBody.appendChild(row);
         return;
     }
-    
+
     // Sort expenses by date
     const sortedExpenses = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     sortedExpenses.forEach(expense => {
         const row = document.createElement('tr');
-        
+
         const formattedDate = formatDate(expense.date);
-        
+
         row.innerHTML = `
             <td>${formattedDate}</td>
             <td>${escapeHtml(expense.description)}</td>
             <td>${formatCurrency(expense.amount)}</td>
             <td><input type="checkbox" class="include-expense" data-id="${expense.id}" checked></td>
         `;
-        
+
         tableBody.appendChild(row);
     });
-    
+
     // Add event listeners to checkboxes
     document.querySelectorAll('.include-expense').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             const expenseId = this.getAttribute('data-id');
-            
+
             if (this.checked) {
                 appState.currentInvoicePreview.includedExpenseIds.add(expenseId);
             } else {
                 appState.currentInvoicePreview.includedExpenseIds.delete(expenseId);
             }
-            
+
             updateInvoiceTotalsFromPreview();
         });
     });
@@ -2426,67 +2393,67 @@ function populateInvoiceExpensesTable(expenses) {
 
 function handleGenerateInvoiceClick() {
     console.log("Generating invoice...");
-    
+
     // Get form values
     const clientSelect = document.getElementById('invoice-client');
     const invoiceNumberInput = document.getElementById('invoice-number');
     const invoiceDateInput = document.getElementById('invoice-date');
-    
+
     if (!clientSelect || !clientSelect.value) {
         showNotification("Please select a client", "error");
         return;
     }
-    
+
     if (!invoiceNumberInput || !invoiceNumberInput.value) {
         // Generate an invoice number if not provided
         if (invoiceNumberInput) {
             invoiceNumberInput.value = generateInvoiceNumber();
         }
     }
-    
+
     if (!invoiceDateInput || !invoiceDateInput.value) {
         // Set today's date if not provided
         if (invoiceDateInput) {
             invoiceDateInput.valueAsDate = new Date();
         }
     }
-    
+
     // First view the invoice entries if not already done
     if (!appState.currentInvoicePreview.filteredEntries.length) {
         viewInvoiceEntries();
     }
-    
+
     // Then generate the invoice preview
     generateInvoicePreview();
 }
 
 function generateInvoicePreview() {
     console.log("Generating invoice preview...");
-    
+
     // Get values
     const clientName = document.getElementById('invoice-client').value;
-    const projectName = document.getElementById('invoice-project').value !== 'all' 
-        ? document.getElementById('invoice-project').value 
+    const projectName = document.getElementById('invoice-project').value !== 'all'
+        ? document.getElementById('invoice-project').value
         : '';
-    
+
     const invoiceNumber = document.getElementById('invoice-number').value || generateInvoiceNumber();
     const invoiceDate = document.getElementById('invoice-date').value || new Date().toISOString().split('T')[0];
     const paymentTerms = document.getElementById('payment-terms').value || appState.settings.defaultPaymentTerms;
     const invoiceNotes = document.getElementById('invoice-notes').value || '';
-    
+
     // Get filtered and included entries and expenses
     const includedEntries = appState.currentInvoicePreview.filteredEntries
         .filter(entry => appState.currentInvoicePreview.includedEntryIds.has(entry.id));
-    
+
     const includedExpenses = appState.currentInvoicePreview.filteredExpenses
         .filter(expense => appState.currentInvoicePreview.includedExpenseIds.has(expense.id));
-    
+
     // Calculate totals
     const totalHours = includedEntries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
     const totalAmount = includedEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const expensesAmount = includedExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const grandTotal = totalAmount + expensesAmount;
-    
+
     // Create invoice data object
     const invoiceData = {
         invoiceNumber,
@@ -2509,32 +2476,32 @@ function generateInvoicePreview() {
             bankingDetails: appState.settings.bankingDetails || ''
         }
     };
-    
+
     // Save to app state
     appState.currentlyGeneratedInvoice = invoiceData;
-    
+
     // Generate HTML
     const invoiceHtml = generateInvoiceHtml(invoiceData);
-    
+
     // Display the invoice
     const invoicePreview = document.getElementById('invoice-preview');
     if (invoicePreview) {
         invoicePreview.innerHTML = invoiceHtml;
         invoicePreview.style.display = 'block';
     }
-    
+
     // Show action buttons
     document.getElementById('print-invoice').style.display = 'inline-block';
     document.getElementById('save-invoice-pdf').style.display = 'inline-block';
     document.getElementById('export-invoice-excel').style.display = 'inline-block';
     document.getElementById('mark-as-paid').style.display = 'inline-block';
-    
+
     showNotification("Invoice generated", "success");
 }
 
 function generateInvoiceHtml(invoiceData) {
     const formattedDate = formatDate(invoiceData.invoiceDate);
-    
+
     // Create HTML template
     let invoiceHtml = `
         <div style="text-align: right; margin-bottom: 20px;">
@@ -2543,21 +2510,21 @@ function generateInvoiceHtml(invoiceData) {
             <p><strong>Date:</strong> ${formattedDate}</p>
             <p><strong>Terms:</strong> ${escapeHtml(invoiceData.paymentTerms)}</p>
         </div>
-        
+
         <div style="margin-bottom: 20px;">
             <p><strong>From:</strong></p>
             <p>${escapeHtml(invoiceData.senderInfo.name)}</p>
             ${invoiceData.senderInfo.email ? `<p>${escapeHtml(invoiceData.senderInfo.email)}</p>` : ''}
             ${invoiceData.senderInfo.address ? `<p>${escapeHtml(invoiceData.senderInfo.address).replace(/\n/g, '<br>')}</p>` : ''}
         </div>
-        
+
         <div style="margin-bottom: 20px;">
             <p><strong>Bill To:</strong></p>
             <p>${escapeHtml(invoiceData.client)}</p>
             ${invoiceData.project ? `<p>Project: ${escapeHtml(invoiceData.project)}</p>` : ''}
         </div>
     `;
-    
+
     // Time entries section
     if (invoiceData.entries.length > 0) {
         invoiceHtml += `
@@ -2574,10 +2541,10 @@ function generateInvoiceHtml(invoiceData) {
                 </thead>
                 <tbody>
         `;
-        
+
         // Sort entries by date
         const sortedEntries = [...invoiceData.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-        
+
         sortedEntries.forEach(entry => {
             const entryDate = formatDate(entry.date);
             invoiceHtml += `
@@ -2590,7 +2557,7 @@ function generateInvoiceHtml(invoiceData) {
                 </tr>
             `;
         });
-        
+
         invoiceHtml += `
                 </tbody>
                 <tfoot>
@@ -2604,7 +2571,7 @@ function generateInvoiceHtml(invoiceData) {
             </table>
         `;
     }
-    
+
     // Expenses section
     if (invoiceData.expenses.length > 0) {
         invoiceHtml += `
@@ -2619,10 +2586,10 @@ function generateInvoiceHtml(invoiceData) {
                 </thead>
                 <tbody>
         `;
-        
+
         // Sort expenses by date
         const sortedExpenses = [...invoiceData.expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
-        
+
         sortedExpenses.forEach(expense => {
             const expenseDate = formatDate(expense.date);
             invoiceHtml += `
@@ -2633,7 +2600,7 @@ function generateInvoiceHtml(invoiceData) {
                 </tr>
             `;
         });
-        
+
         invoiceHtml += `
                 </tbody>
                 <tfoot>
@@ -2646,81 +2613,81 @@ function generateInvoiceHtml(invoiceData) {
             </table>
         `;
     }
-    
+
     // Grand total
     invoiceHtml += `
         <div style="text-align: right; margin: 30px 0; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
             <p style="font-size: 1.2em;"><strong>TOTAL DUE: ${formatCurrency(invoiceData.grandTotal)}</strong></p>
         </div>
     `;
-    
+
     // Notes, payment instructions, and banking details
     if (invoiceData.notes || invoiceData.senderInfo.paymentInstructions || invoiceData.senderInfo.bankingDetails) {
         invoiceHtml += `<div style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">`;
-        
+
         if (invoiceData.notes) {
             invoiceHtml += `
                 <p><strong>Notes:</strong></p>
                 <p>${escapeHtml(invoiceData.notes).replace(/\n/g, '<br>')}</p>
             `;
         }
-        
+
         if (invoiceData.senderInfo.paymentInstructions) {
             invoiceHtml += `
                 <p><strong>Payment Instructions:</strong></p>
                 <p>${escapeHtml(invoiceData.senderInfo.paymentInstructions).replace(/\n/g, '<br>')}</p>
             `;
         }
-        
+
         if (invoiceData.senderInfo.bankingDetails) {
             invoiceHtml += `
                 <p><strong>Banking Details:</strong></p>
                 <p>${escapeHtml(invoiceData.senderInfo.bankingDetails).replace(/\n/g, '<br>')}</p>
             `;
         }
-        
+
         invoiceHtml += `</div>`;
     }
-    
+
     return invoiceHtml;
 }
 
 function generateInvoiceNumber() {
     // Generate a simple invoice number format: INV-{YEARMONTH}-{COUNT}
     const now = new Date();
-    const yearMonth = now.getFullYear().toString().substring(2) + 
+    const yearMonth = now.getFullYear().toString().substring(2) +
                      (now.getMonth() + 1).toString().padStart(2, '0');
-    
+
     // Get count from existing invoices matching pattern for this month
     const prefix = `INV-${yearMonth}-`;
     const existingCount = appState.invoices
         .filter(inv => inv.invoiceNumber && inv.invoiceNumber.startsWith(prefix))
         .length;
-    
+
     return `${prefix}${(existingCount + 1).toString().padStart(3, '0')}`;
 }
 
-function saveInvoicePdf() { 
+function saveInvoicePdf() {
     console.log("PDF export functionality");
-    
+
     const invoicePreview = document.getElementById('invoice-preview');
     if (!invoicePreview || invoicePreview.style.display === 'none') {
         showNotification('Please generate an invoice first', 'error');
         return;
     }
-    
+
     // A safer approach is to use print CSS to hide everything except the invoice
     showNotification('To save as PDF, choose "Save as PDF" in the print dialog', 'info');
-    
+
     // Create a standalone copy of the invoice for printing
     const invoiceContent = invoicePreview.innerHTML;
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
+
     if (!printWindow) {
         showNotification('Please allow pop-ups to print or save as PDF', 'error');
         return;
     }
-    
+
     // Build a complete HTML document for the new window
     printWindow.document.write(`
         <!DOCTYPE html>
@@ -2738,74 +2705,74 @@ function saveInvoicePdf() {
                     padding: 20px;
                     color: #1d1d1f;
                 }
-                
+
                 h1, h2, h3 {
                     margin-top: 16px;
                     margin-bottom: 8px;
                 }
-                
+
                 table {
                     width: 100%;
                     border-collapse: collapse;
                     margin: 20px 0;
                 }
-                
+
                 th, td {
                     border: 1px solid #ddd;
                     padding: 8px 12px;
                     text-align: left;
                 }
-                
+
                 th {
                     background-color: #f5f5f7;
                 }
-                
+
                 strong {
                     font-weight: 600;
                 }
-                
+
                 .invoice-header {
                     text-align: right;
                     margin-bottom: 20px;
                 }
-                
+
                 .invoice-footer {
                     margin-top: 40px;
                     border-top: 1px solid #ddd;
                     padding-top: 20px;
                 }
-                
+
                 .to-from-section {
                     display: flex;
                     justify-content: space-between;
                 }
-                
+
                 .from-section, .to-section {
                     flex: 1;
                     max-width: 48%;
                 }
-                
+
                 .totals-section {
                     text-align: right;
                     margin-top: 20px;
                 }
-                
+
                 .totals-section p {
                     margin: 5px 0;
                 }
-                
+
                 .grand-total {
                     font-size: 1.2em;
                     font-weight: bold;
                 }
-                
+
                 /* Print specific styles */
                 @media print {
                     body {
                         padding: 0;
                         margin: 0;
                     }
-                    
+
                     @page {
                         margin: 20px;
                     }
@@ -2827,33 +2794,33 @@ function saveInvoicePdf() {
         </body>
         </html>
     `);
-    
+
     printWindow.document.close();
 }
 
-function exportInvoiceExcel() { 
+function exportInvoiceExcel() {
     console.log("Excel export functionality is not implemented yet");
     showNotification('Excel export functionality will be added in a future update', 'info');
 }
 
 function printInvoice() {
     console.log("Print invoice functionality");
-    
+
     const invoicePreview = document.getElementById('invoice-preview');
     if (!invoicePreview || invoicePreview.style.display === 'none') {
         showNotification('Please generate an invoice first', 'error');
         return;
     }
-    
+
     // Use the same approach as saveInvoicePdf but auto-print
     const invoiceContent = invoicePreview.innerHTML;
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
+
     if (!printWindow) {
         showNotification('Please allow pop-ups to print invoices', 'error');
         return;
     }
-    
+
     // Build a complete HTML document for the new window with the same styles
     printWindow.document.write(`
         <!DOCTYPE html>
@@ -2871,74 +2838,74 @@ function printInvoice() {
                     padding: 20px;
                     color: #1d1d1f;
                 }
-                
+
                 h1, h2, h3 {
                     margin-top: 16px;
                     margin-bottom: 8px;
                 }
-                
+
                 table {
                     width: 100%;
                     border-collapse: collapse;
                     margin: 20px 0;
                 }
-                
+
                 th, td {
                     border: 1px solid #ddd;
                     padding: 8px 12px;
                     text-align: left;
                 }
-                
+
                 th {
                     background-color: #f5f5f7;
                 }
-                
+
                 strong {
                     font-weight: 600;
                 }
-                
+
                 .invoice-header {
                     text-align: right;
                     margin-bottom: 20px;
                 }
-                
+
                 .invoice-footer {
                     margin-top: 40px;
                     border-top: 1px solid #ddd;
                     padding-top: 20px;
                 }
-                
+
                 .to-from-section {
                     display: flex;
                     justify-content: space-between;
                 }
-                
+
                 .from-section, .to-section {
                     flex: 1;
                     max-width: 48%;
                 }
-                
+
                 .totals-section {
                     text-align: right;
                     margin-top: 20px;
                 }
-                
+
                 .totals-section p {
                     margin: 5px 0;
                 }
-                
+
                 .grand-total {
                     font-size: 1.2em;
                     font-weight: bold;
                 }
-                
+
                 /* Print specific styles */
                 @media print {
                     body {
                         padding: 0;
                         margin: 0;
                     }
-                    
+
                     @page {
                         margin: 20px;
                     }
@@ -2958,34 +2925,34 @@ function printInvoice() {
         </body>
         </html>
     `);
-    
+
     printWindow.document.close();
 }
 
-async function markCurrentlyGeneratedInvoicePaid() { 
+async function markCurrentlyGeneratedInvoicePaid() {
     console.log("Mark as paid functionality is not implemented yet");
     showNotification('Invoice saved as paid. This will be fully implemented in a future update', 'success');
 }
 
-function viewInvoiceFromHistory(id) { 
+function viewInvoiceFromHistory(id) {
     console.log(`View invoice ID: ${id} from history`);
     showNotification('View invoice from history will be added in a future update', 'info');
 }
 
-async function deleteInvoiceFromHistory(id) { 
+async function deleteInvoiceFromHistory(id) {
     console.log(`Delete invoice ID: ${id} from history`);
     showNotification('Delete invoice from history will be added in a future update', 'info');
 }
 
-async function markInvoicePaidFromHistory(id) { 
+async function markInvoicePaidFromHistory(id) {
     console.log(`Mark invoice ID: ${id} as paid`);
     showNotification('Mark invoice as paid will be added in a future update', 'info');
 }
 
 // --- Reports Implementation ---
-function generateReport() { 
+function generateReport() {
     console.log("Generating report...");
-    
+
     try {
         // Get report parameters
         const reportType = document.getElementById('report-type')?.value || 'summary';
@@ -2994,40 +2961,40 @@ function generateReport() {
         const project = document.getElementById('report-project')?.value || 'all';
         const customFrom = document.getElementById('report-date-from')?.value || '';
         const customTo = document.getElementById('report-date-to')?.value || '';
-        
+
         // Get date range
         const { startDate, endDate } = getDateRangeFromOption(dateRange, customFrom, customTo);
-        
+
         // Filter data
         let filteredEntries = [...appState.entries];
         let filteredExpenses = [...appState.expenses];
-        
+
         // Apply date filter
         if (startDate) {
             filteredEntries = filteredEntries.filter(entry => new Date(entry.date) >= startDate);
             filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) >= startDate);
         }
-        
+
         if (endDate) {
             filteredEntries = filteredEntries.filter(entry => new Date(entry.date) <= endDate);
             filteredExpenses = filteredExpenses.filter(expense => new Date(expense.date) <= endDate);
         }
-        
+
         // Apply client filter
         if (client !== 'all') {
             filteredEntries = filteredEntries.filter(entry => entry.client === client);
             filteredExpenses = filteredExpenses.filter(expense => expense.client === client);
         }
-        
+
         // Apply project filter
         if (project !== 'all') {
             filteredEntries = filteredEntries.filter(entry => entry.project === project);
             filteredExpenses = filteredExpenses.filter(expense => expense.project === project);
         }
-        
+
         // Generate report HTML based on type
         let reportHtml = '';
-        
+
         switch (reportType) {
             case 'summary':
                 reportHtml = generateSummaryReport(filteredEntries, filteredExpenses, startDate, endDate);
@@ -3047,16 +3014,16 @@ function generateReport() {
             default:
                 reportHtml = '<p>Unknown report type selected.</p>';
         }
-        
+
         // Display the report
         const reportContainer = document.getElementById('report-container');
         const noReport = document.getElementById('no-report');
-        
+
         if (reportContainer) {
             if (noReport) noReport.style.display = 'none';
             reportContainer.innerHTML = reportHtml;
         }
-        
+
         showNotification(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report generated`, "success");
     } catch (error) {
         console.error("Error generating report:", error);
@@ -3070,11 +3037,11 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
     const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.amount), 0);
     const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
     const netIncome = totalRevenue - totalExpenses;
-    
+
     // Get unique clients and projects
     const clients = [...new Set(entries.map(entry => entry.client).filter(Boolean))];
     const projects = [...new Set(entries.map(entry => entry.project).filter(Boolean))];
-    
+
     // Date range string
     let dateRangeText = 'All Time';
     if (startDate && endDate) {
@@ -3084,13 +3051,13 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
     } else if (endDate) {
         dateRangeText = `Until ${formatDate(endDate)}`;
     }
-    
+
     // Generate HTML
     return `
         <div class="report summary-report">
             <h2>Summary Report</h2>
             <p><strong>Date Range:</strong> ${dateRangeText}</p>
-            
+
             <div class="report-section">
                 <h3>Overview</h3>
                 <div class="stats-row">
@@ -3112,7 +3079,7 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
                     </div>
                 </div>
             </div>
-            
+
             <div class="report-section">
                 <h3>Activity Summary</h3>
                 <p><strong>Number of Time Entries:</strong> ${entries.length}</p>
@@ -3128,7 +3095,7 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
 function generateDetailedReport(entries, expenses, startDate, endDate) {
     // Sort entries by date
     const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     // Date range string
     let dateRangeText = 'All Time';
     if (startDate && endDate) {
@@ -3138,17 +3105,17 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
     } else if (endDate) {
         dateRangeText = `Until ${formatDate(endDate)}`;
     }
-    
+
     // Generate HTML
     let html = `
         <div class="report detailed-report">
             <h2>Detailed Time Report</h2>
             <p><strong>Date Range:</strong> ${dateRangeText}</p>
-            
+
             <div class="report-section">
                 <h3>Time Entries</h3>
     `;
-    
+
     if (sortedEntries.length === 0) {
         html += '<p>No time entries found for the selected criteria.</p>';
     } else {
@@ -3167,15 +3134,15 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                 </thead>
                 <tbody>
         `;
-        
+
         let totalHours = 0;
         let totalAmount = 0;
-        
+
         sortedEntries.forEach(entry => {
             const formattedDate = formatDate(entry.date);
             totalHours += Number(entry.hours);
             totalAmount += Number(entry.amount);
-            
+
             html += `
                 <tr>
                     <td>${formattedDate}</td>
@@ -3188,7 +3155,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                 </tr>
             `;
         });
-        
+
         html += `
                 </tbody>
                 <tfoot>
@@ -3202,23 +3169,23 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
             </table>
         `;
     }
-    
+
     html += `
             </div>
         </div>
     `;
-    
+
     return html;
 }
 
 function generateClientReport(entries, expenses, startDate, endDate) {
     // Calculate per-client metrics
     const clientData = {};
-    
+
     // Process time entries
     entries.forEach(entry => {
         const client = entry.client || 'Unassigned';
-        
+
         if (!clientData[client]) {
             clientData[client] = {
                 hours: 0,
@@ -3227,19 +3194,19 @@ function generateClientReport(entries, expenses, startDate, endDate) {
                 projects: new Set()
             };
         }
-        
+
         clientData[client].hours += Number(entry.hours);
         clientData[client].revenue += Number(entry.amount);
-        
+
         if (entry.project) {
             clientData[client].projects.add(entry.project);
         }
     });
-    
+
     // Process expenses
     expenses.forEach(expense => {
         const client = expense.client || 'Unassigned';
-        
+
         if (!clientData[client]) {
             clientData[client] = {
                 hours: 0,
@@ -3248,10 +3215,10 @@ function generateClientReport(entries, expenses, startDate, endDate) {
                 projects: new Set()
             };
         }
-        
+
         clientData[client].expenses += Number(expense.amount);
     });
-    
+
     // Date range string
     let dateRangeText = 'All Time';
     if (startDate && endDate) {
@@ -3261,19 +3228,19 @@ function generateClientReport(entries, expenses, startDate, endDate) {
     } else if (endDate) {
         dateRangeText = `Until ${formatDate(endDate)}`;
     }
-    
+
     // Generate HTML
     let html = `
         <div class="report client-report">
             <h2>Client Report</h2>
             <p><strong>Date Range:</strong> ${dateRangeText}</p>
-            
+
             <div class="report-section">
                 <h3>Client Summary</h3>
     `;
-    
+
     const clients = Object.keys(clientData).sort();
-    
+
     if (clients.length === 0) {
         html += '<p>No client data found for the selected criteria.</p>';
     } else {
@@ -3291,18 +3258,18 @@ function generateClientReport(entries, expenses, startDate, endDate) {
                 </thead>
                 <tbody>
         `;
-        
+
         let totalHours = 0;
         let totalRevenue = 0;
         let totalExpenses = 0;
-        
+
         clients.forEach(client => {
             const data = clientData[client];
             const netIncome = data.revenue - data.expenses;
             totalHours += data.hours;
             totalRevenue += data.revenue;
             totalExpenses += data.expenses;
-            
+
             html += `
                 <tr>
                     <td>${escapeHtml(client)}</td>
@@ -3314,7 +3281,7 @@ function generateClientReport(entries, expenses, startDate, endDate) {
                 </tr>
             `;
         });
-        
+
         html += `
                 </tbody>
                 <tfoot>
@@ -3330,23 +3297,23 @@ function generateClientReport(entries, expenses, startDate, endDate) {
             </table>
         `;
     }
-    
+
     html += `
             </div>
         </div>
     `;
-    
+
     return html;
 }
 
 function generateProjectReport(entries, expenses, startDate, endDate) {
     // Calculate per-project metrics
     const projectData = {};
-    
+
     // Process time entries
     entries.forEach(entry => {
         const project = entry.project || 'Unassigned';
-        
+
         if (!projectData[project]) {
             projectData[project] = {
                 hours: 0,
@@ -3355,15 +3322,15 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
                 client: entry.client || 'Unknown'
             };
         }
-        
+
         projectData[project].hours += Number(entry.hours);
         projectData[project].revenue += Number(entry.amount);
     });
-    
+
     // Process expenses
     expenses.forEach(expense => {
         const project = expense.project || 'Unassigned';
-        
+
         if (!projectData[project]) {
             projectData[project] = {
                 hours: 0,
@@ -3372,10 +3339,10 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
                 client: expense.client || 'Unknown'
             };
         }
-        
+
         projectData[project].expenses += Number(expense.amount);
     });
-    
+
     // Date range string
     let dateRangeText = 'All Time';
     if (startDate && endDate) {
@@ -3385,19 +3352,19 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
     } else if (endDate) {
         dateRangeText = `Until ${formatDate(endDate)}`;
     }
-    
+
     // Generate HTML
     let html = `
         <div class="report project-report">
             <h2>Project Report</h2>
             <p><strong>Date Range:</strong> ${dateRangeText}</p>
-            
+
             <div class="report-section">
                 <h3>Project Summary</h3>
     `;
-    
+
     const projects = Object.keys(projectData).sort();
-    
+
     if (projects.length === 0) {
         html += '<p>No project data found for the selected criteria.</p>';
     } else {
@@ -3415,18 +3382,18 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
                 </thead>
                 <tbody>
         `;
-        
+
         let totalHours = 0;
         let totalRevenue = 0;
         let totalExpenses = 0;
-        
+
         projects.forEach(project => {
             const data = projectData[project];
             const netIncome = data.revenue - data.expenses;
             totalHours += data.hours;
             totalRevenue += data.revenue;
             totalExpenses += data.expenses;
-            
+
             html += `
                 <tr>
                     <td>${escapeHtml(project)}</td>
@@ -3438,7 +3405,7 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
                 </tr>
             `;
         });
-        
+
         html += `
                 </tbody>
                 <tfoot>
@@ -3453,19 +3420,19 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
             </table>
         `;
     }
-    
+
     html += `
             </div>
         </div>
     `;
-    
+
     return html;
 }
 
 function generateExpenseReport(expenses, startDate, endDate) {
     // Sort expenses by date
     const sortedExpenses = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     // Date range string
     let dateRangeText = 'All Time';
     if (startDate && endDate) {
@@ -3475,17 +3442,17 @@ function generateExpenseReport(expenses, startDate, endDate) {
     } else if (endDate) {
         dateRangeText = `Until ${formatDate(endDate)}`;
     }
-    
+
     // Generate HTML
     let html = `
         <div class="report expense-report">
             <h2>Expense Report</h2>
             <p><strong>Date Range:</strong> ${dateRangeText}</p>
-            
+
             <div class="report-section">
                 <h3>Expenses</h3>
     `;
-    
+
     if (sortedExpenses.length === 0) {
         html += '<p>No expenses found for the selected criteria.</p>';
     } else {
@@ -3502,13 +3469,13 @@ function generateExpenseReport(expenses, startDate, endDate) {
                 </thead>
                 <tbody>
         `;
-        
+
         let totalAmount = 0;
-        
+
         sortedExpenses.forEach(expense => {
             const formattedDate = formatDate(expense.date);
             totalAmount += Number(expense.amount);
-            
+
             html += `
                 <tr>
                     <td>${formattedDate}</td>
@@ -3519,7 +3486,7 @@ function generateExpenseReport(expenses, startDate, endDate) {
                 </tr>
             `;
         });
-        
+
         html += `
                 </tbody>
                 <tfoot>
@@ -3531,31 +3498,31 @@ function generateExpenseReport(expenses, startDate, endDate) {
             </table>
         `;
     }
-    
+
     html += `
             </div>
         </div>
     `;
-    
+
     return html;
 }
 
 function exportReport() {
     console.log("Export Report functionality");
-    
+
     // Get the report container
     const reportContainer = document.getElementById('report-container');
     if (!reportContainer || reportContainer.innerHTML.trim() === '') {
         showNotification("Please generate a report first", "error");
         return;
     }
-    
+
     // Get report type
     const reportType = document.getElementById('report-type')?.value || 'summary';
-    
+
     // Create a printable version
     window.print();
-    
+
     showNotification(`Report printed. Use browser's "Save as PDF" option to save it.`, "success");
 }
 
@@ -3564,7 +3531,7 @@ async function showDatabaseSetupModal() {
     const setupResults = document.getElementById('setup-results');
     setupResults.style.display = 'block';
     setupResults.innerHTML = 'Running database setup checks...\n\n';
-    
+
     try {
         const result = await runSetupChecks();
         setupResults.innerHTML += JSON.stringify(result, null, 2);
@@ -3577,21 +3544,21 @@ async function showDatabaseSetupModal() {
 // --- For debugging purposes ---
 function debugButtons() {
     console.log("Debugging data export buttons...");
-    
+
     // Check if buttons exist
     const exportDataBtn = document.getElementById('export-data');
     const importDataBtn = document.getElementById('import-data');
     const exportCsvBtn = document.getElementById('export-csv');
     const fileInput = document.getElementById('file-input');
-    
+
     console.log("Export Data button:", exportDataBtn);
     console.log("Import Data button:", importDataBtn);
     console.log("Export CSV button:", exportCsvBtn);
     console.log("File input:", fileInput);
-    
+
     // Log listeners attached to buttons
     console.log("Adding direct event listeners for debugging");
-    
+
     // Add direct click listeners
     if (exportDataBtn) {
         exportDataBtn.onclick = function() {
@@ -3599,7 +3566,7 @@ function debugButtons() {
             exportData();
         };
     }
-    
+
     if (importDataBtn) {
         importDataBtn.onclick = function() {
             console.log("Import Data button clicked directly");
@@ -3610,14 +3577,14 @@ function debugButtons() {
             }
         };
     }
-    
+
     if (exportCsvBtn) {
         exportCsvBtn.onclick = function() {
             console.log("Export CSV button clicked directly");
             exportCSV();
         };
     }
-    
+
     if (fileInput) {
         fileInput.onchange = function(e) {
             console.log("File input changed:", e.target.files);
@@ -3631,19 +3598,19 @@ function debugButtons() {
 // Add a helper function to set up auth form listeners
 function setupAuthFormsListeners() {
     console.log("Setting up auth forms listeners");
-    
+
     // Login form display
     const loginFormContainer = document.getElementById('login-form-container');
     const signupFormContainer = document.getElementById('signup-form-container');
-    
+
     if (loginFormContainer) {
         loginFormContainer.style.display = 'block';
     }
-    
+
     if (signupFormContainer) {
         signupFormContainer.style.display = 'none';
     }
-    
+
     // Handle signup form toggle
     const showSignupLink = document.getElementById('show-signup-link');
     if (showSignupLink) {
@@ -3652,7 +3619,7 @@ function setupAuthFormsListeners() {
             if (signupFormContainer) signupFormContainer.style.display = 'block';
         };
     }
-    
+
     // Handle login form toggle
     const showLoginLink = document.getElementById('show-login-link');
     if (showLoginLink) {
@@ -3661,38 +3628,59 @@ function setupAuthFormsListeners() {
             if (loginFormContainer) loginFormContainer.style.display = 'block';
         };
     }
-    
-    // Handle login form submission
+
+    // Handle login form submission - direct DOM approach
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
+        console.log("Setting up login form submit handler directly");
         loginForm.onsubmit = async function(e) {
             e.preventDefault();
-            
+            console.log("Login form submitted directly");
+
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-            
+
             if (!email || !password) {
                 showNotification("Please enter email and password", "error");
                 return;
             }
-            
+
             try {
                 showLoadingIndicator(true);
-                
+
+                console.log("Attempting to sign in with email:", email);
                 const result = await SupabaseAPI.signIn(email, password);
-                
+
                 if (result.success) {
+                    console.log("Login successful, user:", result.user.email);
+
                     // Set user state
                     appState.user = result.user;
-                    
-                    // Load user data
-                    await loadUserData();
-                    
-                    // Show application
-                    showApp();
-                    
-                    showNotification("Login successful!", "success");
+
+                    try {
+                        // Load user data
+                        await loadUserData();
+
+                        // Show application
+                        showApp();
+
+                        showNotification("Login successful!", "success");
+                    } catch (dataError) {
+                        console.error("Error loading user data after login:", dataError);
+                        showNotification("Logged in but failed to load user data. Please try again.", "warning");
+
+                        // Force logout and show login form again
+                        try {
+                            await SupabaseAPI.signOut();
+                        } catch (logoutError) {
+                            console.error("Error during forced logout:", logoutError);
+                        }
+
+                        appState.user = null;
+                        showLoginForm();
+                    }
                 } else {
+                    console.error("Login failed:", result.error);
                     showNotification("Login failed: " + (result.error?.message || "Unknown error"), "error");
                 }
             } catch (error) {
@@ -3702,36 +3690,40 @@ function setupAuthFormsListeners() {
                 showLoadingIndicator(false);
             }
         };
+    } else {
+        console.error("Login form element not found!");
     }
-    
+
     // Handle signup form submission
     const signupForm = document.getElementById('signup-form');
     if (signupForm) {
+        console.log("Setting up signup form submit handler directly");
         signupForm.onsubmit = async function(e) {
             e.preventDefault();
-            
+            console.log("Signup form submitted directly");
+
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
             const confirmPassword = document.getElementById('signup-confirm-password').value;
-            
+
             if (!email || !password || !confirmPassword) {
                 showNotification("Please fill all fields", "error");
                 return;
             }
-            
+
             if (password !== confirmPassword) {
                 showNotification("Passwords do not match", "error");
                 return;
             }
-            
+
             try {
                 showLoadingIndicator(true);
-                
+
                 const result = await SupabaseAPI.signUp(email, password);
-                
+
                 if (result.success) {
                     showNotification("Signup successful! Please check your email for verification.", "success");
-                    
+
                     // Switch to login form
                     if (signupFormContainer) signupFormContainer.style.display = 'none';
                     if (loginFormContainer) loginFormContainer.style.display = 'block';
@@ -3745,42 +3737,44 @@ function setupAuthFormsListeners() {
                 showLoadingIndicator(false);
             }
         };
+    } else {
+        console.error("Signup form element not found!");
     }
-    
+
     console.log("Auth forms listeners set up");
 }
 
 // --- Tab Navigation ---
 function openTab(evt, tabName) {
     console.log(`Opening tab: ${tabName}`);
-    
+
     // Debug data buttons when time tracking tab is opened
     if (tabName === 'time-tracking-tab') {
         debugButtons();
     }
-    
+
     // Hide all tab contents
     const tabContents = document.getElementsByClassName('tab-content');
     for (let i = 0; i < tabContents.length; i++) {
         tabContents[i].style.display = 'none';
     }
-    
+
     // Remove active class from all tab buttons
     const tabButtons = document.getElementsByClassName('tab-button');
     for (let i = 0; i < tabButtons.length; i++) {
         tabButtons[i].classList.remove('active');
     }
-    
+
     // Get the tab element
     const tabElement = document.getElementById(tabName);
     if (!tabElement) {
         console.error(`Tab element with ID '${tabName}' not found`);
         return;
     }
-    
+
     // First show the tab - this is important for dashboard to initialize properly
     tabElement.style.display = 'block';
-    
+
     // Add active class to clicked button
     if (evt && evt.currentTarget) {
         evt.currentTarget.classList.add('active');
@@ -3791,21 +3785,21 @@ function openTab(evt, tabName) {
             button.classList.add('active');
         }
     }
-    
+
     // Handle special cases for tabs that need content loaded
     const tabsNeedingContent = ['dashboard-tab', 'invoice-tab', 'reports-tab', 'settings-tab'];
-    
+
     if (tabsNeedingContent.includes(tabName)) {
         // Let's load content if needed
         if (tabElement.innerHTML.trim() === '') {
             // Show a loading indicator
             tabElement.innerHTML = '<div style="text-align: center; padding: 50px;"><p>Loading content...</p></div>';
-            
+
             // Try to load content from time-tracker.html
             loadTabContent(tabName).then(success => {
                 if (success) {
                     console.log(`Content loaded successfully for ${tabName}`);
-                    
+
                     // Special handling for dashboard
                     if (tabName === 'dashboard-tab') {
                         initDashboardIfNeeded();
@@ -3817,7 +3811,7 @@ function openTab(evt, tabName) {
             });
         } else {
             console.log(`Tab ${tabName} already has content, checking if initialization is needed`);
-            
+
             // Special handling for dashboard
             if (tabName === 'dashboard-tab') {
                 initDashboardIfNeeded();
@@ -3830,16 +3824,16 @@ function openTab(evt, tabName) {
 async function loadTabContent(tabId) {
     console.log(`Loading content for tab: ${tabId}...`);
     const tabElement = document.getElementById(tabId);
-    
+
     if (!tabElement) {
         console.error(`Tab element with ID '${tabId}' not found`);
         return false;
     }
-    
+
     // If the tab already has content, just set up needed functionality
     if (tabElement.innerHTML.trim() !== '') {
         console.log(`Tab ${tabId} already has content, initializing functionality...`);
-        
+
         // Initialize specific functionalities for each tab
         if (tabId === 'invoice-tab') {
             updateClientProjectDropdowns();
@@ -3854,31 +3848,31 @@ async function loadTabContent(tabId) {
         } else if (tabId === 'dashboard-tab') {
             // Dashboard will be initialized by initDashboardIfNeeded
         }
-        
+
         return true;
     }
-    
+
     try {
         const response = await fetch('time-tracker.html');
         if (!response.ok) {
             throw new Error(`Failed to fetch time-tracker.html: ${response.status} ${response.statusText}`);
         }
-        
+
         const html = await response.text();
-        
+
         // Extract content
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const sourceContent = doc.getElementById(tabId);
-        
+
         if (!sourceContent) {
             console.error(`Tab content for ${tabId} not found in time-tracker.html`);
             return false;
         }
-        
+
         tabElement.innerHTML = sourceContent.innerHTML;
         console.log(`Content for ${tabId} loaded successfully`);
-        
+
         // Initialize specific functionalities for each tab
         if (tabId === 'invoice-tab') {
             updateClientProjectDropdowns();
@@ -3895,7 +3889,7 @@ async function loadTabContent(tabId) {
         } else if (tabId === 'dashboard-tab') {
             // Dashboard will be initialized by initDashboardIfNeeded
         }
-        
+
         return true;
     } catch (error) {
         console.error(`Error loading ${tabId} content:`, error);

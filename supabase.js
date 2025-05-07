@@ -11,9 +11,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Added schema option for auth, might be needed depending on setup
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-        // autoRefreshToken: true, // Default: true
-        // persistSession: true, // Default: true
-        // detectSessionInUrl: true // Default: true
+        autoRefreshToken: true, // Default: true
+        persistSession: true, // Default: true
+        detectSessionInUrl: true // Default: true
     }
 });
 
@@ -61,13 +61,13 @@ export async function addTimeEntry(entryDataCamel) {
 }
 export async function updateTimeEntry(id, fieldsToUpdateCamel) {
     console.log(`Updating time entry ${id} with fields:`, fieldsToUpdateCamel);
-    
+
     if (!id) throw new Error("Missing ID for updateTimeEntry.");
-    
+
     try {
         // Convert fields to snake case
         const fieldsToUpdateSnake = mapToSnakeCase(fieldsToUpdateCamel);
-        
+
         // If hours or rate are being updated, recalculate amount
         if (fieldsToUpdateCamel.hours !== undefined || fieldsToUpdateCamel.rate !== undefined) {
             // First get the current entry to get any missing values
@@ -76,23 +76,23 @@ export async function updateTimeEntry(id, fieldsToUpdateCamel) {
                 .select('*')
                 .eq('id', id)
                 .single();
-                
+
             if (fetchError) throw fetchError;
             if (!currentEntry) throw new Error("Entry not found");
-            
+
             // Get the hours and rate values (either from update or from current entry)
-            const hours = fieldsToUpdateCamel.hours !== undefined 
-                ? Number(fieldsToUpdateCamel.hours) 
+            const hours = fieldsToUpdateCamel.hours !== undefined
+                ? Number(fieldsToUpdateCamel.hours)
                 : Number(currentEntry.hours);
-                
-            const rate = fieldsToUpdateCamel.rate !== undefined 
-                ? Number(fieldsToUpdateCamel.rate) 
+
+            const rate = fieldsToUpdateCamel.rate !== undefined
+                ? Number(fieldsToUpdateCamel.rate)
                 : Number(currentEntry.rate);
-            
+
             // Calculate new amount
             fieldsToUpdateSnake.amount = hours * rate;
         }
-        
+
         // Update the entry
         const { data, error } = await supabase
             .from('time_entries')
@@ -100,10 +100,10 @@ export async function updateTimeEntry(id, fieldsToUpdateCamel) {
             .eq('id', id)
             .select()
             .single();
-            
+
         if (error) throw error;
         if (!data) throw new Error("No data returned after update.");
-        
+
         console.log('Successfully updated entry.');
         return mapToCamelCase(data);
     } catch (err) {
@@ -117,11 +117,11 @@ export async function updateTimeEntryFull(entryDataCamel) {
     console.log('Updating full time entry (camelCase):', entryDataCamel);
     if (!entryDataCamel.id) throw new Error("Missing ID for updateTimeEntryFull.");
     try {
-        const entryDataSnake = mapToSnakeCase({ 
-            ...entryDataCamel, 
-            hours: Number(entryDataCamel.hours), 
-            rate: Number(entryDataCamel.rate), 
-            amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate) 
+        const entryDataSnake = mapToSnakeCase({
+            ...entryDataCamel,
+            hours: Number(entryDataCamel.hours),
+            rate: Number(entryDataCamel.rate),
+            amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate)
         });
         const { id, userId, createdAt, updatedAt, ...updateData } = entryDataSnake;
         const { data, error } = await supabase.from('time_entries').update(updateData).eq('id', id).select().single();
@@ -210,15 +210,47 @@ export async function getFormDataFromDatabase(userId) {
 // --- Auth Functions ---
 export async function signUp(email, password) {
     console.log(`Attempting sign up for: ${email}`);
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) { console.error('Sign up error:', error); return { success: false, error }; }
-    console.log('Sign up successful:', data.user?.email); return { success: true, user: data.user };
+    try {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+
+        if (error) {
+            console.error('Sign up error:', error);
+            return { success: false, error };
+        }
+
+        if (!data || !data.user) {
+            console.error('Sign up returned no user data');
+            return { success: false, error: { message: "Registration failed - no user data returned" } };
+        }
+
+        console.log('Sign up successful:', data.user?.email);
+        return { success: true, user: data.user };
+    } catch (err) {
+        console.error('Unexpected error during sign up:', err);
+        return { success: false, error: { message: `Registration error: ${err.message}` } };
+    }
 }
 export async function signIn(email, password) {
     console.log(`Attempting sign in for: ${email}`);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { console.error('Sign in error:', error); return { success: false, error }; }
-    console.log('Sign in successful:', data.user?.email); return { success: true, user: data.user, session: data.session };
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            console.error('Sign in error:', error);
+            return { success: false, error };
+        }
+
+        if (!data || !data.user) {
+            console.error('Sign in returned no user data');
+            return { success: false, error: { message: "Authentication failed - no user data returned" } };
+        }
+
+        console.log('Sign in successful:', data.user?.email);
+        return { success: true, user: data.user, session: data.session };
+    } catch (err) {
+        console.error('Unexpected error during sign in:', err);
+        return { success: false, error: { message: `Authentication error: ${err.message}` } };
+    }
 }
 export async function signOut() {
     console.log('Signing out...');
@@ -283,11 +315,11 @@ export async function getInvoices() {
 // Bulk data operations for import/export functionality
 export async function replaceTimeEntries(entries) {
     console.log("Replacing all time entries...");
-    
+
     // Get user ID from first entry (assuming all entries belong to same user)
     const userId = entries.length > 0 ? entries[0].userId : null;
     if (!userId) throw new Error("No user ID found in entries");
-    
+
     try {
         // Start a transaction to delete and re-add all entries
         const { data, error } = await supabase.rpc('replace_time_entries', {
@@ -299,9 +331,9 @@ export async function replaceTimeEntries(entries) {
                 amount: Number(entry.amount || 0)
             })))
         });
-        
+
         if (error) throw error;
-        
+
         console.log("Successfully replaced all time entries");
         return true;
     } catch (error) {
@@ -312,20 +344,20 @@ export async function replaceTimeEntries(entries) {
 
 export async function replaceExpenses(expenses) {
     console.log("Replacing all expenses...");
-    
+
     // Get user ID from first expense (assuming all expenses belong to same user)
     const userId = expenses.length > 0 ? expenses[0].userId : null;
     if (!userId) throw new Error("No user ID found in expenses");
-    
+
     try {
         // Delete all existing expenses for this user
         const { error: deleteError } = await supabase
             .from('expenses')
             .delete()
             .eq('user_id', userId);
-        
+
         if (deleteError) throw deleteError;
-        
+
         // If there are expenses to add, add them
         if (expenses.length > 0) {
             // Format expenses data
@@ -333,15 +365,15 @@ export async function replaceExpenses(expenses) {
                 ...expense,
                 amount: Number(expense.amount || 0)
             }));
-            
+
             // Insert new expenses
             const { error: insertError } = await supabase
                 .from('expenses')
                 .insert(expensesData);
-            
+
             if (insertError) throw insertError;
         }
-        
+
         console.log("Successfully replaced all expenses");
         return true;
     } catch (error) {
@@ -352,20 +384,20 @@ export async function replaceExpenses(expenses) {
 
 export async function replaceRecurringEntries(entries) {
     console.log("Replacing all recurring entries...");
-    
+
     // Get user ID from first entry (assuming all entries belong to same user)
     const userId = entries.length > 0 ? entries[0].userId : null;
     if (!userId) throw new Error("No user ID found in recurring entries");
-    
+
     try {
         // Delete all existing recurring entries for this user
         const { error: deleteError } = await supabase
             .from('recurring_entries')
             .delete()
             .eq('user_id', userId);
-        
+
         if (deleteError) throw deleteError;
-        
+
         // If there are entries to add, add them
         if (entries.length > 0) {
             // Format entries data
@@ -374,15 +406,15 @@ export async function replaceRecurringEntries(entries) {
                 hours: Number(entry.hours || 0),
                 rate: Number(entry.rate || 0)
             }));
-            
+
             // Insert new entries
             const { error: insertError } = await supabase
                 .from('recurring_entries')
                 .insert(entriesData);
-            
+
             if (insertError) throw insertError;
         }
-        
+
         console.log("Successfully replaced all recurring entries");
         return true;
     } catch (error) {
@@ -393,20 +425,20 @@ export async function replaceRecurringEntries(entries) {
 
 export async function replaceRates(rates) {
     console.log("Replacing all rate templates...");
-    
+
     // Get user ID from first rate (assuming all rates belong to same user)
     const userId = rates.length > 0 ? rates[0].userId : null;
     if (!userId) throw new Error("No user ID found in rates");
-    
+
     try {
         // Delete all existing rates for this user
         const { error: deleteError } = await supabase
             .from('rates')
             .delete()
             .eq('user_id', userId);
-        
+
         if (deleteError) throw deleteError;
-        
+
         // If there are rates to add, add them
         if (rates.length > 0) {
             // Format rates data
@@ -414,15 +446,15 @@ export async function replaceRates(rates) {
                 ...rate,
                 amount: Number(rate.amount || 0)
             }));
-            
+
             // Insert new rates
             const { error: insertError } = await supabase
                 .from('rates')
                 .insert(ratesData);
-            
+
             if (insertError) throw insertError;
         }
-        
+
         console.log("Successfully replaced all rates");
         return true;
     } catch (error) {
@@ -433,19 +465,19 @@ export async function replaceRates(rates) {
 
 export async function updateSettings(settings) {
     console.log("Updating settings...");
-    
+
     if (!settings.userId) throw new Error("No user ID found in settings");
-    
+
     try {
         const settingsSnake = mapToSnakeCase(settings);
-        
+
         // Upsert settings
         const { error } = await supabase
             .from('settings')
             .upsert(settingsSnake, { onConflict: 'user_id' });
-        
+
         if (error) throw error;
-        
+
         console.log("Successfully updated settings");
         return true;
     } catch (error) {
