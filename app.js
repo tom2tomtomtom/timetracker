@@ -1093,8 +1093,8 @@ function setupAuthListeners() {
             appState.recurringEntries = [];
             appState.invoices = [];
 
-            // Show login form
-            showLoginForm();
+            // Redirect to login page
+            window.location.href = 'login.html';
 
             showNotification("Logged out successfully", "success");
         } catch (error) {

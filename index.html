@@ -11,36 +11,50 @@
 
     <link rel="stylesheet" href="styles.css">
 
+    <!-- Add authentication check -->
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // Supabase configuration
+        const SUPABASE_URL = 'https://uhjwlnvnwjlroratyuto.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoandsbnZud2pscm9yYXR5dXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzNDI0NjMsImV4cCI6MjA1NzkxODQ2M30.wxHaInP7oAWtCk5IAgrmqCpT4tqXPs7dxyWYUp0xIPY';
+
+        // Initialize Supabase client
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: true
+            }
+        });
+
+        // Check if user is logged in
+        async function checkAuth() {
+            try {
+                const { data, error } = await supabase.auth.getSession();
+
+                if (!data.session) {
+                    // No active session, redirect to login page
+                    window.location.href = 'login.html';
+                } else {
+                    // User is logged in, show the app
+                    document.getElementById('app-container').style.display = 'block';
+                }
+            } catch (err) {
+                console.error('Auth check error:', err);
+                // On error, redirect to login page
+                window.location.href = 'login.html';
+            }
+        }
+
+        // Run auth check when page loads
+        window.addEventListener('DOMContentLoaded', checkAuth);
+    </script>
+
 </head>
 
 <body>
-    <div id="login-container" class="login-container">
-        <section class="auth-brand">
-            <h1>Time Tracker</h1>
-            <p>Track your time, generate invoices, and manage your freelance business.</p>
-            <button id="check-setup" class="blue-btn" style="margin-top: 10px;">Check Database Setup</button>
-            <div id="setup-results" style="display: none; margin-top: 15px; padding: 15px; background-color: #f8f8f8; border-radius: 8px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; font-size: 12px;"></div>
-        </section>
-        <section id="login-form-container" class="auth-form">
-             <h2>Log in to your account</h2>
-             <form id="login-form">
-                 <div class="form-group"><label for="login-email">Email</label><input type="email" id="login-email" required></div>
-                 <div class="form-group"><label for="login-password">Password</label><input type="password" id="login-password" required></div>
-                 <button type="submit" class="blue-btn">Log In</button>
-             </form>
-             <div class="auth-toggle">Don't have an account? <a id="show-signup-link">Sign up</a></div>
-        </section>
-        <section id="signup-form-container" class="auth-form" style="display: none;">
-             <h2>Create an account</h2>
-             <form id="signup-form">
-                <div class="form-group"><label for="signup-email">Email</label><input type="email" id="signup-email" required></div>
-                <div class="form-group"><label for="signup-password">Password</label><input type="password" id="signup-password" required></div>
-                <div class="form-group"><label for="signup-confirm-password">Confirm Password</label><input type="password" id="signup-confirm-password" required></div>
-                <button type="submit" class="blue-btn">Sign Up</button>
-             </form>
-             <div class="auth-toggle">Already have an account? <a id="show-login-link">Log in</a></div>
-        </section>
-    </div> <div id="app-container" style="display: none;">
+    <div id="app-container" style="display: none;">
         <header class="app-header">
             <h1>Time Tracker & Invoice Generator</h1>
             <button id="logout-button">Log Out</button>
