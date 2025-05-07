@@ -1195,7 +1195,16 @@ function setupTimeEntryListeners() {
     addListener('stop-timer', 'click', stopAndSaveTimer);
     addListener('cancel-timer', 'click', cancelTimer);
 }
-function setupExpenseListeners() { /* ... same ... */ }
+function setupExpenseListeners() {
+    console.log("Setting up expense listeners...");
+
+    // Expense form
+    addListener('add-expense', 'click', addExpense);
+    addListener('update-expense', 'click', updateExpense);
+    addListener('cancel-expense-edit', 'click', cancelExpenseEdit);
+
+    console.log("Expense listeners setup complete");
+}
 function setupInvoiceListeners() {
     console.log("Setting up invoice listeners...");
 
@@ -2170,9 +2179,257 @@ function cancelTimer() {
 }
 
 // --- Expense CRUD --- (Basic implementations)
-async function addExpense() { /* ... same ... */ }
-function editExpense(id) { /* ... same ... */ }
-async function deleteExpense(id) { /* ... same ... */ }
+async function addExpense() {
+    console.log("Adding expense...");
+
+    // Get values from form
+    const dateInput = document.getElementById('expense-date');
+    const descriptionInput = document.getElementById('expense-description');
+    const amountInput = document.getElementById('expense-amount');
+    const clientInput = document.getElementById('expense-client');
+    const projectInput = document.getElementById('expense-project');
+
+    // Validate required fields
+    if (!dateInput?.value || !descriptionInput?.value || !amountInput?.value) {
+        showNotification("Please fill in all required expense fields", "error");
+        console.error("Expense form validation failed: Missing required fields");
+        return;
+    }
+
+    // Get values
+    const date = dateInput.value;
+    const description = descriptionInput.value;
+    const amount = parseFloat(amountInput.value);
+    const client = clientInput?.value || '';
+    const project = projectInput?.value || '';
+
+    console.log("New expense data:", { date, description, amount, client, project });
+
+    try {
+        // Create expense object
+        const expenseData = {
+            date,
+            description,
+            amount,
+            client,
+            project,
+            userId: appState.user.id,
+            createdAt: new Date().toISOString()
+        };
+
+        // Add to Supabase
+        const newExpense = await SupabaseAPI.addExpense(expenseData);
+
+        if (newExpense) {
+            console.log("Expense added successfully:", newExpense);
+
+            // Add to local state
+            appState.expenses.push(newExpense);
+
+            // Update UI
+            updateExpensesTable();
+            updateSummary();
+            updateClientProjectDropdowns();
+
+            // Clear form
+            descriptionInput.value = '';
+            amountInput.value = '';
+            clientInput.value = '';
+            projectInput.value = '';
+
+            showNotification("Expense added successfully", "success");
+        } else {
+            console.error("Failed to add expense: No data returned");
+            showNotification("Failed to add expense", "error");
+        }
+    } catch (error) {
+        console.error("Error adding expense:", error);
+        showNotification("Error adding expense: " + (error.message || "Unknown error"), "error");
+    }
+}
+
+function editExpense(id) {
+    console.log("Editing expense:", id);
+
+    // Find expense in appState
+    const expense = appState.expenses.find(expense => expense.id === id);
+
+    if (!expense) {
+        console.error("Expense not found:", id);
+        showNotification("Expense not found", "error");
+        return;
+    }
+
+    console.log("Found expense to edit:", expense);
+
+    // Populate form fields
+    document.getElementById('expense-date').value = expense.date;
+    document.getElementById('expense-description').value = expense.description;
+    document.getElementById('expense-amount').value = expense.amount;
+    document.getElementById('expense-client').value = expense.client || '';
+    document.getElementById('expense-project').value = expense.project || '';
+    document.getElementById('expense-edit-id').value = expense.id;
+
+    // Switch to edit mode
+    setExpenseEditModeUI(true);
+
+    // Scroll to form
+    document.querySelector('.expense-entry').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function updateExpense() {
+    console.log("Updating expense...");
+
+    // Get values from form
+    const dateInput = document.getElementById('expense-date');
+    const descriptionInput = document.getElementById('expense-description');
+    const amountInput = document.getElementById('expense-amount');
+    const clientInput = document.getElementById('expense-client');
+    const projectInput = document.getElementById('expense-project');
+    const editId = document.getElementById('expense-edit-id').value;
+
+    // Validate required fields
+    if (!dateInput?.value || !descriptionInput?.value || !amountInput?.value || !editId) {
+        showNotification("Please fill in all required expense fields", "error");
+        console.error("Expense form validation failed: Missing required fields");
+        return;
+    }
+
+    // Get values
+    const date = dateInput.value;
+    const description = descriptionInput.value;
+    const amount = parseFloat(amountInput.value);
+    const client = clientInput?.value || '';
+    const project = projectInput?.value || '';
+
+    console.log("Updating expense:", editId, { date, description, amount, client, project });
+
+    try {
+        // Create update object
+        const expenseData = {
+            id: editId,
+            date,
+            description,
+            amount,
+            client,
+            project,
+            userId: appState.user.id,
+            updatedAt: new Date().toISOString()
+        };
+
+        // Update in Supabase
+        const updatedExpense = await SupabaseAPI.updateExpense(expenseData);
+
+        if (updatedExpense) {
+            console.log("Expense updated successfully:", updatedExpense);
+
+            // Update in local state
+            const expenseIndex = appState.expenses.findIndex(expense => expense.id === updatedExpense.id);
+            if (expenseIndex !== -1) {
+                appState.expenses[expenseIndex] = updatedExpense;
+            }
+
+            // Update UI
+            updateExpensesTable();
+            updateSummary();
+            updateClientProjectDropdowns();
+
+            // Clear form and exit edit mode
+            cancelExpenseEdit();
+
+            showNotification("Expense updated successfully", "success");
+        } else {
+            console.error("Failed to update expense: No data returned");
+            showNotification("Failed to update expense", "error");
+        }
+    } catch (error) {
+        console.error("Error updating expense:", error);
+        showNotification("Error updating expense: " + (error.message || "Unknown error"), "error");
+    }
+}
+
+function cancelExpenseEdit() {
+    console.log("Canceling expense edit mode");
+
+    // Clear form
+    resetExpenseForm();
+
+    // Switch to add mode
+    setExpenseEditModeUI(false);
+}
+
+function resetExpenseForm() {
+    console.log("Resetting expense form");
+
+    // Reset date to today
+    document.getElementById('expense-date').valueAsDate = new Date();
+
+    // Clear other fields
+    document.getElementById('expense-description').value = '';
+    document.getElementById('expense-amount').value = '';
+    document.getElementById('expense-client').value = '';
+    document.getElementById('expense-project').value = '';
+    document.getElementById('expense-edit-id').value = '';
+}
+
+function setExpenseEditModeUI(isEditing) {
+    console.log("Setting expense edit mode UI:", isEditing);
+
+    const addButton = document.getElementById('add-expense');
+    const updateButton = document.getElementById('update-expense');
+    const cancelButton = document.getElementById('cancel-expense-edit');
+
+    if (!addButton || !updateButton || !cancelButton) {
+        console.error("Missing expense form buttons");
+        return;
+    }
+
+    if (isEditing) {
+        // Edit mode
+        addButton.style.display = 'none';
+        updateButton.style.display = 'inline-block';
+        cancelButton.style.display = 'inline-block';
+    } else {
+        // Add mode
+        addButton.style.display = 'inline-block';
+        updateButton.style.display = 'none';
+        cancelButton.style.display = 'none';
+    }
+}
+
+async function deleteExpense(id) {
+    console.log("Deleting expense:", id);
+
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this expense?')) {
+        return;
+    }
+
+    try {
+        // Delete from Supabase
+        const success = await SupabaseAPI.deleteExpense(id);
+
+        if (success) {
+            console.log("Expense deleted successfully");
+
+            // Remove from local state
+            appState.expenses = appState.expenses.filter(expense => expense.id !== id);
+
+            // Update UI
+            updateExpensesTable();
+            updateSummary();
+            updateClientProjectDropdowns();
+
+            showNotification("Expense deleted successfully", "success");
+        } else {
+            console.error("Failed to delete expense");
+            showNotification("Failed to delete expense", "error");
+        }
+    } catch (error) {
+        console.error("Error deleting expense:", error);
+        showNotification("Error deleting expense: " + (error.message || "Unknown error"), "error");
+    }
+}
 
 // --- Recurring Entries --- (Basic implementations)
 async function saveRecurringEntry() { /* ... same ... */ }
