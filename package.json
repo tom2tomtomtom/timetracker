@@ -1,0 +1,12 @@
+{
+  "name": "timetracker",
+  "version": "1.0.0",
+  "description": "Browser-based time tracker integrated with Supabase backend",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server -c-1 -p 8080",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": ["time", "tracker", "supabase"],
+  "license": "MIT"
+}
