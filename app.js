@@ -508,7 +508,28 @@ function showLoginForm() {
     // Set up login and signup forms if not already done
     setupAuthFormsListeners();
 }
-function applyTheme(themePreference) { /* ... same ... */ }
+// Apply the selected theme to the page
+function applyTheme(themePreference) {
+    try {
+        // Determine if dark mode should be enabled
+        const systemPrefersDark = window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        const isDark = themePreference === 'dark' ||
+            (themePreference === 'auto' && systemPrefersDark);
+
+        // Toggle class on the body element
+        document.body.classList.toggle('dark-mode', isDark);
+
+        // Update the icon on the toggle button if present
+        const toggleBtn = document.getElementById('dark-mode-toggle');
+        if (toggleBtn) {
+            toggleBtn.textContent = isDark ? '☀️' : '🌙';
+        }
+    } catch (err) {
+        console.error('Error applying theme:', err);
+    }
+}
 function populateSettingsForm() {
     console.log("Populating settings form...");
     
@@ -1458,7 +1479,15 @@ function setupDataManagementListeners() {
 }
 function setupDateRangeListeners() { /* ... same ... */ }
 function setupAutoSave() { /* ... same ... */ }
-function setupDarkModeToggle() { /* ... same ... */ }
+// Set up the dark mode toggle button
+function setupDarkModeToggle() {
+    const toggleBtn = document.getElementById('dark-mode-toggle');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleDarkMode);
+    } else {
+        console.warn('Dark mode toggle button not found');
+    }
+}
 function setupDatabaseCheckListener() {
     // Disabled to prevent double login issues
     // No setup check needed now that database is working
@@ -1695,7 +1724,25 @@ async function updateCurrencyForExistingEntries(oldCurrency, newCurrency) {
         showNotification("Error updating entries with new currency", "error");
     }
 }
-function toggleDarkMode() { /* ... same ... */ }
+// Toggle dark mode manually using the button
+function toggleDarkMode() {
+    try {
+        const isDark = document.body.classList.toggle('dark-mode');
+
+        // Update local settings
+        if (appState && appState.settings) {
+            appState.settings.theme = isDark ? 'dark' : 'light';
+        }
+
+        // Update the toggle icon
+        const toggleBtn = document.getElementById('dark-mode-toggle');
+        if (toggleBtn) {
+            toggleBtn.textContent = isDark ? '☀️' : '🌙';
+        }
+    } catch (err) {
+        console.error('Error toggling dark mode:', err);
+    }
+}
 
 // --- Rate Templates ---
 async function addRateTemplate() { /* ... same ... */ }
