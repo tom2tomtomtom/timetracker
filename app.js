@@ -279,7 +279,20 @@ function addListener(id, event, handler) {
     if (element) element.addEventListener(event, handler);
     else console.warn(`Listener Warning: Element ID "${id}" not found.`);
 }
-function addDelegatedListener(parentElementId, event, selector, handler) { /* ... same ... */ }
+// Generic delegated event listener helper
+function addDelegatedListener(parentElementId, event, selector, handler) {
+    const parent = document.getElementById(parentElementId);
+    if (!parent) {
+        console.warn(`Delegated listener parent '${parentElementId}' not found.`);
+        return;
+    }
+    parent.addEventListener(event, (e) => {
+        const target = e.target.closest(selector);
+        if (target && parent.contains(target)) {
+            handler.call(target, e);
+        }
+    });
+}
 
 
 // --- Initialization ---
@@ -1262,6 +1275,20 @@ function setupTimeEntryListeners() {
     // Recurring entries
     addListener('save-recurring', 'click', saveRecurringEntry);
     addRecurringEntryActionListeners();
+
+    // Time log actions using delegated listeners
+    addDelegatedListener('entries-body', 'click', '.delete-btn', (e) => {
+        const btn = e.target.closest('.delete-btn');
+        if (btn) {
+            deleteTimeEntry(btn.getAttribute('data-id'));
+        }
+    });
+    addDelegatedListener('entries-body', 'click', '.edit-btn', (e) => {
+        const btn = e.target.closest('.edit-btn');
+        if (btn) {
+            editTimeEntry(btn.getAttribute('data-id'));
+        }
+    });
     
     // Timer buttons
     addListener('start-timer', 'click', startTimer);
@@ -1852,14 +1879,7 @@ function updateTimeEntriesTableWithData(entries) {
         tableBody.appendChild(row);
     });
     
-    // Add delete and edit event listeners
-    document.querySelectorAll('.delete-btn').forEach(button => {
-        button.addEventListener('click', () => deleteTimeEntry(button.getAttribute('data-id')));
-    });
-    
-    document.querySelectorAll('.edit-btn').forEach(button => {
-        button.addEventListener('click', () => editTimeEntry(button.getAttribute('data-id')));
-    });
+
 
     // Add invoiced toggle listeners
     document.querySelectorAll('.invoiced-toggle').forEach(toggle => {
