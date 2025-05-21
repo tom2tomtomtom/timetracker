@@ -617,11 +617,21 @@
             <div class="filter-row">
                 <div class="filter-group">
                     <label for="hours">Hours:</label>
-                    <input type="number" id="hours" step="0.25" min="0.25" max="24" placeholder="Hours worked" required>
+                    <input type="number" id="hours" step="0.25" min="0.25" max="24" placeholder="Hours worked">
                 </div>
                 <div class="filter-group">
                     <label for="rate">Hourly Rate ($):</label>
                     <input type="number" id="rate" value="350" min="1">
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="days">Days:</label>
+                    <input type="number" id="days" step="0.1" min="0" placeholder="Days worked">
+                </div>
+                <div class="filter-group">
+                    <label for="day-rate">Day Rate ($):</label>
+                    <input type="number" id="day-rate" min="1">
                 </div>
             </div>
             <input type="hidden" id="edit-id" value="">
@@ -714,6 +724,8 @@
                         <th>Project</th>
                         <th>Hours</th>
                         <th>Rate</th>
+                        <th>Days</th>
+                        <th>Day Rate</th>
                         <th>Amount</th>
                         <th>USD RATE</th>
                         <th>AMOUNT (USD)</th>
@@ -1011,6 +1023,8 @@
                             <th>Description</th>
                             <th>Hours</th>
                             <th>Rate</th>
+                            <th>Days</th>
+                            <th>Day Rate</th>
                             <th>Amount</th>
                             <th>Include</th>
                         </tr>

@@ -8,6 +8,8 @@ CREATE TABLE time_entries (
   project TEXT,
   hours NUMERIC(5,2) NOT NULL,
   rate NUMERIC(10,2) NOT NULL,
+  days NUMERIC(5,2),
+  day_rate NUMERIC(10,2),
   amount NUMERIC(10,2) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
