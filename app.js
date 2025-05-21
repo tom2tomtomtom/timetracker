@@ -1888,6 +1888,8 @@ function updateTimeEntriesTableWithData(entries) {
             <td>${escapeHtml(entry.project || '')}</td>
             <td>${entry.hours.toFixed(2)}</td>
             <td>${formatCurrency(entry.rate)}</td>
+            <td>${entry.days.toFixed(2)}</td>
+            <td>${formatCurrency(entry.dayRate)}</td>
             <td>${formatCurrency(entry.amount)}</td>
             <td class="exchange-rate-cell">${
                 entry.exchangeRateUsd === null || entry.exchangeRateUsd === undefined || entry.exchangeRateUsd === ''
@@ -2103,9 +2105,13 @@ async function addTimeEntry() {
     const projectInput = document.getElementById('project');
     const hoursInput = document.getElementById('hours');
     const rateInput = document.getElementById('rate');
+    const daysInput = document.getElementById('days');
+    const dayRateInput = document.getElementById('day-rate');
     
     // Validate required fields
-    if (!dateInput?.value || !descriptionInput?.value || !hoursInput?.value || !rateInput?.value) {
+    if (!dateInput?.value || !descriptionInput?.value ||
+        (!hoursInput?.value && !daysInput?.value) ||
+        (!rateInput?.value && !dayRateInput?.value)) {
         showNotification("Please fill in all required fields", "error");
         console.error("Form validation failed: Missing required fields");
         return;
@@ -2116,9 +2122,11 @@ async function addTimeEntry() {
     const description = descriptionInput.value;
     const client = clientInput?.value || '';
     const project = projectInput?.value || '';
-    const hours = parseFloat(hoursInput.value);
-    const rate = parseFloat(rateInput.value);
-    const amount = hours * rate;
+    const hours = parseFloat(hoursInput.value) || 0;
+    const rate = parseFloat(rateInput.value) || 0;
+    const days = parseFloat(daysInput.value) || 0;
+    const dayRate = parseFloat(dayRateInput.value) || 0;
+    const amount = hours && rate ? hours * rate : days * dayRate;
     
     console.log("New entry data:", { date, description, client, project, hours, rate, amount });
     
@@ -2131,6 +2139,8 @@ async function addTimeEntry() {
             project,
             hours,
             rate,
+            days,
+            dayRate,
             amount,
             userId: appState.user.id, // Using camelCase as expected by supabase.js
             createdAt: new Date().toISOString() // Using camelCase as expected by supabase.js
@@ -2159,6 +2169,9 @@ async function addTimeEntry() {
             // Clear form
             descriptionInput.value = '';
             hoursInput.value = '';
+            rateInput.value = '';
+            daysInput.value = '';
+            dayRateInput.value = '';
             clientInput.value = '';
             projectInput.value = '';
             
@@ -2185,7 +2198,9 @@ async function updateTimeEntry() {
     const editId = document.getElementById('edit-id').value;
     
     // Validate required fields
-    if (!dateInput?.value || !descriptionInput?.value || !hoursInput?.value || !rateInput?.value || !editId) {
+    if (!dateInput?.value || !descriptionInput?.value || !editId ||
+        (!hoursInput?.value && !daysInput?.value) ||
+        (!rateInput?.value && !dayRateInput?.value)) {
         showNotification("Please fill in all required fields", "error");
         console.error("Form validation failed: Missing required fields");
         return;
@@ -2196,11 +2211,13 @@ async function updateTimeEntry() {
     const description = descriptionInput.value;
     const client = clientInput?.value || '';
     const project = projectInput?.value || '';
-    const hours = parseFloat(hoursInput.value);
-    const rate = parseFloat(rateInput.value);
-    const amount = hours * rate;
+    const hours = parseFloat(hoursInput.value) || 0;
+    const rate = parseFloat(rateInput.value) || 0;
+    const days = parseFloat(daysInput.value) || 0;
+    const dayRate = parseFloat(dayRateInput.value) || 0;
+    const amount = hours && rate ? hours * rate : days * dayRate;
     
-    console.log("Updating entry:", editId, { date, description, client, project, hours, rate, amount });
+    console.log("Updating entry:", editId, { date, description, client, project, hours, rate, days, dayRate, amount });
     
     try {
         // Create update object
@@ -2212,6 +2229,8 @@ async function updateTimeEntry() {
             project,
             hours,
             rate,
+            days,
+            dayRate,
             amount,
             userId: appState.user.id, // Include user ID for validation
             updatedAt: new Date().toISOString() // Using camelCase as expected by supabase.js
@@ -2268,6 +2287,8 @@ function editTimeEntry(id) {
     document.getElementById('project').value = entry.project || '';
     document.getElementById('hours').value = entry.hours;
     document.getElementById('rate').value = entry.rate;
+    document.getElementById('days').value = entry.days || '';
+    document.getElementById('day-rate').value = entry.dayRate || '';
     document.getElementById('edit-id').value = entry.id;
     
     // Switch to edit mode
@@ -2330,9 +2351,12 @@ function resetTimeEntryForm() {
     document.getElementById('client').value = '';
     document.getElementById('project').value = '';
     document.getElementById('hours').value = '';
+    document.getElementById('rate').value = '';
+    document.getElementById('days').value = '';
+    document.getElementById('day-rate').value = '';
     document.getElementById('edit-id').value = '';
     
-    // Keep the rate field as is (for convenience)
+    // Keep the rate fields as is (for convenience)
 }
 
 function setEditModeUI(isEditing) {
@@ -2687,7 +2711,7 @@ function populateInvoiceEntriesTable(entries) {
     
     if (entries.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="6" style="text-align: center;">No time entries found for the selected criteria</td>';
+        row.innerHTML = '<td colspan="8" style="text-align: center;">No time entries found for the selected criteria</td>';
         tableBody.appendChild(row);
         return;
     }
@@ -2705,6 +2729,8 @@ function populateInvoiceEntriesTable(entries) {
             <td>${escapeHtml(entry.description)}</td>
             <td>${entry.hours.toFixed(2)}</td>
             <td>${formatCurrency(entry.rate)}</td>
+            <td>${entry.days.toFixed(2)}</td>
+            <td>${formatCurrency(entry.dayRate)}</td>
             <td>${formatCurrency(entry.amount)}</td>
             <td><input type="checkbox" class="include-entry" data-id="${entry.id}" checked></td>
             ${showUsd ? `

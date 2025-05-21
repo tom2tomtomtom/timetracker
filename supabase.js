@@ -54,6 +54,8 @@ export async function getTimeEntries(userId) {
         ...entry,
         hours: Number(entry.hours || 0),
         rate: Number(entry.rate || 0),
+        days: Number(entry.days || 0),
+        dayRate: Number(entry.dayRate || 0),
         amount: Number(entry.amount || 0),
         exchangeRateUsd: entry.exchangeRateUsd != null ? Number(entry.exchangeRateUsd) : null,
         amountUsd: entry.amountUsd != null ? Number(entry.amountUsd) : null
@@ -62,8 +64,22 @@ export async function getTimeEntries(userId) {
 export async function addTimeEntry(entryDataCamel) {
     console.log('Adding time entry (camelCase):', entryDataCamel);
     try {
-        if (!entryDataCamel.date || !entryDataCamel.description || !entryDataCamel.hours || !entryDataCamel.rate || !entryDataCamel.userId) { throw new Error('Entry missing fields'); }
-        const entryDataSnake = mapToSnakeCase({ ...entryDataCamel, hours: Number(entryDataCamel.hours), rate: Number(entryDataCamel.rate), amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate) });
+        if (!entryDataCamel.date || !entryDataCamel.description || !entryDataCamel.userId ||
+            (!entryDataCamel.hours && !entryDataCamel.days) ||
+            (!entryDataCamel.rate && !entryDataCamel.dayRate)) {
+            throw new Error('Entry missing fields');
+        }
+        const amount = entryDataCamel.hours && entryDataCamel.rate
+            ? Number(entryDataCamel.hours) * Number(entryDataCamel.rate)
+            : Number(entryDataCamel.days) * Number(entryDataCamel.dayRate);
+        const entryDataSnake = mapToSnakeCase({
+            ...entryDataCamel,
+            hours: Number(entryDataCamel.hours || 0),
+            rate: Number(entryDataCamel.rate || 0),
+            days: Number(entryDataCamel.days || 0),
+            dayRate: Number(entryDataCamel.dayRate || 0),
+            amount
+        });
         const { data, error } = await supabase.from('time_entries').insert([entryDataSnake]).select().single();
         if (error) throw error; if (!data) throw new Error("No data returned after insert.");
         console.log('Successfully added entry.'); return mapToCamelCase(data);
@@ -78,8 +94,9 @@ export async function updateTimeEntry(id, fieldsToUpdateCamel) {
         // Convert fields to snake case
         const fieldsToUpdateSnake = mapToSnakeCase(fieldsToUpdateCamel);
         
-        // If hours or rate are being updated, recalculate amount
-        if (fieldsToUpdateCamel.hours !== undefined || fieldsToUpdateCamel.rate !== undefined) {
+        // If hours/days or rate/dayRate are being updated, recalculate amount
+        if (fieldsToUpdateCamel.hours !== undefined || fieldsToUpdateCamel.rate !== undefined ||
+            fieldsToUpdateCamel.days !== undefined || fieldsToUpdateCamel.dayRate !== undefined) {
             // First get the current entry to get any missing values
             const { data: currentEntry, error: fetchError } = await supabase
                 .from('time_entries')
@@ -90,17 +107,24 @@ export async function updateTimeEntry(id, fieldsToUpdateCamel) {
             if (fetchError) throw fetchError;
             if (!currentEntry) throw new Error("Entry not found");
             
-            // Get the hours and rate values (either from update or from current entry)
-            const hours = fieldsToUpdateCamel.hours !== undefined 
-                ? Number(fieldsToUpdateCamel.hours) 
+            const hours = fieldsToUpdateCamel.hours !== undefined
+                ? Number(fieldsToUpdateCamel.hours)
                 : Number(currentEntry.hours);
-                
-            const rate = fieldsToUpdateCamel.rate !== undefined 
-                ? Number(fieldsToUpdateCamel.rate) 
+            const rate = fieldsToUpdateCamel.rate !== undefined
+                ? Number(fieldsToUpdateCamel.rate)
                 : Number(currentEntry.rate);
-            
-            // Calculate new amount
-            fieldsToUpdateSnake.amount = hours * rate;
+            const days = fieldsToUpdateCamel.days !== undefined
+                ? Number(fieldsToUpdateCamel.days)
+                : Number(currentEntry.days);
+            const dayRate = fieldsToUpdateCamel.dayRate !== undefined
+                ? Number(fieldsToUpdateCamel.dayRate)
+                : Number(currentEntry.day_rate);
+
+            if (hours && rate) {
+                fieldsToUpdateSnake.amount = hours * rate;
+            } else {
+                fieldsToUpdateSnake.amount = days * dayRate;
+            }
         }
         
         // Update the entry
@@ -127,11 +151,16 @@ export async function updateTimeEntryFull(entryDataCamel) {
     console.log('Updating full time entry (camelCase):', entryDataCamel);
     if (!entryDataCamel.id) throw new Error("Missing ID for updateTimeEntryFull.");
     try {
-        const entryDataSnake = mapToSnakeCase({ 
-            ...entryDataCamel, 
-            hours: Number(entryDataCamel.hours), 
-            rate: Number(entryDataCamel.rate), 
-            amount: Number(entryDataCamel.hours) * Number(entryDataCamel.rate) 
+        const amount = entryDataCamel.hours && entryDataCamel.rate
+            ? Number(entryDataCamel.hours) * Number(entryDataCamel.rate)
+            : Number(entryDataCamel.days) * Number(entryDataCamel.dayRate);
+        const entryDataSnake = mapToSnakeCase({
+            ...entryDataCamel,
+            hours: Number(entryDataCamel.hours || 0),
+            rate: Number(entryDataCamel.rate || 0),
+            days: Number(entryDataCamel.days || 0),
+            dayRate: Number(entryDataCamel.dayRate || 0),
+            amount
         });
         const { id, userId, createdAt, updatedAt, ...updateData } = entryDataSnake;
         const { data, error } = await supabase.from('time_entries').update(updateData).eq('id', id).select().single();
