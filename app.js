@@ -2197,7 +2197,7 @@ async function updateTimeEntry() {
     const rateInput = document.getElementById('rate');
     const daysInput = document.getElementById('days');
     const dayRateInput = document.getElementById('day-rate');
-    const editId = parseInt(document.getElementById('edit-id').value, 10);
+    const editId = document.getElementById('edit-id').value;
     
     // Validate required fields
     if (!dateInput?.value || !descriptionInput?.value || !editId ||
@@ -2271,10 +2271,8 @@ async function updateTimeEntry() {
 function editTimeEntry(id) {
     console.log("Editing time entry:", id);
 
-    const numericId = Number(id);
-
-    // Find entry in appState
-    const entry = appState.entries.find(entry => entry.id === numericId);
+    // Find entry in appState using the raw id (UUID)
+    const entry = appState.entries.find(entry => entry.id === id);
     
     if (!entry) {
         console.error("Entry not found:", id);
@@ -2303,8 +2301,7 @@ function editTimeEntry(id) {
 }
 async function deleteTimeEntry(id) {
     console.log("Deleting time entry:", id);
-
-    const numericId = Number(id);
+    // Use the ID as-is (UUID)
 
     const confirmed = await showConfirmToast('Are you sure you want to delete this entry?');
     if (!confirmed) {
@@ -2313,13 +2310,13 @@ async function deleteTimeEntry(id) {
     
     try {
         // Delete from Supabase
-        const success = await SupabaseAPI.deleteTimeEntry(numericId);
+        const success = await SupabaseAPI.deleteTimeEntry(id);
         
         if (success) {
             console.log("Entry deleted successfully");
             
             // Remove from local state
-            appState.entries = appState.entries.filter(entry => entry.id !== numericId);
+            appState.entries = appState.entries.filter(entry => entry.id !== id);
             
             // Update UI
             updateTimeEntriesTable();
