@@ -3992,10 +3992,26 @@ function exportReport() {
     showNotification(`Report printed. Use browser's "Save as PDF" option to save it.`, "success");
 }
 
-// --- Database Setup Check (Disabled) ---
+// --- Database Setup Check ---
+// Display the setup results modal and run the Supabase checks
 async function showDatabaseSetupModal() {
-    // Function disabled to prevent double login issues
-    console.log('Database setup check disabled - database is already set up properly');
+    const setupResults = document.getElementById('setup-results');
+    if (!setupResults) {
+        console.error('Setup results container not found');
+        return;
+    }
+
+    // Reveal the container and show progress message
+    setupResults.style.display = 'block';
+    setupResults.innerHTML = 'Running database setup checks...\n\n';
+
+    try {
+        const result = await runSetupChecks();
+        setupResults.innerHTML += JSON.stringify(result, null, 2);
+    } catch (error) {
+        console.error('Error running setup checks:', error);
+        setupResults.innerHTML += 'Error: ' + error.message;
+    }
 }
 
 // --- For debugging purposes ---
