@@ -42,6 +42,45 @@ function showNotification(message, type = 'info') {
         }, 3500); // Slightly longer display
     } catch (domError) { console.error("DOM Notification Error:", message, domError); }
 }
+
+// Display a toast-style confirmation with Delete/Cancel buttons
+function showConfirmToast(message) {
+    return new Promise(resolve => {
+        const notification = document.createElement('div');
+        notification.className = 'notification warning';
+
+        const text = document.createElement('span');
+        text.textContent = message;
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'confirm-btn';
+        confirmBtn.textContent = 'Delete';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'cancel-btn';
+        cancelBtn.textContent = 'Cancel';
+
+        notification.appendChild(text);
+        notification.appendChild(confirmBtn);
+        notification.appendChild(cancelBtn);
+
+        let handled = false;
+        const cleanup = (result) => {
+            if (handled) return;
+            handled = true;
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+            resolve(result);
+        };
+
+        confirmBtn.addEventListener('click', () => cleanup(true));
+        cancelBtn.addEventListener('click', () => cleanup(false));
+
+        setTimeout(() => cleanup(false), 5000);
+
+        document.body.appendChild(notification);
+    });
+}
 function getInputValue(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 function setInputValue(id, value) { const el = document.getElementById(id); if (el) el.value = value ?? ''; }
 function setTextContent(id, text) { const el = document.getElementById(id); if (el) el.textContent = text ?? ''; }
@@ -1805,8 +1844,8 @@ function updateTimeEntriesTableWithData(entries) {
                 <span style="font-size: 0.85em; color: #444; margin-left: 6px;">Paid</span>
             </td>
             <td>
-                <button class="edit-btn blue-btn" data-id="${entry.id}" aria-label="Edit Entry" title="Edit" style="margin-right: 5px; padding: 5px 10px;"></button>
-                <button class="delete-btn" data-id="${entry.id}" aria-label="Delete Entry" title="Delete" style="padding: 5px 10px;"></button>
+                <button class="edit-btn blue-btn" data-id="${entry.id}" aria-label="Edit Entry" title="Edit" style="margin-right: 5px; padding: 5px 10px;">✏️</button>
+                <button class="delete-btn" data-id="${entry.id}" aria-label="Delete Entry" title="Delete" style="padding: 5px 10px;">🗑️</button>
             </td>
         `;
         
@@ -2172,9 +2211,9 @@ function editTimeEntry(id) {
 }
 async function deleteTimeEntry(id) {
     console.log("Deleting time entry:", id);
-    
-    // Confirm deletion
-    if (!confirm('Are you sure you want to delete this entry?')) {
+
+    const confirmed = await showConfirmToast('Are you sure you want to delete this entry?');
+    if (!confirmed) {
         return;
     }
     
