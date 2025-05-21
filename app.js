@@ -3323,6 +3323,7 @@ function generateReport() {
         const dateRange = document.getElementById('report-date-range')?.value || 'this-month';
         const client = document.getElementById('report-client')?.value || 'all';
         const project = document.getElementById('report-project')?.value || 'all';
+        const invoiceStatus = document.getElementById('report-invoice-status')?.value || 'all';
         const customFrom = document.getElementById('report-date-from')?.value || '';
         const customTo = document.getElementById('report-date-to')?.value || '';
         
@@ -3354,6 +3355,15 @@ function generateReport() {
         if (project !== 'all') {
             filteredEntries = filteredEntries.filter(entry => entry.project === project);
             filteredExpenses = filteredExpenses.filter(expense => expense.project === project);
+        }
+
+        // Apply invoice status filter
+        if (invoiceStatus === 'invoiced') {
+            filteredEntries = filteredEntries.filter(entry => entry.invoiced);
+        } else if (invoiceStatus === 'paid') {
+            filteredEntries = filteredEntries.filter(entry => entry.paid);
+        } else if (invoiceStatus === 'not-invoiced') {
+            filteredEntries = filteredEntries.filter(entry => !entry.invoiced);
         }
         
         // Generate report HTML based on type
