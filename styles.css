@@ -277,6 +277,13 @@ tbody tr:hover {
     box-shadow: var(--card-shadow);
 }
 
+.collapsible-panel {
+    padding: 10px;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius-medium);
+    display: none;
+}
+
 .blue-btn {
     background-color: var(--accent-color);
 }
