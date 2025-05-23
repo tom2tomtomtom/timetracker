@@ -162,19 +162,21 @@ function getDateRangeFromOption(option, fromDateStr, toDateStr) {
             break;
             
         case 'this-week':
-            // Get the first day of the current week (Sunday)
+            // Get the Monday of the current week
             startDate = new Date(today);
-            startDate.setDate(startDate.getDate() - startDate.getDay());
-            // Get the last day of the current week (Saturday)
+            const diffToMonday = (startDate.getDay() + 6) % 7;
+            startDate.setDate(startDate.getDate() - diffToMonday);
+            // End at the following Monday
             endDate = new Date(startDate);
             endDate.setDate(endDate.getDate() + 7);
             break;
             
         case 'last-week':
-            // Get the first day of the last week
+            // Get the Monday of the previous week
             startDate = new Date(today);
-            startDate.setDate(startDate.getDate() - startDate.getDay() - 7);
-            // Get the last day of the last week
+            const diffLastWeek = (startDate.getDay() + 6) % 7 + 7;
+            startDate.setDate(startDate.getDate() - diffLastWeek);
+            // End at the following Monday
             endDate = new Date(startDate);
             endDate.setDate(endDate.getDate() + 7);
             break;
