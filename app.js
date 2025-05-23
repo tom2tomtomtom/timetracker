@@ -3460,6 +3460,7 @@ function generateReport() {
         const client = document.getElementById('report-client')?.value || 'all';
         const project = document.getElementById('report-project')?.value || 'all';
         const invoiceStatus = document.getElementById('report-invoice-status')?.value || 'all';
+        const currency = document.getElementById('report-currency-select')?.value || 'AUD';
         const customFrom = document.getElementById('report-date-from')?.value || '';
         const customTo = document.getElementById('report-date-to')?.value || '';
         
@@ -3507,19 +3508,19 @@ function generateReport() {
         
         switch (reportType) {
             case 'summary':
-                reportHtml = generateSummaryReport(filteredEntries, filteredExpenses, startDate, endDate);
+                reportHtml = generateSummaryReport(filteredEntries, filteredExpenses, startDate, endDate, currency);
                 break;
             case 'detailed':
-                reportHtml = generateDetailedReport(filteredEntries, filteredExpenses, startDate, endDate);
+                reportHtml = generateDetailedReport(filteredEntries, filteredExpenses, startDate, endDate, currency);
                 break;
             case 'client':
-                reportHtml = generateClientReport(filteredEntries, filteredExpenses, startDate, endDate);
+                reportHtml = generateClientReport(filteredEntries, filteredExpenses, startDate, endDate, currency);
                 break;
             case 'project':
-                reportHtml = generateProjectReport(filteredEntries, filteredExpenses, startDate, endDate);
+                reportHtml = generateProjectReport(filteredEntries, filteredExpenses, startDate, endDate, currency);
                 break;
             case 'expense':
-                reportHtml = generateExpenseReport(filteredExpenses, startDate, endDate);
+                reportHtml = generateExpenseReport(filteredExpenses, startDate, endDate, currency);
                 break;
             default:
                 reportHtml = '<p>Unknown report type selected.</p>';
@@ -3541,11 +3542,16 @@ function generateReport() {
     }
 }
 
-function generateSummaryReport(entries, expenses, startDate, endDate) {
+function generateSummaryReport(entries, expenses, startDate, endDate, currency = 'AUD') {
+    const useUsd = currency === 'USD';
     // Calculate summary metrics
     const totalHours = entries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
-    const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const totalRevenue = useUsd
+        ? entries.reduce((sum, entry) => sum + Number(entry.amountUsd || 0), 0)
+        : entries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const totalExpenses = useUsd
+        ? expenses.reduce((sum, exp) => sum + Number(exp.amountUsd || 0), 0)
+        : expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
     const netIncome = totalRevenue - totalExpenses;
     
     // Get unique clients and projects
@@ -3577,15 +3583,15 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
                     </div>
                     <div class="stats-card">
                         <div class="stats-label">Total Revenue</div>
-                        <div class="stats-value">${formatCurrency(totalRevenue)}</div>
+                        <div class="stats-value">${formatCurrency(totalRevenue, currency)}</div>
                     </div>
                     <div class="stats-card">
                         <div class="stats-label">Total Expenses</div>
-                        <div class="stats-value">${formatCurrency(totalExpenses)}</div>
+                        <div class="stats-value">${formatCurrency(totalExpenses, currency)}</div>
                     </div>
                     <div class="stats-card">
                         <div class="stats-label">Net Income</div>
-                        <div class="stats-value">${formatCurrency(netIncome)}</div>
+                        <div class="stats-value">${formatCurrency(netIncome, currency)}</div>
                     </div>
                 </div>
             </div>
@@ -3596,13 +3602,14 @@ function generateSummaryReport(entries, expenses, startDate, endDate) {
                 <p><strong>Number of Expenses:</strong> ${expenses.length}</p>
                 <p><strong>Clients Worked With:</strong> ${clients.length} (${clients.join(', ')})</p>
                 <p><strong>Projects Worked On:</strong> ${projects.length} (${projects.join(', ')})</p>
-                <p><strong>Average Hourly Rate:</strong> ${formatCurrency(totalHours > 0 ? totalRevenue / totalHours : 0)}</p>
+                <p><strong>Average Hourly Rate:</strong> ${formatCurrency(totalHours > 0 ? totalRevenue / totalHours : 0, currency)}</p>
             </div>
         </div>
     `;
 }
 
-function generateDetailedReport(entries, expenses, startDate, endDate) {
+function generateDetailedReport(entries, expenses, startDate, endDate, currency = 'AUD') {
+    const showUsd = currency === 'USD';
     // Sort entries by date
     const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
     
@@ -3640,8 +3647,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                         <th>Hours</th>
                         <th>Rate</th>
                         <th>Amount</th>
-                        <th>USD RATE</th>
-                        <th>AMOUNT (USD)</th>
+                        ${showUsd ? '<th>USD RATE</th><th>AMOUNT (USD)</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -3664,8 +3670,10 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                     <td>${entry.hours.toFixed(2)}</td>
                     <td>${formatCurrency(entry.rate)}</td>
                     <td>${formatCurrency(entry.amount)}</td>
+                    ${showUsd ? `
                     <td>${(entry.exchangeRateUsd !== null && entry.exchangeRateUsd !== undefined && entry.exchangeRateUsd !== 0 && !isNaN(entry.exchangeRateUsd)) ? entry.exchangeRateUsd.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
                     <td>${(entry.amountUsd !== null && entry.amountUsd !== undefined && entry.amountUsd !== 0 && !isNaN(entry.amountUsd)) ? ('$' + entry.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    ` : ''}
                 </tr>
             `;
         });
@@ -3678,6 +3686,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
                         <td><strong>${totalHours.toFixed(2)}</strong></td>
                         <td></td>
                         <td><strong>${formatCurrency(totalAmount)}</strong></td>
+                        ${showUsd ? '<td></td><td></td>' : ''}
                     </tr>
                 </tfoot>
             </table>
@@ -3692,7 +3701,7 @@ function generateDetailedReport(entries, expenses, startDate, endDate) {
     return html;
 }
 
-function generateClientReport(entries, expenses, startDate, endDate) {
+function generateClientReport(entries, expenses, startDate, endDate, currency = 'AUD') {
     // Calculate per-client metrics
     const clientData = {};
     
@@ -3820,7 +3829,7 @@ function generateClientReport(entries, expenses, startDate, endDate) {
     return html;
 }
 
-function generateProjectReport(entries, expenses, startDate, endDate) {
+function generateProjectReport(entries, expenses, startDate, endDate, currency = 'AUD') {
     // Calculate per-project metrics
     const projectData = {};
     
@@ -3943,7 +3952,8 @@ function generateProjectReport(entries, expenses, startDate, endDate) {
     return html;
 }
 
-function generateExpenseReport(expenses, startDate, endDate) {
+function generateExpenseReport(expenses, startDate, endDate, currency = 'AUD') {
+    const showUsd = currency === 'USD';
     // Sort expenses by date
     const sortedExpenses = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
     
@@ -3979,7 +3989,7 @@ function generateExpenseReport(expenses, startDate, endDate) {
                         <th>Client</th>
                         <th>Project</th>
                         <th>Amount</th>
-                        <th>Amount (USD)</th>
+                        ${showUsd ? '<th>Amount (USD)</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -3998,7 +4008,7 @@ function generateExpenseReport(expenses, startDate, endDate) {
                     <td>${escapeHtml(expense.client || '')}</td>
                     <td>${escapeHtml(expense.project || '')}</td>
                     <td>${formatCurrency(expense.amount)}</td>
-                    <td>${(expense.amountUsd !== null && expense.amountUsd !== undefined && expense.amountUsd !== 0 && !isNaN(expense.amountUsd)) ? ('$' + expense.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
+                    ${showUsd ? `<td>${(expense.amountUsd !== null && expense.amountUsd !== undefined && expense.amountUsd !== 0 && !isNaN(expense.amountUsd)) ? ('$' + expense.amountUsd.toFixed(2)) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>` : ''}
                 </tr>
             `;
         });
@@ -4009,6 +4019,7 @@ function generateExpenseReport(expenses, startDate, endDate) {
                     <tr>
                         <td colspan="4" style="text-align: right;"><strong>Total:</strong></td>
                         <td><strong>${formatCurrency(totalAmount)}</strong></td>
+                        ${showUsd ? '<td></td>' : ''}
                     </tr>
                 </tfoot>
             </table>
