@@ -372,6 +372,46 @@ tbody tr:hover {
     background-color: transparent;
 }
 
+.dropdown {
+    position: relative;
+    margin-left: auto;
+}
+
+.dropdown-toggle {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 16px 24px;
+    color: var(--secondary-text);
+}
+
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background-color: var(--card-background);
+    box-shadow: var(--card-shadow);
+    border-radius: var(--border-radius-small);
+    display: none;
+    z-index: 100;
+    min-width: 200px;
+}
+
+.dropdown-menu a {
+    display: block;
+    padding: 10px 16px;
+    color: var(--primary-text);
+    text-decoration: none;
+}
+
+.dropdown-menu a:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
 .tag {
     display: inline-block;
     padding: 4px 10px;
@@ -502,6 +542,14 @@ tbody tr:hover {
 .dark-mode .client-tag {
     color: #ff9f0a;
     background-color: rgba(255, 159, 10, 0.2);
+}
+
+.dark-mode .dropdown-menu {
+    background-color: #1c1c1e;
+}
+
+.dark-mode .dropdown-menu a:hover {
+    background-color: rgba(255,255,255,0.05);
 }
 
 /* Stats cards */
