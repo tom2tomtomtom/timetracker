@@ -3672,6 +3672,8 @@ function generateDetailedReport(entries, expenses, startDate, endDate, currency 
                         <th>Project</th>
                         <th>Hours</th>
                         <th>Rate</th>
+                        <th>Days</th>
+                        <th>Day Rate</th>
                         <th>Amount</th>
                         ${showUsd ? '<th>USD RATE</th><th>AMOUNT (USD)</th>' : ''}
                     </tr>
@@ -3680,11 +3682,13 @@ function generateDetailedReport(entries, expenses, startDate, endDate, currency 
         `;
         
         let totalHours = 0;
+        let totalDays = 0;
         let totalAmount = 0;
         
         sortedEntries.forEach(entry => {
             const entryDate = formatDate(entry.date);
             totalHours += Number(entry.hours);
+            totalDays += Number(entry.days);
             totalAmount += Number(entry.amount);
             
             html += `
@@ -3695,6 +3699,8 @@ function generateDetailedReport(entries, expenses, startDate, endDate, currency 
                     <td>${escapeHtml(entry.project || '')}</td>
                     <td>${entry.hours.toFixed(2)}</td>
                     <td>${formatCurrency(entry.rate)}</td>
+                    <td>${entry.days.toFixed(2)}</td>
+                    <td>${formatCurrency(entry.dayRate)}</td>
                     <td>${formatCurrency(entry.amount)}</td>
                     ${showUsd ? `
                     <td>${(entry.exchangeRateUsd !== null && entry.exchangeRateUsd !== undefined && entry.exchangeRateUsd !== 0 && !isNaN(entry.exchangeRateUsd)) ? entry.exchangeRateUsd.toFixed(6) : '<span style="color:#6c757d;font-style:italic;">Rate not yet available (try again tomorrow)</span>'}</td>
@@ -3710,6 +3716,8 @@ function generateDetailedReport(entries, expenses, startDate, endDate, currency 
                     <tr>
                         <td colspan="2" style="border: 1px solid #ddd; padding: 8px;"></td>
                         <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td></td>
+                        <td><strong>${totalDays.toFixed(2)}</strong></td>
                         <td></td>
                         <td><strong>${formatCurrency(totalAmount)}</strong></td>
                         ${showUsd ? '<td></td><td></td>' : ''}
@@ -4134,7 +4142,7 @@ function exportReportCSV() {
             csvContent += `Total Expenses,${totalExpenses}\n`;
             csvContent += `Net Income,${netIncome}\n`;
         } else if (reportType === 'detailed') {
-            const headers = ['Date','Description','Client','Project','Hours','Rate','Amount','USD RATE','AMOUNT (USD)'];
+            const headers = ['Date','Description','Client','Project','Hours','Rate','Days','Day Rate','Amount','USD RATE','AMOUNT (USD)'];
             csvContent += headers.join(',') + '\n';
             entries.sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(entry => {
                 const row = [
@@ -4144,6 +4152,8 @@ function exportReportCSV() {
                     '"' + (entry.project || '').replace(/"/g,'""') + '"',
                     entry.hours,
                     entry.rate,
+                    entry.days,
+                    entry.dayRate,
                     entry.amount,
                     (Number.isFinite(Number(entry.exchangeRateUsd)) ? Number(entry.exchangeRateUsd).toFixed(6) : ''),
                     (Number.isFinite(Number(entry.amountUsd)) ? ('$' + Number(entry.amountUsd).toFixed(2)) : '')
