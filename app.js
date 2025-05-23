@@ -1861,6 +1861,8 @@ function updateTimeEntriesTableWithData(entries) {
             <th>Project</th>
             <th>Hours</th>
             <th>Rate</th>
+            <th>Days</th>
+            <th>Day Rate</th>
             <th>Amount</th>
             <th>USD RATE</th>
             <th>AMOUNT (USD)</th>
