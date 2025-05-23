@@ -1928,6 +1928,20 @@ function updateTimeEntriesTableWithData(entries) {
         
         tableBody.appendChild(row);
     });
+
+    // Ensure edit and delete buttons respond to clicks even if delegated
+    tableBody.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const id = button.getAttribute('data-id');
+            deleteTimeEntry(id);
+        });
+    });
+    tableBody.querySelectorAll('.edit-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const id = button.getAttribute('data-id');
+            editTimeEntry(id);
+        });
+    });
     
 
 
