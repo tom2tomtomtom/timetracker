@@ -2299,9 +2299,12 @@ function editTimeEntry(id) {
     
     console.log("Found entry to edit:", entry);
     
-    // Ensure the record time panel is visible
-    if (typeof openPanelById === 'function') {
-        openPanelById('record-time-header');
+    // Ensure the record time panel is visible. openPanelById is defined in
+    // collapsible.js which exposes it on the window object. Because app.js is
+    // a module, the function isn't available in this scope unless accessed via
+    // `window`.
+    if (typeof window.openPanelById === 'function') {
+        window.openPanelById('record-time-header');
     }
 
     // Populate form fields
