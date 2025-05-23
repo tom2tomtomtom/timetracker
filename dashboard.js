@@ -202,7 +202,8 @@ export function updateDashboard(appState, dependencies) {
                     break;
                 case 'this-week':
                     from = new Date(today);
-                    from.setDate(from.getDate() - from.getDay()); // Start of week (Sunday)
+                    const diffToMonday = (from.getDay() + 6) % 7;
+                    from.setDate(from.getDate() - diffToMonday); // Start of week (Monday)
                     to = new Date(from);
                     to.setDate(to.getDate() + 7);
                     break;
@@ -325,7 +326,7 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
     
     // Group entries by week to get actual weeks worked
     if (entries.length > 0) {
-        // Map entries to weeks using ISO week numbering
+        // Map entries to weeks using Monday-Sunday weeks
         const weekMap = {};
         
         entries.forEach(entry => {
@@ -335,20 +336,13 @@ function updateDashboardStats(entries, expenses, startDate, endDate, settings, f
                 const entryDate = new Date(entry.date);
                 if (isNaN(entryDate.getTime())) return;
                 
-                // Get ISO year and week number
-                // Create a date string in YYYY-Www format for week identification
-                const year = entryDate.getFullYear();
-                
-                // Get week of year (ISO weeks)
-                // Get first day of year
-                const firstDayOfYear = new Date(year, 0, 1);
-                // Get day of year (1-indexed)
-                const dayOfYear = Math.floor((entryDate - firstDayOfYear) / (24 * 60 * 60 * 1000)) + 1;
-                // Calculate ISO week number
-                const weekNum = Math.ceil((dayOfYear + firstDayOfYear.getDay()) / 7);
-                
-                // Create week key
-                const weekKey = `${year}-W${weekNum}`;
+                // Determine Monday of the week so we group Monday-Sunday
+                const monday = new Date(entryDate);
+                const diffToMonday = (monday.getDay() + 6) % 7;
+                monday.setDate(monday.getDate() - diffToMonday);
+
+                // Use the Monday date as the week key (YYYY-MM-DD)
+                const weekKey = monday.toISOString().split('T')[0];
                 
                 if (!weekMap[weekKey]) {
                     weekMap[weekKey] = {
