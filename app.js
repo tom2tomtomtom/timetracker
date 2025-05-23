@@ -1408,6 +1408,7 @@ function setupReportListeners() {
     // Report generation
     addListener('generate-report', 'click', generateReport);
     addListener('export-report', 'click', exportReport);
+    addListener('export-report-csv', 'click', exportReportCSV);
     
     // Report date range
     addListener('report-date-range', 'change', () => {
@@ -4039,6 +4040,157 @@ function exportReport() {
     window.print();
     
     showNotification(`Report printed. Use browser's "Save as PDF" option to save it.`, "success");
+}
+
+function exportReportCSV() {
+    console.log("Export Report as CSV...");
+
+    try {
+        const reportType = document.getElementById('report-type')?.value || 'summary';
+        const dateRange = document.getElementById('report-date-range')?.value || 'this-month';
+        const client = document.getElementById('report-client')?.value || 'all';
+        const project = document.getElementById('report-project')?.value || 'all';
+        const invoiceStatus = document.getElementById('report-invoice-status')?.value || 'all';
+        const customFrom = document.getElementById('report-date-from')?.value || '';
+        const customTo = document.getElementById('report-date-to')?.value || '';
+
+        const { startDate, endDate } = getDateRangeFromOption(dateRange, customFrom, customTo);
+
+        let entries = [...appState.entries];
+        let expenses = [...appState.expenses];
+
+        if (startDate) {
+            entries = entries.filter(e => new Date(e.date) >= startDate);
+            expenses = expenses.filter(e => new Date(e.date) >= startDate);
+        }
+        if (endDate) {
+            entries = entries.filter(e => new Date(e.date) <= endDate);
+            expenses = expenses.filter(e => new Date(e.date) <= endDate);
+        }
+        if (client !== 'all') {
+            entries = entries.filter(e => e.client === client);
+            expenses = expenses.filter(e => e.client === client);
+        }
+        if (project !== 'all') {
+            entries = entries.filter(e => e.project === project);
+            expenses = expenses.filter(e => e.project === project);
+        }
+        if (invoiceStatus === 'invoiced') {
+            entries = entries.filter(e => e.invoiced);
+        } else if (invoiceStatus === 'paid') {
+            entries = entries.filter(e => e.paid);
+        } else if (invoiceStatus === 'not-invoiced') {
+            entries = entries.filter(e => !e.invoiced);
+        }
+
+        let csvContent = '';
+
+        if (reportType === 'summary') {
+            const totalHours = entries.reduce((sum, e) => sum + Number(e.hours || 0), 0);
+            const totalRevenue = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+            const totalExpenses = expenses.reduce((sum, ex) => sum + Number(ex.amount || 0), 0);
+            const netIncome = totalRevenue - totalExpenses;
+
+            csvContent += 'Metric,Value\n';
+            csvContent += `Total Hours,${totalHours.toFixed(2)}\n`;
+            csvContent += `Total Revenue,${totalRevenue}\n`;
+            csvContent += `Total Expenses,${totalExpenses}\n`;
+            csvContent += `Net Income,${netIncome}\n`;
+        } else if (reportType === 'detailed') {
+            const headers = ['Date','Description','Client','Project','Hours','Rate','Amount','USD RATE','AMOUNT (USD)'];
+            csvContent += headers.join(',') + '\n';
+            entries.sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(entry => {
+                const row = [
+                    entry.date,
+                    '"' + (entry.description || '').replace(/"/g,'""') + '"',
+                    '"' + (entry.client || '').replace(/"/g,'""') + '"',
+                    '"' + (entry.project || '').replace(/"/g,'""') + '"',
+                    entry.hours,
+                    entry.rate,
+                    entry.amount,
+                    (Number.isFinite(Number(entry.exchangeRateUsd)) ? Number(entry.exchangeRateUsd).toFixed(6) : ''),
+                    (Number.isFinite(Number(entry.amountUsd)) ? ('$' + Number(entry.amountUsd).toFixed(2)) : '')
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+        } else if (reportType === 'client' || reportType === 'project') {
+            const dataMap = {};
+            const keyProp = reportType === 'client' ? 'client' : 'project';
+            entries.forEach(entry => {
+                const key = entry[keyProp] || 'Unassigned';
+                if (!dataMap[key]) {
+                    dataMap[key] = { hours:0, revenue:0, expenses:0, other:'' };
+                    if (reportType === 'project') dataMap[key].client = entry.client || 'Unknown';
+                }
+                dataMap[key].hours += Number(entry.hours);
+                dataMap[key].revenue += Number(entry.amount);
+                if (reportType === 'client' && entry.project) {
+                    dataMap[key].other = dataMap[key].other ? dataMap[key].other + '; ' + entry.project : entry.project;
+                }
+            });
+            expenses.forEach(exp => {
+                const key = exp[keyProp] || 'Unassigned';
+                if (!dataMap[key]) {
+                    dataMap[key] = { hours:0, revenue:0, expenses:0, other:'' };
+                    if (reportType === 'project') dataMap[key].client = exp.client || 'Unknown';
+                }
+                dataMap[key].expenses += Number(exp.amount);
+            });
+            const headers = reportType === 'client'
+                ? ['Client','Hours','Revenue','Expenses','Net Income','Projects']
+                : ['Project','Client','Hours','Revenue','Expenses','Net Income'];
+            csvContent += headers.join(',') + '\n';
+            Object.keys(dataMap).sort().forEach(key => {
+                const d = dataMap[key];
+                const row = reportType === 'client'
+                    ? [
+                        '"'+key.replace(/"/g,'""')+'"',
+                        d.hours.toFixed(2),
+                        d.revenue,
+                        d.expenses,
+                        d.revenue - d.expenses,
+                        '"'+(d.other||'')+'"'
+                    ]
+                    : [
+                        '"'+key.replace(/"/g,'""')+'"',
+                        '"'+(d.client||'').replace(/"/g,'""')+'"',
+                        d.hours.toFixed(2),
+                        d.revenue,
+                        d.expenses,
+                        d.revenue - d.expenses
+                    ];
+                csvContent += row.join(',') + '\n';
+            });
+        } else if (reportType === 'expense') {
+            const headers = ['Date','Description','Client','Project','Amount','Amount (USD)'];
+            csvContent += headers.join(',') + '\n';
+            expenses.sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(exp => {
+                const row = [
+                    exp.date,
+                    '"'+(exp.description||'').replace(/"/g,'""')+'"',
+                    '"'+(exp.client||'').replace(/"/g,'""')+'"',
+                    '"'+(exp.project||'').replace(/"/g,'""')+'"',
+                    exp.amount,
+                    (Number.isFinite(Number(exp.amountUsd)) ? ('$' + Number(exp.amountUsd).toFixed(2)) : '')
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+        }
+
+        if (!csvContent) {
+            showNotification('No data to export', 'error');
+            return;
+        }
+
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const filename = `report_${reportType}_${dateStr}.csv`;
+        triggerDownload(csvContent, filename, 'text/csv');
+        showNotification('Report CSV exported', 'success');
+    } catch (error) {
+        console.error('Error exporting report CSV:', error);
+        showNotification('Failed to export report CSV', 'error');
+    }
 }
 
 // --- Database Setup Check ---
