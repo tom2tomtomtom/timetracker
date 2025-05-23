@@ -23,6 +23,19 @@ function togglePanel(header) {
   panel.style.display = expanded ? 'none' : 'block';
 }
 
+// Programmatically open a panel by header ID
+function openPanelById(headerId) {
+  const header = document.getElementById(headerId);
+  if (!header) return;
+  const panel = header.nextElementSibling;
+  if (!panel || !panel.classList.contains('collapsible-panel')) return;
+  header.setAttribute('aria-expanded', 'true');
+  panel.style.display = 'block';
+}
+
+// Expose helper globally for other scripts
+window.openPanelById = openPanelById;
+
 // Optionally, collapse all panels on load
 window.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.collapsible-panel').forEach(panel => {
