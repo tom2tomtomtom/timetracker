@@ -2299,6 +2299,11 @@ function editTimeEntry(id) {
     
     console.log("Found entry to edit:", entry);
     
+    // Ensure the record time panel is visible
+    if (typeof openPanelById === 'function') {
+        openPanelById('record-time-header');
+    }
+
     // Populate form fields
     document.getElementById('date').value = entry.date;
     document.getElementById('description').value = entry.description;
