@@ -28,4 +28,25 @@ window.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.collapsible-panel').forEach(panel => {
     panel.style.display = 'none';
   });
+
+  const menuToggle = document.getElementById('tracking-menu-toggle');
+  const menu = document.getElementById('tracking-menu');
+  if (menuToggle && menu) {
+    menuToggle.addEventListener('click', () => {
+      menu.classList.toggle('show');
+    });
+
+    document.querySelectorAll('#tracking-menu a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        menu.classList.remove('show');
+        const headerId = link.getAttribute('data-header');
+        const header = document.getElementById(headerId);
+        if (header) {
+          togglePanel(header);
+          header.scrollIntoView({behavior: 'smooth'});
+        }
+      });
+    });
+  }
 });
